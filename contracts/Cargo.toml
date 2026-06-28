@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "proof-registry",
+    "verifier-gate",
+    "defi-mock",
+    "tests",
+]
+resolver = "2"
