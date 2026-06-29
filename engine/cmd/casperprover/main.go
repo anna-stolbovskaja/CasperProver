@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 
@@ -12,6 +13,10 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})))
+
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(1)
@@ -63,16 +68,17 @@ func demoVerify(eng *prover.ProofEngine) {
 	v := verifier.New()
 	err := v.VerifyProof(p, input, output, model)
 	if err != nil {
-		fmt.Printf("FAIL: %v\n", err)
+		slog.Error("verification failed", "error", err, "proof_id", p.ID)
 		os.Exit(1)
 	}
+	slog.Info("verification passed", "proof_id", p.ID)
 	fmt.Printf("OK: proof %s verified\n", p.ID)
 }
 
 func demoFlow(eng *prover.ProofEngine) {
 	flow := kyc.NewDeFiFlow(eng)
 	if err := flow.RunDemo("demo-agent"); err != nil {
-		fmt.Fprintf(os.Stderr, "demo failed: %v\n", err)
+		slog.Error("demo flow failed", "error", err)
 		os.Exit(1)
 	}
 }
@@ -86,7 +92,7 @@ func serve(eng *prover.ProofEngine) {
 	}
 	srv := api.New(eng, port)
 	if err := srv.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		slog.Error("server stopped", "error", err)
 		os.Exit(1)
 	}
 }

@@ -2,12 +2,14 @@ package prover
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 )
 
 type ProofEngine struct {
+	mu     sync.RWMutex
 	proofs map[string]*Proof
 	seq    int
 }
@@ -17,6 +19,9 @@ func New() *ProofEngine {
 }
 
 func (e *ProofEngine) Generate(agent string, input, output, model []byte, uc string) *Proof {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	e.seq++
 	pid := fmt.Sprintf("P-%d", e.seq)
 	ph := hasher.CommitHash(input, output, model)
@@ -47,11 +52,15 @@ func (e *ProofEngine) Generate(agent string, input, output, model []byte, uc str
 }
 
 func (e *ProofEngine) Get(pid string) (*Proof, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	p, ok := e.proofs[pid]
 	return p, ok
 }
 
 func (e *ProofEngine) Revoke(pid, reason string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	p, ok := e.proofs[pid]
 	if !ok {
 		return fmt.Errorf("proof %s not found", pid)
@@ -65,6 +74,8 @@ func (e *ProofEngine) Revoke(pid, reason string) error {
 }
 
 func (e *ProofEngine) Verify(pid string) (bool, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	p, ok := e.proofs[pid]
 	if !ok {
 		return false, fmt.Errorf("proof %s not found", pid)
@@ -73,6 +84,8 @@ func (e *ProofEngine) Verify(pid string) (bool, error) {
 }
 
 func (e *ProofEngine) List() []*Proof {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	out := make([]*Proof, 0, len(e.proofs))
 	for _, p := range e.proofs {
 		out = append(out, p)

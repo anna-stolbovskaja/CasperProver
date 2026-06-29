@@ -70,3 +70,56 @@ func TestOddLeaves(t *testing.T) {
 		t.Fatal("odd leaves failed")
 	}
 }
+
+func TestSingleLeaf(t *testing.T) {
+	leaves := [][]byte{[]byte("only")}
+	r := Root(leaves)
+	if len(r) != 64 {
+		t.Fatalf("single leaf root: got len %d", len(r))
+	}
+}
+
+func TestVerifyAllLeaves(t *testing.T) {
+	leaves := [][]byte{[]byte("w"), []byte("x"), []byte("y"), []byte("z")}
+	root := Root(leaves)
+	for i, leaf := range leaves {
+		path := GetPath(leaves, i)
+		if !VerifyPath(leaf, path, root, i) {
+			t.Fatalf("leaf %d failed verification", i)
+		}
+	}
+}
+
+func TestDifferentLeavesDifferentRoots(t *testing.T) {
+	r1 := Root([][]byte{[]byte("a"), []byte("b")})
+	r2 := Root([][]byte{[]byte("c"), []byte("d")})
+	if r1 == r2 {
+		t.Fatal("different leaves should give different roots")
+	}
+}
+
+func TestPathLengthPowerOfTwo(t *testing.T) {
+	leaves := [][]byte{[]byte("1"), []byte("2"), []byte("3"), []byte("4")}
+	path := GetPath(leaves, 0)
+	// For 4 leaves (depth 2), path should have 2 siblings
+	if len(path) != 2 {
+		t.Fatalf("expected path length 2 for 4 leaves, got %d", len(path))
+	}
+}
+
+func TestLargerTree(t *testing.T) {
+	leaves := make([][]byte, 16)
+	for i := range leaves {
+		leaves[i] = []byte{byte(i)}
+	}
+	root := Root(leaves)
+	if len(root) != 64 {
+		t.Fatal("bad root")
+	}
+	for i, leaf := range leaves {
+		path := GetPath(leaves, i)
+		if !VerifyPath(leaf, path, root, i) {
+			t.Fatalf("leaf %d failed", i)
+		}
+	}
+}

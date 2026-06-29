@@ -1,23 +1,16 @@
 name: check
 on: [push, pull_request]
 jobs:
-  go:
+  go-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-      - run: cd engine && go test ./... -v
+      - run: cd engine && go test -race -v ./...
 
-  contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - run: cd contracts && cargo test
-
-  vet:
+  go-vet:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,3 +18,33 @@ jobs:
         with:
           go-version: "1.22"
       - run: cd engine && go vet ./...
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: engine
+
+  build-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cd contracts/proof-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/verifier-gate && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/defi-mock && cargo build --release --target wasm32-unknown-unknown --no-default-features
+
+  test-contracts:
+    runs-on: ubuntu-latest
+    needs: build-contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cd contracts/tests && cargo test --release

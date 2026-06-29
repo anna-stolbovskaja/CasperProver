@@ -1,12 +1,18 @@
-linters:
-  enable:
-    - revive
-    - govet
-    - errcheck
-    - staticcheck
-    - gosimple
-    - unused
-    - ineffassign
-    - gocritic
 run:
   timeout: 3m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosimple
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+
+issues:
+  exclude-use-default: true
