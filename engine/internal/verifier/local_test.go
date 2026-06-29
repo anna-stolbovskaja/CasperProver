@@ -32,7 +32,7 @@ func TestVerifyRevokedProof(t *testing.T) {
 	v, eng := setup()
 	in, out, m := []byte("i"), []byte("o"), []byte("m")
 	p := eng.Generate("a", in, out, m, "uc")
-	eng.Revoke(p.ID, "bad")
+	_ = eng.Revoke(p.ID, "bad")
 	rp, _ := eng.Get(p.ID)
 	err := v.VerifyProof(rp, in, out, m)
 	if err == nil {

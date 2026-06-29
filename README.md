@@ -70,7 +70,11 @@ The commit hash `c = root` is submitted to the `proof-registry` contract. Verifi
 - Compact: proof size is `O(log n)` relative to the number of leaves.
 - On-chain verifiable: the contracts store roots and emit verification events.
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## What this solves
 
@@ -82,7 +86,11 @@ AI agents make decisions that affect real assets — KYC approvals, credit scori
 
 Comparable systems we found either require full replay (expensive), use opaque attestation services (not independently verifiable), or target ZK circuits (different trust model, much higher complexity). CasperProver sits in the middle: lightweight Merkle proofs with on-chain verification, no trusted setup.
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Quickstart
 
@@ -126,7 +134,11 @@ curl http://localhost:8080/health
 > [!TIP]
 > The engine runs standalone — no Casper node required for proof generation and local verification. On-chain submission needs `config.toml` with a valid node URL and deployer key.
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Architecture
 
@@ -155,7 +167,11 @@ flowchart LR
 
 Full diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Contracts
 
@@ -214,7 +230,11 @@ cargo +nightly build --release --target wasm32-unknown-unknown --no-default-feat
 
 Security: 18 findings reviewed. Risk score 2/10. See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Engine
 
@@ -264,7 +284,11 @@ Response:
 }
 ```
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Tests
 
@@ -289,7 +313,11 @@ cd contracts/tests && cargo test --release
 
 CI: `go test -race` → `go vet` → `golangci-lint` → WASM build → `cargo test`.
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Scope
 
@@ -310,7 +338,11 @@ CI: `go test -race` → `go vet` → `golangci-lint` → WASM build → `cargo t
 | Multi-model proof trees | 🗺 planned | — |
 | Mainnet deployment | 🗺 planned | pending audit |
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Alternatives
 
@@ -325,7 +357,11 @@ CI: `go test -race` → `go vet` → `golangci-lint` → WASM build → `cargo t
 
 CasperProver is not a replacement for ZK proofs. It targets a different point in the design space: lower complexity, no trusted setup, sufficient for audit trails and DeFi gating where the threat model is "did the agent run this model on this input?" rather than "prove arbitrary computation."
 
+<div align="right">
+
 [![][back-to-top]](#readme-top)
+
+</div>
 
 ## Structure
 

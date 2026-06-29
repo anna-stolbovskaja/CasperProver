@@ -109,6 +109,8 @@ func (s *CasperSubmitter) Revoke(pid, reason string) (string, error) {
 			DeployHash string `json:"deploy_hash"`
 		} `json:"result"`
 	}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
 	return result.Result.DeployHash, nil
 }

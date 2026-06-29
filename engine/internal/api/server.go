@@ -64,12 +64,12 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": "0.1.0"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": "0.1.0"})
 }
 
 func (s *Server) listProofs(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.eng.List())
+	_ = json.NewEncoder(w).Encode(s.eng.List())
 }
 
 func (s *Server) getProof(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +84,7 @@ func (s *Server) getProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(p)
+	_ = json.NewEncoder(w).Encode(p)
 }
 
 func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
@@ -115,11 +115,11 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(p)
+	_ = json.NewEncoder(w).Encode(p)
 }
 
 func (s *Server) jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }

@@ -52,7 +52,7 @@ func TestRevoke(t *testing.T) {
 func TestDoubleRevoke(t *testing.T) {
 	eng := New()
 	eng.Generate("a", []byte("1"), []byte("2"), []byte("3"), "uc")
-	eng.Revoke("P-1", "r1")
+	_ = eng.Revoke("P-1", "r1")
 	err := eng.Revoke("P-1", "r2")
 	if err == nil {
 		t.Fatal("double revoke should fail")
@@ -71,7 +71,7 @@ func TestVerify(t *testing.T) {
 func TestVerifyRevoked(t *testing.T) {
 	eng := New()
 	eng.Generate("a", []byte("1"), []byte("2"), []byte("3"), "uc")
-	eng.Revoke("P-1", "r")
+	_ = eng.Revoke("P-1", "r")
 	ok, _ := eng.Verify("P-1")
 	if ok {
 		t.Fatal("revoked should not verify")
