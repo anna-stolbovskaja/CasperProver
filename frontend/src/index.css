@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { background: #080808; overflow-x: hidden; }
+
+  /* Focus visible for keyboard nav */
+  :focus-visible {
+    outline: 2px solid #E53935;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #080808; }
+  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #555; }
+}
+
+@layer components {
+  .cp-card {
+    @apply bg-cp-card border border-cp-border rounded-xl p-6 transition-all duration-300;
+  }
+  .cp-card:hover {
+    border-color: rgba(229, 57, 53, 0.3);
+    box-shadow: 0 0 20px rgba(229, 57, 53, 0.08);
+  }
+  .cp-btn-primary {
+    @apply inline-flex items-center gap-2 bg-cp-red text-white font-semibold px-6 py-3 rounded-full cursor-pointer transition-all duration-200;
+  }
+  .cp-btn-primary:hover {
+    @apply bg-cp-red-bright;
+    box-shadow: 0 0 20px rgba(229, 57, 53, 0.4);
+  }
+  .cp-btn-outline {
+    @apply inline-flex items-center gap-2 border border-cp-border text-white font-medium px-6 py-3 rounded-full cursor-pointer transition-all duration-200;
+  }
+  .cp-btn-outline:hover {
+    @apply border-cp-gray text-white;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .cp-icon-circle {
+    @apply w-12 h-12 rounded-full flex items-center justify-center shrink-0;
+    background: rgba(229, 57, 53, 0.12);
+    border: 1px solid rgba(229, 57, 53, 0.2);
+  }
+  .cp-section {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .cp-gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-cp-red to-cp-red-bright;
+  }
+}
+
+/* Smoke / haze effect behind mascot */
+.smoke-effect {
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  top: -10%;
+  left: -10%;
+  background: radial-gradient(ellipse at center, rgba(229, 57, 53, 0.25) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: smoke 12s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.smoke-effect-blue {
+  background: radial-gradient(ellipse at center, rgba(53, 100, 229, 0.2) 0%, transparent 70%);
+  animation-delay: -4s;
+}
+
+.smoke-effect-purple {
+  background: radial-gradient(ellipse at center, rgba(153, 53, 229, 0.15) 0%, transparent 70%);
+  animation-delay: -8s;
+}
+
+/* Spark particles */
+@keyframes spark {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  50% { opacity: 1; transform: translateY(-20px) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0); }
+}
+
+.spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #E53935;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(229, 57, 53, 0.6);
+  animation: spark 2s ease-out infinite;
+  pointer-events: none;
+}
