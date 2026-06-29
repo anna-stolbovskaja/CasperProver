@@ -56,7 +56,7 @@ func TestDemoIsWhitelisted(t *testing.T) {
 	}
 
 	p := eng.Generate("agent", []byte("i"), []byte("o"), []byte("m"), "kyc")
-	_ = demo.GrantAccess("alice", p.ID)
+	_, _ = demo.GrantAccess("alice", p.ID)
 	if !demo.IsWhitelisted("alice") {
 		t.Fatal("alice should be whitelisted after grant")
 	}
