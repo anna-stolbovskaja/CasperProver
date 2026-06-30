@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -33,6 +33,8 @@ function Landing() {
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const closeMobile = useCallback(() => setMobileOpen(false), [])
+  const location = useLocation()
+  const isDashboard = location.pathname === '/dashboard'
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -42,7 +44,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
       <ScrollToTop />
-      <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      {!isDashboard && <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}
       <main className="flex-1" onClick={mobileOpen ? closeMobile : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -50,7 +52,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
+      {!isDashboard && <Footer />}
     </div>
   )
 }
