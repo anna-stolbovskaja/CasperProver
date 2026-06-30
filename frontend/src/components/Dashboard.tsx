@@ -7,6 +7,8 @@ import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof }
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
 import { connectWallet, disconnectWallet, shortKey } from '../lib/wallet'
 import type { WalletState } from '../lib/wallet'
+import Navbar from './Navbar'
+import Footer from './Footer'
 
 const REGISTRY = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
 const EXPLORER = 'https://testnet.cspr.live/contract/'
@@ -63,6 +65,7 @@ const STEPS = ['Hashing inputs', 'Building Merkle tree', 'Generating proof', 'An
 type Tab = 'overview' | 'generate' | 'proofs' | 'demo' | 'verify'
 
 export default function Dashboard() {
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('overview')
   const [proofs, setProofs] = useState<ProofRecord[]>([])
   const [total, setTotal] = useState(0)
@@ -184,19 +187,16 @@ export default function Dashboard() {
   }
 
   const totalPages = Math.ceil(total / LIMIT)
+  const closeMobile = useCallback(() => setMobileOpen(false), [])
 
-  const NAV_LINKS = [
-    { label: 'Home', href: '/#home' },
-    { label: 'Features', href: '/#features' },
-    { label: 'Pipeline', href: '/#pipeline' },
-    { label: 'Demo', href: '/#demo' },
-    { label: 'SDK', href: '/#sdk' },
-    { label: 'FAQ', href: '/#faq' },
-  ]
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
 
   return (
-    <div className="min-h-screen bg-cp-black">
-      {/* Global Navbar handles nav — no duplicate nav here */}
+    <div className="min-h-screen flex flex-col bg-cp-black">
+      <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="cp-section py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -628,6 +628,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   )
 }
