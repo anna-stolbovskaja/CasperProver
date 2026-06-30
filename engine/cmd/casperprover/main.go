@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,6 +13,10 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 )
+
+func base64Decode(dst, src []byte) (int, error) {
+	return base64.StdEncoding.Decode(dst, src)
+}
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
@@ -85,6 +90,19 @@ func demoFlow(eng *prover.ProofEngine) {
 }
 
 func serve(eng *prover.ProofEngine) {
+	// write deployer key from env to temp file if provided
+	if keyB64 := os.Getenv("DEPLOYER_KEY_B64"); keyB64 != "" {
+		decoded := make([]byte, len(keyB64))
+		n, err := base64Decode(decoded, []byte(keyB64))
+		if err == nil {
+			keyPath := "/tmp/deployer.pem"
+			if err := os.WriteFile(keyPath, decoded[:n], 0600); err == nil {
+				os.Setenv("DEPLOYER_KEY_PATH", keyPath)
+				slog.Info("deployer key written from env", "path", keyPath)
+			}
+		}
+	}
+
 	// try connecting to PostgreSQL
 	var db *store.PG
 	pg, err := store.Open()
