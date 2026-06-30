@@ -221,12 +221,12 @@ export default function Dashboard() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
           {([
-            ['overview', 'Overview', BarChart3],
-            ['generate', 'Generate', Shield],
-            ['proofs', 'Proofs', Layers],
-            ['demo', 'Use Cases', Eye],
-            ['verify', 'Verify', Search],
-          ] as const).map(([key, label, Icon]) => (
+            ['overview', 'Overview', BarChart3, true],
+            ['generate', 'Generate', Shield, false],
+            ['proofs', 'Proofs', Layers, true],
+            ['demo', 'Use Cases', Eye, true],
+            ['verify', 'Verify', Search, false],
+          ] as const).map(([key, label, Icon, isDemo]) => (
             <button
               key={key}
               onClick={() => setTab(key as Tab)}
@@ -235,9 +235,20 @@ export default function Dashboard() {
               }`}
             >
               <Icon className="w-4 h-4" /> {label}
+              {isDemo && <span className="px-1 py-0.5 rounded text-[9px] font-bold tracking-wide bg-amber-500/20 text-amber-400 border border-amber-500/30">DEMO</span>}
             </button>
           ))}
         </div>
+
+        {/* Demo notice */}
+        {(['overview', 'proofs', 'demo'] as Tab[]).includes(tab) && (
+          <div className="mb-4 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-start gap-3">
+            <span className="mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">DEMO</span>
+            <p className="text-xs text-amber-300/70 leading-relaxed">
+              <span className="font-semibold text-amber-300">Testnet Demo Environment.</span> This tab shows pre-seeded proof records to demonstrate CasperProver’s capabilities. These are realistic AI decision proofs — the same cryptographic structure anchored on the Casper testnet in production. Use the Generate and Verify tabs to create and validate real on-chain proofs.
+            </p>
+          </div>
+        )}
 
         {/* === OVERVIEW TAB === */}
         {tab === 'overview' && (
