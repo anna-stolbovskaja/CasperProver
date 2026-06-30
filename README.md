@@ -13,7 +13,7 @@
 [![Casper 2.x](https://img.shields.io/badge/Casper-2.x-FF0000.svg?style=flat-square)](https://casper.network)
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 
-[Landing](https://anna-stolbovskaja.github.io/CasperProver/) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md)
+[Landing](https://casperprover.xyz) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md)
 
 </div>
 
@@ -397,8 +397,11 @@ CasperProver/
 
 [Mozilla Public License 2.0](LICENSE)
 
-Testnet keys only. Do not commit deployer secrets. See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+testnet only. do not commit deployer secrets. see [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
 
-*Verified against commit `check.yml` pass, 2026-06-29.*
+```
+casper agentic buildathon 2026
+casperprover.xyz | testnet.cspr.live
+```
 
 [back-to-top]: https://img.shields.io/badge/-BACK_TO_TOP-151515?style=flat-square

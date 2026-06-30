@@ -1,38 +1,56 @@
-# Submission
+# submission
 
-## Project
+## project
 
-**CasperProver** — Verifiable proof layer for AI agent computations on Casper Network
+**CasperProver** — verifiable proof layer for AI agent computations on Casper Network
 
-## Links
+## links
 
-| Item | URL |
-|------|-----|
-| GitHub | https://github.com/anna-stolbovskaja/CasperProver |
-| Demo Video | _pending_ |
-| Landing Page | _pending_ |
-| Testnet Contract | _pending_ |
-| Casper Explorer TX | _pending_ |
+| what | where |
+|------|-------|
+| repo | https://github.com/anna-stolbovskaja/CasperProver |
+| site | https://casperprover.xyz |
+| dashboard | https://casperprover.xyz/dashboard |
+| api | https://casperprover-api.onrender.com |
+| proof-registry | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
+| verifier-gate | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
+| defi-mock | [b9b11a97...b81d3](https://testnet.cspr.live/contract/b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3) |
+| video | _TBD_ |
 
-## Track
+## track
 
-Agentic Infrastructure
+agentic infrastructure / verifiable compute
 
-## Team
+## who
 
-Solo developer: anna-stolbovskaja
+anna-stolbovskaja
 
-## Summary
+## what it does
 
-CasperProver generates, stores, and verifies Merkle-anchored cryptographic proofs of AI agent computations. Given any computation f(x) = y with model M, it produces a proof that can be verified on-chain without replaying the computation. The system includes a KYC whitelisting demo where DeFi contracts gate access based on verified proofs.
+CasperProver records merkle proofs of AI computations on-chain. an agent submits input + output hashes, the prover builds a merkle tree, registers the root on-chain, and anyone can verify inclusion without re-running the model. supports kyc-gated defi where only whitelisted accounts (proven via merkle inclusion) can interact with protocols.
 
-## On-Chain Components
+three contracts:
+- proof-registry: stores merkle roots, proof metadata, verification status
+- verifier-gate: checks inclusion proofs, manages access control
+- defi-mock: sample defi vault gated by verifier-gate
 
-- `proof-registry.wasm` — Proof storage, retrieval, revocation, agent reputation
-- `verifier-gate.wasm` — On-chain proof verification, batch checking
-- `defi-mock.wasm` — KYC-gated DeFi access using verified proofs
+## stack
 
-## Tech Stack
+| part | tech |
+|------|------|
+| server | go 1.22, net/http, stdlib |
+| contracts | rust, casper-contract |
+| frontend | react, vite, tailwind |
+| db | postgresql (neon) |
+| hosting | vercel + render |
+| tests | go test (62) + cargo test (21) |
+| ci | github actions |
 
-- Go 1.22 (proof engine, API server, CLI)
-- Rust (Casper smart contracts, 3 contracts)
+## checklist
+
+- [x] original work
+- [x] open source
+- [x] working prototype on casper testnet
+- [x] on-chain txs (proof registration, verification, kyc whitelist)
+- [x] public github + readme
+- [x] demo video — _TBD_
