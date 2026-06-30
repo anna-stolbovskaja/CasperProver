@@ -9,6 +9,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 )
 
@@ -84,8 +85,37 @@ func demoFlow(eng *prover.ProofEngine) {
 }
 
 func serve(eng *prover.ProofEngine) {
-	eng.SeedDemoData()
-	slog.Info("seeded demo data", "count", len(eng.List()))
+	// try connecting to PostgreSQL
+	var db *store.PG
+	pg, err := store.Open()
+	if err != nil {
+		slog.Warn("postgres unavailable, using in-memory only", "err", err)
+	} else if pg != nil {
+		db = pg
+		defer db.Close()
+		loaded, err := db.Load(eng)
+		if err != nil {
+			slog.Warn("failed to load proofs from db", "err", err)
+		} else {
+			slog.Info("loaded proofs from postgres", "count", loaded)
+		}
+	}
+
+	// seed demo data only if engine is empty
+	if len(eng.List()) == 0 {
+		eng.SeedDemoData()
+		slog.Info("seeded demo data", "count", len(eng.List()))
+
+		// persist seeds to db
+		if db != nil {
+			for _, p := range eng.List() {
+				_ = db.Save(p)
+			}
+			slog.Info("persisted seed data to postgres")
+		}
+	} else {
+		slog.Info("skipped seeding, engine has data", "count", len(eng.List()))
+	}
 
 	port := 8080
 	if v := os.Getenv("API_PORT"); v != "" {
@@ -93,7 +123,7 @@ func serve(eng *prover.ProofEngine) {
 			port = p
 		}
 	}
-	srv := api.New(eng, port)
+	srv := api.New(eng, port, db)
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)

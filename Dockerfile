@@ -1,6 +1,7 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /src
 COPY engine/ .
+RUN go mod tidy
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /casperprover ./cmd/casperprover
 
 FROM scratch

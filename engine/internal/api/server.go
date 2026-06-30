@@ -11,6 +11,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 )
 
@@ -18,16 +19,18 @@ type Server struct {
 	eng   *prover.ProofEngine
 	ver   *verifier.LocalVerifier
 	kyc   *kyc.DemoKYC
+	db    *store.PG
 	port  int
 	log   *slog.Logger
 	start time.Time
 }
 
-func New(eng *prover.ProofEngine, port int) *Server {
+func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	return &Server{
 		eng:   eng,
 		ver:   verifier.New(),
 		kyc:   kyc.NewDemo(eng),
+		db:    db,
 		port:  port,
 		log:   slog.Default(),
 		start: time.Now(),
@@ -184,6 +187,7 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 		p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 	}
 
+	s.persist(p)
 	s.log.Info("proof generated", "id", p.ID, "agent", req.Agent, "use_case", req.UseCase, "mode", mode, "ms", p.GenMs)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -226,6 +230,7 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 		if mode == "anchored" {
 			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 		}
+		s.persist(p)
 		results = append(results, p)
 	}
 
@@ -299,6 +304,10 @@ func (s *Server) revokeProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if p, ok := s.eng.Get(pid); ok {
+		s.persistUpdate(p)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"proof_id": pid,
@@ -369,6 +378,10 @@ func (s *Server) kycGrant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.db != nil {
+		_ = s.db.SaveKYC(req.User, req.ProofID, time.Now().Unix())
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(access)
 }
@@ -381,6 +394,22 @@ func (s *Server) kycWhitelist(w http.ResponseWriter, r *http.Request) {
 		"user":        user,
 		"whitelisted": ok,
 	})
+}
+
+func (s *Server) persist(p *prover.Proof) {
+	if s.db != nil {
+		if err := s.db.Save(p); err != nil {
+			s.log.Warn("db save failed", "id", p.ID, "err", err)
+		}
+	}
+}
+
+func (s *Server) persistUpdate(p *prover.Proof) {
+	if s.db != nil {
+		if err := s.db.Update(p); err != nil {
+			s.log.Warn("db update failed", "id", p.ID, "err", err)
+		}
+	}
 }
 
 func (s *Server) jsonError(w http.ResponseWriter, msg string, code int) {

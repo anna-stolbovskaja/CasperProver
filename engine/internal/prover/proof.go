@@ -162,6 +162,20 @@ func (e *ProofEngine) ListFiltered(f ListFilter) ([]*Proof, int) {
 	return filtered[start:end], total
 }
 
+// Restore adds a pre-built proof to the engine (used for DB loading).
+func (e *ProofEngine) Restore(p *Proof) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	cp := *p
+	e.proofs[cp.ID] = &cp
+
+	var n int
+	if _, err := fmt.Sscanf(cp.ID, "P-%d", &n); err == nil && n > e.seq {
+		e.seq = n
+	}
+}
+
 func (e *ProofEngine) GetStats() *Stats {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
