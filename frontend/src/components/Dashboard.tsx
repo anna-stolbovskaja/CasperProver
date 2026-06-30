@@ -7,8 +7,7 @@ import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof }
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
 import { connectWallet, disconnectWallet, shortKey } from '../lib/wallet'
 import type { WalletState } from '../lib/wallet'
-import Navbar from './Navbar'
-import Footer from './Footer'
+/* Navbar and Footer rendered by App.tsx */
 
 const REGISTRY = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
 const EXPLORER = 'https://testnet.cspr.live/contract/'
@@ -196,8 +195,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-cp-black">
-      <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className="cp-section py-8 pt-24">
+      <div className="cp-section py-8 pt-20">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -221,12 +219,12 @@ export default function Dashboard() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
           {([
-            ['overview', 'Overview', BarChart3, true],
-            ['generate', 'Generate', Shield, false],
-            ['proofs', 'Proofs', Layers, true],
-            ['demo', 'Use Cases', Eye, true],
-            ['verify', 'Verify', Search, false],
-          ] as const).map(([key, label, Icon, isDemo]) => (
+            ['overview', 'Overview', BarChart3],
+            ['generate', 'Generate', Shield],
+            ['proofs', 'Proofs', Layers],
+            ['demo', 'Use Cases', Eye],
+            ['verify', 'Verify', Search],
+          ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
               onClick={() => setTab(key as Tab)}
@@ -235,7 +233,6 @@ export default function Dashboard() {
               }`}
             >
               <Icon className="w-4 h-4" /> {label}
-              {isDemo && <span className="px-1 py-0.5 rounded text-[9px] font-bold tracking-wide bg-amber-500/20 text-amber-400 border border-amber-500/30">DEMO</span>}
             </button>
           ))}
         </div>
@@ -638,7 +635,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   )
 }
