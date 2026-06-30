@@ -371,7 +371,7 @@ func (s *Server) exportProof(w http.ResponseWriter, r *http.Request) {
 		"proof":    p,
 		"contract": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
 		"chain":    "casper-test",
-		"verify_url": fmt.Sprintf("https://casperprover-api.onrender.com/verify"),
+		"verify_url": "https://casperprover-api.onrender.com/verify",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
