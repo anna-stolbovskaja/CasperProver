@@ -13,11 +13,6 @@ const links = [
   { href: '/#faq', label: 'FAQ' },
 ]
 
-const appLinks = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/', label: 'Landing' },
-]
-
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
@@ -29,8 +24,6 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
-  const navLinks = isApp ? appLinks : links
-
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur border-b border-gray-800/50' : 'bg-transparent'}`}>
       <div className="cp-section flex items-center justify-between h-16">
@@ -39,7 +32,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
           <span className="font-bold text-white text-lg hidden sm:block">CasperProver</span>
         </a>
         <div className="hidden md:flex items-center gap-1">
-          {navLinks.map(l => (
+          {links.map(l => (
             <a key={l.href} href={l.href} className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-400 rounded-lg transition-colors">{l.label}</a>
           ))}
         </div>
@@ -57,9 +50,12 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
       {mobileOpen && (
         <div className="md:hidden bg-black/95 border-t border-gray-800">
           <div className="px-4 py-3 space-y-1">
-            {navLinks.map(l => (
+            {links.map(l => (
               <a key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-gray-300 rounded-lg hover:bg-white/5">{l.label}</a>
             ))}
+            {!isApp && (
+              <a href="/dashboard" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-red-400 font-semibold rounded-lg hover:bg-white/5">Dashboard</a>
+            )}
           </div>
         </div>
       )}
