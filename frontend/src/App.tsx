@@ -2,11 +2,12 @@ import { Routes, Route } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
+import LiveDemo from './components/LiveDemo'
 import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
-import UseCases from './components/UseCases'
-import LiveDemo from './components/LiveDemo'
-import Architecture from './components/Architecture'
+import Benchmarks from './components/Benchmarks'
+import SDKSection from './components/SDKSection'
+import FAQ from './components/FAQ'
 import CtaFooter from './components/CtaFooter'
 import Footer from './components/Footer'
 import ScrollProgress from './components/ScrollProgress'
@@ -17,11 +18,12 @@ function Landing() {
   return (
     <>
       <Hero />
+      <LiveDemo />
       <Features />
       <HowItWorks />
-      <UseCases />
-      <LiveDemo />
-      <Architecture />
+      <Benchmarks />
+      <SDKSection />
+      <FAQ />
       <CtaFooter />
     </>
   )
@@ -29,15 +31,9 @@ function Landing() {
 
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
-
   const closeMobile = useCallback(() => setMobileOpen(false), [])
-
   useEffect(() => {
-    if (mobileOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 

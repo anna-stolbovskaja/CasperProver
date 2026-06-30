@@ -1,36 +1,55 @@
-import { ShieldCheck, Lock, Zap } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Lock, Eye, Fingerprint, Zap, GitBranch, Server } from 'lucide-react'
 
-const ICON_FEATURES = [
-  { icon: ShieldCheck, title: 'Verifiable', desc: 'Cryptographic proofs you can verify on-chain.' },
-  { icon: Lock, title: 'Private', desc: 'Zero-knowledge proofs protect sensitive data.' },
-  { icon: Zap, title: 'Trustless', desc: 'No intermediaries. Just math and consensus.' },
+const features = [
+  { icon: Lock, title: 'Cryptographic Proofs', desc: 'SHA-256 hashing and Merkle trees ensure every proof is tamper-evident. Change one bit of input and the proof breaks.' },
+  { icon: Eye, title: 'Verifiable by Anyone', desc: 'Proofs are public. Any party can verify an AI decision was made with specific inputs and model — without seeing the raw data.' },
+  { icon: Fingerprint, title: 'Model Fingerprinting', desc: 'Each proof includes a hash of the model used. Track which model version made which decision across time.' },
+  { icon: Zap, title: 'Sub-Second Generation', desc: 'Proof generation takes milliseconds. No GPU required. No heavy computation. Just cryptographic hashing.' },
+  { icon: GitBranch, title: 'Merkle Path Verification', desc: 'Each proof includes its Merkle path for independent verification. Reconstruct the root from any leaf.' },
+  { icon: Server, title: 'Casper Anchoring', desc: 'Proof hashes and Merkle roots are deployed to Casper Network smart contracts. Immutable, timestamped records.' },
 ]
 
 export default function Features() {
+  const ref = useRef<HTMLElement>(null)
+  const [vis, setVis] = useState(false)
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true) }, { threshold: 0.1 })
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [])
+
   return (
-    <section className="py-4 relative" aria-label="Key features">
+    <section ref={ref} id="features" className="py-24">
       <div className="cp-section">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {ICON_FEATURES.map(f => (
-            <div key={f.title} className="cp-card flex items-start gap-4">
-              <div className="cp-icon-circle">
-                <f.icon size={22} className="text-cp-red" />
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left: large feature highlight */}
+          <div className={`lg:col-span-1 transition-all duration-700 ${vis ? 'opacity-100' : 'opacity-0 translate-y-8'}`}>
+            <p className="text-xs font-mono text-red-500 tracking-widest mb-3">CAPABILITIES</p>
+            <h2 className="text-3xl font-extrabold text-white mb-4 leading-tight">
+              Why trust matters for AI decisions.
+            </h2>
+            <p className="text-gray-400 leading-relaxed mb-8">
+              AI agents make decisions that move money, approve loans, and flag risks. Without proof, there's no accountability.
+            </p>
+
+            {/* Mascot accent */}
+            <div className="relative w-48 mx-auto lg:mx-0">
+              <img src="/images/mascot/pose2.webp" alt="CasperProver" className="w-full animate-fire-glow" />
+            </div>
+          </div>
+
+          {/* Right: feature cards in 2-col grid */}
+          <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4">
+            {features.map((f, i) => (
+              <div key={i} className={`bg-cp-card border border-cp-border rounded-xl p-5 hover:border-red-500/30 transition-all duration-300 ${vis ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: `${i * 0.1}s` }}>
+                <div className="w-10 h-10 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3">
+                  <f.icon className="w-5 h-5 text-red-400" />
+                </div>
+                <h3 className="text-white font-bold mb-1.5">{f.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
-              <div>
-                <h3 className="font-semibold text-white mb-1">{f.title}</h3>
-                <p className="text-sm text-cp-gray leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
-          {/* On Casper — separate to use img */}
-          <div className="cp-card flex items-start gap-4">
-            <div className="cp-icon-circle">
-              <img src="/images/logo.png" alt="" width={24} height={24} className="rounded-full" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-white mb-1">On Casper</h3>
-              <p className="text-sm text-cp-gray leading-relaxed">Built natively for speed, security, and scalability.</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>

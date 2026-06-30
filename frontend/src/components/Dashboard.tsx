@@ -1,274 +1,159 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { Play, Search, Clock, Hash, ShieldCheck, Wallet, LogOut, Loader2, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Shield, Hash, GitBranch, Wallet, LogOut, Play, Loader2, CheckCircle, XCircle, List, BarChart3 } from 'lucide-react'
 import { createProof, getProofs, getHealth } from '../lib/api'
 import type { ProofRecord } from '../lib/api'
 import { connectWallet, disconnectWallet, shortKey } from '../lib/wallet'
 import type { WalletState } from '../lib/wallet'
 
-interface LogLine { time: string; text: string; type: 'info' | 'success' | 'error' | 'hash' }
-
-function hashTrunc(h: string): string {
-  return h.length > 20 ? h.slice(0, 12) + '...' : h
-}
-
 export default function Dashboard() {
   const [proofs, setProofs] = useState<ProofRecord[]>([])
-  const [input, setInput] = useState('{"user": "alice", "score": 85}')
-  const [output, setOutput] = useState('{"approved": true}')
-  const [model, setModel] = useState('risk-model-v3')
-  const [agent, setAgent] = useState('kyc-agent-v2')
-  const [running, setRunning] = useState(false)
-  const [log, setLog] = useState<LogLine[]>([])
-  const [verifyId, setVerifyId] = useState('')
-  const [verifyResult, setVerifyResult] = useState<string | null>(null)
   const [wallet, setWallet] = useState<WalletState>({ connected: false, publicKey: null, accountHash: null, simulated: false })
-  const [chainStatus, setChainStatus] = useState<string>('connecting...')
-  const [loadingProofs, setLoadingProofs] = useState(false)
-  const logRef = useRef<HTMLDivElement>(null)
-
-  const addLine = useCallback((l: LogLine) => {
-    setLog(p => [...p, l])
-    setTimeout(() => logRef.current?.scrollTo({ top: 9999, behavior: 'smooth' }), 50)
-  }, [])
+  const [chain, setChain] = useState('connecting...')
+  const [agent, setAgent] = useState('agent-alpha')
+  const [input, setInput] = useState('loan_decision_42')
+  const [model, setModel] = useState('gpt-4o')
+  const [output, setOutput] = useState('approved')
+  const [loading, setLoading] = useState(false)
+  const [selected, setSelected] = useState<ProofRecord | null>(null)
 
   useEffect(() => {
-    getHealth()
-      .then(h => setChainStatus(h.status === 'ok' ? `v${h.version}` : 'offline'))
-      .catch(() => setChainStatus('offline'))
+    getHealth().then(h => setChain(h.status === 'ok' ? 'casper-test' : 'offline')).catch(() => setChain('offline'))
   }, [])
 
-  const loadProofs = async () => {
-    setLoadingProofs(true)
-    try {
-      const list = await getProofs()
-      setProofs(list)
-    } catch { /* ignore */ }
-    setLoadingProofs(false)
-  }
-
   const handleConnect = async () => {
-    if (wallet.connected) {
-      setWallet(disconnectWallet())
-      setProofs([])
-      return
-    }
+    if (wallet.connected) { setWallet(disconnectWallet()); setProofs([]); return }
     const state = await connectWallet()
     setWallet(state)
-    await loadProofs()
+    try { const p = await getProofs(); setProofs(p) } catch {}
   }
 
-  const handleGenerate = async () => {
-    if (running || !wallet.connected) return
-    setRunning(true)
-    setLog([])
-
-    const ts = () => (performance.now() / 1000).toFixed(3)
-    addLine({ time: ts(), text: `Agent: ${agent}`, type: 'info' })
-    addLine({ time: ts(), text: `Input: ${input.slice(0, 60)}${input.length > 60 ? '...' : ''}`, type: 'info' })
-    addLine({ time: ts(), text: `Output: ${output.slice(0, 60)}${output.length > 60 ? '...' : ''}`, type: 'info' })
-    addLine({ time: ts(), text: `Model: ${model}`, type: 'info' })
-    addLine({ time: ts(), text: 'Sending to proof engine...', type: 'info' })
-
+  const handleCreate = async () => {
+    if (loading) return
+    setLoading(true)
     try {
       const proof = await createProof({ agent, input, output, model })
-
-      addLine({ time: ts(), text: `Proof ID: ${proof.id}`, type: 'hash' })
-      addLine({ time: ts(), text: `Input hash: 0x${hashTrunc(proof.input_hash)}`, type: 'hash' })
-      addLine({ time: ts(), text: `Output hash: 0x${hashTrunc(proof.output_hash)}`, type: 'hash' })
-      addLine({ time: ts(), text: `Model hash: 0x${hashTrunc(proof.model_hash)}`, type: 'hash' })
-      addLine({ time: ts(), text: `Merkle root: 0x${hashTrunc(proof.merkle_root)}`, type: 'success' })
-      addLine({ time: ts(), text: `Path depth: ${proof.merkle_path.length}`, type: 'info' })
-      addLine({ time: ts(), text: `Valid: ${proof.valid}`, type: proof.valid ? 'success' : 'error' })
-
-      setProofs(p => [proof, ...p])
-    } catch (err) {
-      addLine({ time: ts(), text: `Error: ${err instanceof Error ? err.message : String(err)}`, type: 'error' })
-    }
-
-    setRunning(false)
+      setProofs(prev => [proof, ...prev])
+      setSelected(proof)
+    } catch {}
+    setLoading(false)
   }
 
-  const handleVerify = () => {
-    const trimmed = verifyId.trim()
-    const found = proofs.find(p => p.id === trimmed || p.merkle_root.startsWith(trimmed) || p.proof_hash.startsWith(trimmed))
-    if (found) {
-      setVerifyResult(
-        found.valid && !found.revoked
-          ? `VALID | ${found.id} | Root: 0x${hashTrunc(found.merkle_root)} | Agent: ${found.agent}`
-          : `REVOKED | ${found.id} | Proof is no longer valid.`
-      )
-    } else {
-      setVerifyResult('No matching proof found.')
-    }
-  }
-
-  const validCount = proofs.filter(p => p.valid && !p.revoked).length
-  const validRate = proofs.length > 0 ? Math.round((validCount / proofs.length) * 100) : 0
+  const valid = proofs.filter(p => p.valid && !p.revoked).length
 
   return (
-    <div className="pt-20 pb-16">
-      <div className="cp-section">
+    <div className="min-h-screen bg-cp-black pt-20">
+      <div className="cp-section py-8">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold">CasperProver <span className="cp-gradient-text">Dashboard</span></h1>
-            <p className="text-sm text-cp-gray mt-1">Generate, explore, and verify proofs on Casper testnet.</p>
+            <h1 className="text-2xl font-extrabold text-white">Proof Dashboard</h1>
+            <p className="text-gray-500 text-sm mt-1">Generate and inspect cryptographic proofs</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`w-2 h-2 rounded-full ${chainStatus === 'offline' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
-              <span className="text-cp-gray font-mono">{chainStatus}</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs">
+              <span className={`w-2 h-2 rounded-full ${chain === 'casper-test' ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-gray-400 font-mono">{chain}</span>
             </div>
-            <button onClick={handleConnect}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                wallet.connected
-                  ? 'bg-cp-red/10 text-cp-red border border-cp-red/30 hover:bg-cp-red/20'
-                  : 'bg-cp-red text-white hover:bg-cp-red/90'
-              }`}>
-              {wallet.connected ? (
-                <><LogOut size={12} /> {shortKey(wallet.publicKey || '')}{wallet.simulated ? ' (demo)' : ''}</>
-              ) : (
-                <><Wallet size={12} /> Connect Wallet</>
-              )}
+            <button onClick={handleConnect} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+              wallet.connected ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500'
+            }`}>
+              {wallet.connected ? <LogOut className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
+              {wallet.connected ? shortKey(wallet.publicKey || '') : 'Connect Wallet'}
             </button>
           </div>
         </div>
 
-        {!wallet.connected && (
-          <div className="cp-card !p-6 text-center mb-8">
-            <Wallet size={32} className="mx-auto text-cp-red mb-3" />
-            <h3 className="text-lg font-semibold text-white mb-2">Connect Your Wallet</h3>
-            <p className="text-sm text-cp-gray mb-4">
-              Connect a Casper Wallet to generate and verify proofs.
-              {' '}No extension? A demo account will be provided.
-            </p>
-            <button onClick={handleConnect} className="cp-btn-primary mx-auto !text-sm">
-              <Wallet size={14} /> Connect Wallet
+        {!wallet.connected ? (
+          <div className="bg-cp-card rounded-2xl border border-cp-border p-16 text-center">
+            <Wallet className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Connect wallet to begin</h2>
+            <p className="text-gray-500 mb-6">Connect a Casper wallet to generate and manage proofs.</p>
+            <button onClick={handleConnect} className="inline-flex items-center gap-2 px-8 py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-500 transition-colors">
+              <Wallet className="w-4 h-4" /> Connect Wallet
             </button>
           </div>
-        )}
-
-        {wallet.connected && (
+        ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              {[
-                { label: 'Proofs Generated', value: proofs.length, icon: Hash },
-                { label: 'Verification Rate', value: `${validRate}%`, icon: ShieldCheck },
-                { label: 'Latest', value: proofs.length > 0 ? proofs[0].id : 'none', icon: Clock },
-              ].map(s => (
-                <div key={s.label} className="cp-card flex items-center gap-4">
-                  <div className="cp-icon-circle"><s.icon size={20} className="text-cp-red" /></div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{s.value}</div>
-                    <div className="text-xs text-cp-gray">{s.label}</div>
-                  </div>
-                </div>
-              ))}
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-cp-card rounded-xl border border-cp-border p-5">
+                <List className="w-5 h-5 text-gray-600 mb-2" />
+                <p className="text-2xl font-bold text-white">{proofs.length}</p>
+                <p className="text-xs text-gray-500">Total Proofs</p>
+              </div>
+              <div className="bg-cp-card rounded-xl border border-cp-border p-5">
+                <CheckCircle className="w-5 h-5 text-green-500/60 mb-2" />
+                <p className="text-2xl font-bold text-white">{valid}</p>
+                <p className="text-xs text-gray-500">Valid</p>
+              </div>
+              <div className="bg-cp-card rounded-xl border border-cp-border p-5">
+                <BarChart3 className="w-5 h-5 text-red-500/60 mb-2" />
+                <p className="text-2xl font-bold text-white">{proofs.length > 0 ? proofs[0]?.merkle_path?.length || 0 : 0}</p>
+                <p className="text-xs text-gray-500">Merkle Depth</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-              <div className="cp-card !p-5 space-y-3">
-                <h3 className="font-semibold text-white flex items-center gap-2"><Play size={16} className="text-cp-red" /> Generate Proof</h3>
-                <div>
-                  <label htmlFor="d-agent" className="text-xs text-cp-gray mb-1 block">Agent</label>
-                  <input id="d-agent" value={agent} onChange={e => setAgent(e.target.value)}
-                    className="w-full bg-cp-black border border-cp-border rounded-lg px-3 py-2 text-xs font-mono text-white focus:border-cp-red/50 focus:outline-none" />
-                </div>
-                <div>
-                  <label htmlFor="d-input" className="text-xs text-cp-gray mb-1 block">Input</label>
-                  <textarea id="d-input" value={input} onChange={e => setInput(e.target.value)}
-                    className="w-full bg-cp-black border border-cp-border rounded-lg px-3 py-2 text-xs font-mono text-white resize-none focus:border-cp-red/50 focus:outline-none" rows={2} />
-                </div>
-                <div>
-                  <label htmlFor="d-output" className="text-xs text-cp-gray mb-1 block">Output</label>
-                  <textarea id="d-output" value={output} onChange={e => setOutput(e.target.value)}
-                    className="w-full bg-cp-black border border-cp-border rounded-lg px-3 py-2 text-xs font-mono text-white resize-none focus:border-cp-red/50 focus:outline-none" rows={2} />
-                </div>
-                <div>
-                  <label htmlFor="d-model" className="text-xs text-cp-gray mb-1 block">Model</label>
-                  <input id="d-model" value={model} onChange={e => setModel(e.target.value)}
-                    className="w-full bg-cp-black border border-cp-border rounded-lg px-3 py-2 text-xs font-mono text-white focus:border-cp-red/50 focus:outline-none" />
-                </div>
-                <button onClick={handleGenerate} disabled={running}
-                  className="cp-btn-primary w-full justify-center !text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                  {running ? <><Loader2 size={14} className="animate-spin" /> Generating...</> : <><Play size={14} /> Generate</>}
-                </button>
-              </div>
-
-              <div className="cp-card !p-0 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 px-4 py-2 border-b border-cp-border bg-cp-black/50">
-                  <div className="flex gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-cp-red/60" />
-                    <span className="w-2 h-2 rounded-full bg-yellow-500/60" />
-                    <span className="w-2 h-2 rounded-full bg-green-500/60" />
-                  </div>
-                  <span className="text-[10px] font-mono text-cp-gray-dark">engine output</span>
-                </div>
-                <div ref={logRef} className="flex-1 p-3 overflow-y-auto font-mono text-[11px] space-y-0.5 min-h-[240px] max-h-[320px] bg-cp-black">
-                  {log.length === 0 && <div className="text-cp-gray-dark"><span className="animate-pulse">_</span> Ready...</div>}
-                  {log.map((l, i) => (
-                    <div key={i} className="flex gap-2">
-                      <span className="text-cp-gray-dark shrink-0">[{l.time}]</span>
-                      <span className={l.type === 'success' ? 'text-green-400' : l.type === 'error' ? 'text-red-400' : l.type === 'hash' ? 'text-cp-red/80' : 'text-cp-gray'}>{l.text}</span>
+            <div className="grid lg:grid-cols-5 gap-6">
+              {/* Create proof */}
+              <div className="lg:col-span-2 bg-cp-card rounded-2xl border border-cp-border p-6">
+                <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Shield className="w-4 h-4 text-red-400" /> New Proof</h3>
+                <div className="space-y-3">
+                  {[
+                    { l: 'Agent', v: agent, s: setAgent },
+                    { l: 'Input', v: input, s: setInput },
+                    { l: 'Model', v: model, s: setModel },
+                    { l: 'Output', v: output, s: setOutput },
+                  ].map((f, i) => (
+                    <div key={i}>
+                      <label className="text-xs text-gray-600 font-mono mb-1 block">{f.l}</label>
+                      <input value={f.v} onChange={e => f.s(e.target.value)} className="w-full px-3 py-2 bg-black/40 border border-gray-800 rounded-lg text-sm text-white font-mono focus:outline-none focus:border-red-500/50" />
                     </div>
                   ))}
-                  {running && <div className="text-cp-gray-dark animate-pulse">_</div>}
+                  <button onClick={handleCreate} disabled={loading} className="w-full mt-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-500 disabled:opacity-50 transition-all">
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    {loading ? 'Generating...' : 'Generate Proof'}
+                  </button>
                 </div>
               </div>
-            </div>
 
-            <div className="cp-card !p-5 mb-8">
-              <h3 className="font-semibold text-white flex items-center gap-2 mb-3"><Search size={16} className="text-cp-red" /> Verify Proof</h3>
-              <div className="flex gap-3">
-                <input value={verifyId} onChange={e => setVerifyId(e.target.value)} placeholder="Proof ID or root hash..."
-                  className="flex-1 bg-cp-black border border-cp-border rounded-lg px-3 py-2 text-sm font-mono text-white focus:border-cp-red/50 focus:outline-none" />
-                <button onClick={handleVerify} className="cp-btn-primary !text-sm">Verify</button>
+              {/* Proof detail / list */}
+              <div className="lg:col-span-3 bg-cp-card rounded-2xl border border-cp-border p-6">
+                <h3 className="text-white font-bold mb-4 flex items-center gap-2"><Hash className="w-4 h-4 text-red-400" /> Proofs</h3>
+                {selected ? (
+                  <div className="space-y-2">
+                    <button onClick={() => setSelected(null)} className="text-xs text-gray-500 hover:text-gray-300 mb-2">&larr; Back to list</button>
+                    <div className="bg-black/40 rounded-xl p-4 font-mono text-xs space-y-1.5 overflow-x-auto">
+                      <p className="text-gray-400">id: <span className="text-white">{selected.id}</span></p>
+                      <p className="text-gray-400">agent: <span className="text-white">{selected.agent}</span></p>
+                      <p className="text-gray-400">proof_hash: <span className="text-red-400 break-all">{selected.proof_hash}</span></p>
+                      <p className="text-gray-400">input_hash: <span className="text-orange-300 break-all">{selected.input_hash}</span></p>
+                      <p className="text-gray-400">output_hash: <span className="text-orange-300 break-all">{selected.output_hash}</span></p>
+                      <p className="text-gray-400">model_hash: <span className="text-yellow-300 break-all">{selected.model_hash}</span></p>
+                      <p className="text-gray-400">merkle_root: <span className="text-green-400 break-all">{selected.merkle_root}</span></p>
+                      <p className="text-gray-400">leaf_index: <span className="text-white">{selected.leaf_index}</span></p>
+                      <p className="text-gray-400">valid: <span className={selected.valid ? 'text-green-400' : 'text-red-400'}>{String(selected.valid)}</span></p>
+                      <p className="text-gray-400">revoked: <span className="text-white">{String(selected.revoked)}</span></p>
+                      <p className="text-gray-400">merkle_path: <span className="text-gray-500">[{selected.merkle_path?.length || 0} nodes]</span></p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {proofs.length === 0 ? (
+                      <p className="text-gray-600 text-sm text-center py-8">No proofs yet. Generate one to get started.</p>
+                    ) : proofs.map((p, i) => (
+                      <button key={i} onClick={() => setSelected(p)} className="w-full flex items-center justify-between p-3 rounded-lg bg-black/20 hover:bg-black/40 transition-colors text-left">
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs text-gray-300 truncate">{p.proof_hash}</p>
+                          <p className="text-xs text-gray-600">{p.agent} / {p.use_case || 'general'}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                          {p.valid ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              {verifyResult && (
-                <div className={`mt-3 text-sm font-mono ${verifyResult.startsWith('VALID') ? 'text-green-400' : 'text-red-400'}`}>{verifyResult}</div>
-              )}
-            </div>
-
-            <div className="cp-card !p-0 overflow-hidden">
-              <div className="px-5 py-4 border-b border-cp-border flex items-center justify-between">
-                <h3 className="font-semibold text-white">Proof Explorer</h3>
-                <button onClick={loadProofs} disabled={loadingProofs}
-                  className="text-xs text-cp-gray hover:text-white flex items-center gap-1 cursor-pointer disabled:opacity-50">
-                  <RefreshCw size={12} className={loadingProofs ? 'animate-spin' : ''} /> Refresh
-                </button>
-              </div>
-              {proofs.length === 0 ? (
-                <div className="p-8 text-center text-sm text-cp-gray">No proofs yet. Generate one above to get started.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-cp-border text-cp-gray text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 px-5 font-medium">ID</th>
-                        <th className="text-left py-3 px-5 font-medium">Agent</th>
-                        <th className="text-left py-3 px-5 font-medium">Merkle Root</th>
-                        <th className="text-left py-3 px-5 font-medium">Status</th>
-                        <th className="text-left py-3 px-5 font-medium">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {proofs.map(p => (
-                        <tr key={p.id} className="border-b border-cp-border/50 hover:bg-cp-red/[0.02] transition-colors">
-                          <td className="py-3 px-5 font-mono text-xs text-cp-red">{p.id}</td>
-                          <td className="py-3 px-5 text-xs text-cp-gray">{p.agent}</td>
-                          <td className="py-3 px-5 font-mono text-xs text-cp-gray">0x{hashTrunc(p.merkle_root)}</td>
-                          <td className="py-3 px-5">
-                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                              p.valid && !p.revoked ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                              {p.valid && !p.revoked ? 'Valid' : 'Revoked'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-5 text-xs text-cp-gray-dark">{new Date(p.timestamp * 1000).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
           </>
         )}
