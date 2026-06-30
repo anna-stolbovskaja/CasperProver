@@ -26,6 +26,8 @@ export default {
         'color-shift': 'color-shift 8s ease-in-out infinite',
         'float': 'float 6s ease-in-out infinite',
         'float-delay': 'float 6s ease-in-out 2s infinite',
+        'float-slow': 'float 8s ease-in-out 1s infinite',
+        'pulse-slow': 'pulse 4s ease-in-out infinite',
         'fade-in-up': 'fade-in-up 0.6s ease-out',
         'smoke': 'smoke 12s ease-in-out infinite',
       },

@@ -1,25 +1,17 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ShieldOff } from 'lucide-react'
 
 export default function NotFound() {
   return (
-    <section className="min-h-[80vh] flex items-center justify-center">
-      <div className="text-center px-4 animate-fade-in-up">
-        {/* Mascot decoration */}
-        <div className="relative inline-block mb-6">
-          <img src="/images/mascot-blue-t.png" alt="" className="w-32 h-auto opacity-30 mx-auto" loading="lazy" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <ShieldOff size={48} className="text-cp-red/60" />
-          </div>
-        </div>
-
-        <h1 className="text-6xl sm:text-8xl font-extrabold cp-gradient-text mb-4">404</h1>
-        <p className="text-xl text-white font-semibold mb-2">Proof Not Found</p>
-        <p className="text-cp-gray mb-8 max-w-sm mx-auto">
-          This page doesn't exist on the Merkle tree. The verification failed.
-        </p>
-        <Link to="/" className="cp-btn-primary">
-          <ArrowLeft size={18} /> Back to Home
+    <section className="min-h-screen flex items-center justify-center relative">
+      <div className="absolute inset-0 bg-cp-black" />
+      <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,50,50,0.3) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+      <div className="relative z-10 text-center px-6">
+        <img src="/images/mascot/pose4.webp" alt="" className="w-32 mx-auto mb-6 drop-shadow-[0_0_20px_rgba(255,50,50,0.3)]" />
+        <h1 className="text-6xl font-extrabold text-cp-red mb-4">404</h1>
+        <p className="text-xl text-gray-400 mb-2">proof not found</p>
+        <p className="text-sm text-gray-500 mb-8">no merkle path leads here. verification impossible.</p>
+        <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-cp-red text-white font-semibold hover:scale-[1.02] transition-transform">
+          back to root
         </Link>
       </div>
     </section>
