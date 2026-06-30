@@ -23,6 +23,14 @@
 > [!NOTE]
 > Three contracts live on Casper testnet. 72 proofs registered. The Go engine generates Merkle-anchored proofs of agent outputs and submits commit hashes on-chain. A downstream DeFi mock contract gates access based on proof validity — working KYC demo included.
 
+## 📸 Screenshots
+
+| Homepage — proof registry | Dashboard — 72 proofs | Proof detail — Merkle path | KYC-gated DeFi demo |
+|---|---|---|---|
+| ![Homepage](docs/screenshots/01-homepage.png) | ![Dashboard](docs/screenshots/02-dashboard.png) | ![Proof detail](docs/screenshots/03-proof-detail.png) | ![KYC demo](docs/screenshots/04-kyc-demo.png) |
+
+> Live at [casperprover.xyz/dashboard](https://casperprover.xyz/dashboard)
+
 ---
 
 ## Why this matters
@@ -157,7 +165,8 @@ CasperProver/
 
 ## Team
 
-**anna-stolbovskaja** — smart contracts, proof engine, API, frontend  
+**anna-stolbovskaja** — full-stack engineer focused on cryptographic systems and verifiable compute. Built CasperProver end-to-end: three Casper smart contracts in Rust/WASM, the Go Merkle proof engine, REST API, TypeScript/Vite dashboard, and the MCP adapter for AI framework integration. Specializes in zero-knowledge-adjacent approaches to agent accountability and DeFi compliance infrastructure. ([GitHub](https://github.com/anna-stolbovskaja))
+
 Track: Agentic Infrastructure / Verifiable Compute
 
 ---
