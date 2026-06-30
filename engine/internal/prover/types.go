@@ -14,6 +14,10 @@ type Proof struct {
 	Valid    bool     `json:"valid"`
 	Revoked  bool     `json:"revoked"`
 	UseCase  string   `json:"use_case"`
+	PubKey   string   `json:"public_key,omitempty"`
+	Deploy   string   `json:"deploy_hash,omitempty"`
+	GenMs    int64    `json:"generation_ms"`
+	Mode     string   `json:"mode,omitempty"`
 }
 
 type MerkleNode struct {
@@ -26,4 +30,14 @@ type ProofBundle struct {
 	Root  string   `json:"root"`
 	Leafs []string `json:"leafs"`
 	Count int      `json:"count"`
+}
+
+type Stats struct {
+	Total       int     `json:"total_proofs"`
+	Valid       int     `json:"valid_proofs"`
+	Revoked     int     `json:"revoked_proofs"`
+	Agents      int     `json:"unique_agents"`
+	AvgGenMs    float64 `json:"avg_generation_ms"`
+	MaxDepth    int     `json:"max_merkle_depth"`
+	UseCases    map[string]int `json:"use_cases"`
 }

@@ -84,6 +84,9 @@ func demoFlow(eng *prover.ProofEngine) {
 }
 
 func serve(eng *prover.ProofEngine) {
+	eng.SeedDemoData()
+	slog.Info("seeded demo data", "count", len(eng.List()))
+
 	port := 8080
 	if v := os.Getenv("API_PORT"); v != "" {
 		if p, err := strconv.Atoi(v); err == nil {

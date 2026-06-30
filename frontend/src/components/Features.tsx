@@ -23,7 +23,6 @@ export default function Features() {
     <section ref={ref} id="features" className="py-24">
       <div className="cp-section">
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left: large feature highlight */}
           <div className={`lg:col-span-1 transition-all duration-700 ${vis ? 'opacity-100' : 'opacity-0 translate-y-8'}`}>
             <p className="text-xs font-mono text-red-500 tracking-widest mb-3">CAPABILITIES</p>
             <h2 className="text-3xl font-extrabold text-white mb-4 leading-tight">
@@ -33,13 +32,17 @@ export default function Features() {
               AI agents make decisions that move money, approve loans, and flag risks. Without proof, there's no accountability.
             </p>
 
-            {/* Mascot accent */}
-            <div className="relative w-48 mx-auto lg:mx-0">
-              <img src="/images/mascot/pose2.webp" alt="CasperProver" className="w-full animate-fire-glow" />
+            <div className="relative w-96 max-w-full mx-auto lg:mx-0">
+              <div className="absolute inset-0 bg-red-500/10 rounded-full blur-[60px] pointer-events-none" />
+              <img
+                src="/images/mascot/pose2.webp"
+                alt="CasperProver"
+                className="w-full animate-zoom-breathe"
+                style={{ transform: 'scaleX(-1)' }}
+              />
             </div>
           </div>
 
-          {/* Right: feature cards in 2-col grid */}
           <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4">
             {features.map((f, i) => (
               <div key={i} className={`bg-cp-card border border-cp-border rounded-xl p-5 hover:border-red-500/30 transition-all duration-300 ${vis ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`} style={{ transitionDelay: `${i * 0.1}s` }}>
