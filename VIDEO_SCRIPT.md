@@ -1,106 +1,106 @@
-# VIDEO_SCRIPT.md — CasperProver
-## Format: Faceless Tutorial · 2 min · English
-## Topic: Zero-knowledge AI verification — Merkle proof registry for AI agent outputs on Casper Network
+# CasperProver — VIDEO SCRIPT
+**Format:** Faceless tutorial | ~2 min | English  
+**Style:** Terminal-first, KYC-demo first  
+**No voiceover** — subtitles + tooltips + background music
 
 ---
 
-## HOOK VARIANTS (choose one · first 15 seconds)
+## HOOK OPTIONS (pick one — first 5 seconds)
 
-### Hook A — The Audit Problem
-[NARRATION: Every AI agent running code today is a black box. Nobody can prove what it computed — without replaying the whole model.]
-[SHOW: Plain dark screen with text "AI ran. Nobody knows what it did."]
-[B-ROLL: Terminal scrolling output rapidly]
+**Hook A:**
+[SHOW: terminal with curl command generating a KYC proof]  
+[SUBTITLE: "Every AI decision. Tamper-proof. On-chain in 1 second."]
 
-### Hook B — The Trust Question
-[NARRATION: What if you could prove an AI made a decision — without revealing the model or re-running it? That's what CasperProver does.]
-[SHOW: Split screen — AI output on left, blockchain explorer on right]
+**Hook B:**
+[SHOW: testnet.cspr.live/deploy/ with a proof deploy hash loading live]  
+[SUBTITLE: "This KYC approval just got permanently anchored to Casper blockchain."]
 
-### Hook C — The On-Chain Moment ← Recommended
-[NARRATION: Seventy-two proofs. On-chain. Verifiable. Permanent. This is what cryptographic accountability for AI agents looks like.]
-[SHOW: casperprover.xyz/dashboard — proof counter ticking, green verification badges]
-
----
-
-## SEGMENT 1: PROBLEM (0:00–0:25)
-
-[NARRATION: AI agents are running critical workflows — KYC checks, financial decisions, compliance rules. But there's no audit trail. You can't prove what an agent computed without re-running the entire model.]
-[SHOW: Diagram — "Agent computes → output → ?" with a question mark on-chain]
-[B-ROLL: Abstract neural network animation]
-
-[NARRATION: That's the accountability gap. CasperProver closes it with Merkle proofs on the Casper Network.]
-[SHOW: Text overlay "Merkle-anchored · On-chain · No replay needed"]
+**Hook C:**
+[SHOW: split-screen — bank dashboard left, Casper explorer right, deploy hash matching]  
+[SUBTITLE: "Without proof, an AI said 'approved'. Now anyone can verify it forever."]
 
 ---
 
-## SEGMENT 2: SOLUTION OVERVIEW (0:25–0:50)
+## SECTION 1 — KYC Demo (0:00–0:40)
 
-[NARRATION: Here's how it works. An agent submits its input hash, output hash, and model hash. CasperProver builds a Merkle tree from those three leaves.]
-[SHOW: Mermaid-style diagram animating: Agent → Input/Output Hash → Merkle Tree Builder → Root On-Chain]
+[SHOW: Terminal / dashboard. Use case selector set to "KYC / Identity"]
 
-[NARRATION: The Merkle root gets committed on-chain. The inclusion proof is stored. Anyone can verify — anytime — without re-running the model.]
-[SHOW: Arrow from "Verifier queries proof" back to "Inclusion proof stored"]
+[NARRATION / SUBTITLE]
+> "Open the dashboard. Go to the Generate tab. Switch to **Anchored** mode — this writes the proof to Casper testnet."
 
----
+[SHOW: Fill in Agent = "kyc-verifier-v2", Model = "kyc-model-v2.1", Use Case = KYC]
 
-## RE-HOOK at 60 seconds
+[SUBTITLE: "Input: passport data, country, user ID."]
 
-[NARRATION: So far we've seen the theory. Now let's see 72 live proofs on testnet — and verify one in real time.]
-[SHOW: Browser navigating to casperprover.xyz]
-
----
-
-## SEGMENT 3: LIVE DEMO (0:50–1:35)
-
-[SHOW: Land on casperprover.xyz — hero section "Cryptographic proof registry for AI agent computations"]
-
-[NARRATION: This is CasperProver's live dashboard. We're on the Casper testnet with 72 submitted proofs.]
-[SHOW: Navigate to /dashboard — counter "72 proofs registered", status badges green]
-
-[NARRATION: Each proof belongs to one of four types: Merkle inclusion, KYC eligibility, balance range, and transaction membership.]
-[SHOW: Proof type breakdown chart/table — 4 categories with counts]
-
-[NARRATION: Let's verify a proof via the API. One curl call — proof ID, and we get back the Merkle path and on-chain root.]
-[SHOW: Terminal — curl command]
-```bash
-curl https://casperprover-api.onrender.com/api/v1/proof/verify \
-  -H "Content-Type: application/json" \
-  -d '{"proof_id":"proof_001","input_hash":"abc123","output_hash":"def456"}'
+[SHOW: Paste input JSON]
+```json
+{"user_id":"alice_0x3f","doc_type":"passport","country":"DE","issued":"2022-03-15"}
 ```
-[SHOW: JSON response with `"valid": true`, merkle_root, inclusion_path]
 
-[NARRATION: Verified. Now let's find that transaction in the Casper explorer.]
-[SHOW: Open testnet.cspr.live — paste deploy hash — show contract call to proof-registry]
-[SHOW: Contract hash 96e97c4d...a10708 with state entry for proof root]
+[SHOW: Paste output JSON]
+```json
+{"verified":true,"confidence":0.97,"risk_score":12,"flags":[]}
+```
 
----
+[SHOW: Click "Generate Proof" button — progress steps animate: Hashing inputs → Merkle tree → Generating proof → Anchoring on-chain → Complete]
 
-## SEGMENT 4: PROOF TYPES (1:35–1:50)
+[SUBTITLE: "5 steps. 4 fields. One cryptographic proof."]
 
-[NARRATION: Four proof types ship out of the box:]
-[SHOW: Animated list appearing one by one]
+[SHOW: Result panel — proof_hash, merkle_root, deploy_hash appear]
 
-- **merkle-inclusion** — prove a value was in a computation  
-- **kyc-eligibility** — prove a wallet passed KYC without revealing PII  
-- **balance-range** — prove a balance was in a range without the exact number  
-- **transaction-membership** — prove a tx was processed by an agent  
+[SHOW: Click "View Deploy" → browser opens testnet.cspr.live with the deploy hash]
 
-[B-ROLL: DeFi vault UI showing "Access granted — KYC proof verified"]
+[TOOLTIP: "This is your proof. It lives on-chain. Forever."]
 
 ---
 
-## SEGMENT 5: CLOSE + CTA (1:50–2:00)
+## RE-HOOK at ~0:40
 
-[NARRATION: CasperProver — cryptographic accountability for AI agents. Open source. Live on testnet. Fork it, build on it.]
-[SHOW: casperprover.xyz with GitHub link visible]
-[SHOW: Text overlay "github.com/anna-stolbovskaja/CasperProver"]
-
-[NARRATION: Link in the description. Star the repo if this solves a problem you've been thinking about.]
-[B-ROLL: Dashboard with proofs scrolling, fade out]
+[SHOW: Casper explorer deploy detail page — inputs/outputs visible]  
+[SUBTITLE: "Regulators, auditors, users — anyone can verify this KYC without touching PII."]
 
 ---
 
-## PRODUCTION NOTES
-- Total runtime: ~115 seconds at normal narration pace
-- Screen recordings needed: dashboard, terminal curl, cspr.live explorer
-- No face cam required — pure screen + narration
-- Background music: lo-fi ambient, -18dB under narration
+## SECTION 2 — Proof Registry & Verification (0:40–1:20)
+
+[SHOW: Switch to Proofs tab — list of attestations, each row with proof_hash, deploy_hash]
+
+[SUBTITLE: "Every proof is indexed on your dashboard — filter by agent, use case, or mode."]
+
+[SHOW: Click a proof row to expand detail — merkle_root, factors hash shown]
+
+[SHOW: Click "Verify on-chain" link next to a proof → testnet.cspr.live/deploy/... opens]
+
+[B-ROLL: Casper explorer showing deploy details, hash matching the dashboard]
+
+[SHOW: Switch to Verify tab. Enter the proof ID]
+
+[SUBTITLE: "Paste the original input and output to run full cryptographic verification."]
+
+[SHOW: Click Verify — result shows `verified: true`, `inputs_match: true`, `output_match: true`]
+
+[TOOLTIP: "Zero-knowledge integrity — the model can't deny what it decided."]
+
+---
+
+## SECTION 3 — Use Cases & Overview (1:20–1:55)
+
+[SHOW: Demo tab — 3 use case cards: KYC, Loan Approval, Insurance Claim]
+
+[SHOW: Click "Try it" on Loan Approval scenario — auto-fills Generate form]
+
+[SUBTITLE: "Same flow: regulator-grade proof in seconds."]
+
+[B-ROLL: Overview tab — stats: Total Proofs, Valid, Avg Generation time]
+
+[SHOW: Deployed Contracts section — click Scoring Registry → testnet.cspr.live/contract/...]
+
+[TOOLTIP: "Contract hash: 96e97c4d... — deployed and live on Casper testnet."]
+
+---
+
+## OUTRO (1:55–2:00)
+
+[SHOW: Dashboard overview with stats + Casper explorer in background]  
+[SUBTITLE: "CasperProver. AI accountability, on-chain."]  
+[B-ROLL: GitHub repo URL]

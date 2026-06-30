@@ -427,9 +427,9 @@ export default function Dashboard() {
                     <p className="text-gray-400">valid: <span className="text-green-400">{String(genResult.valid)}</span></p>
                   </div>
                   <div className="flex gap-2">
-                    <a href={`${EXPLORER}${REGISTRY}`} target="_blank" rel="noreferrer"
+                    <a href={`${EXPLORER}${genResult.deploy_hash || REGISTRY}`} target="_blank" rel="noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-mono hover:bg-red-500/20 transition-colors">
-                      <ExternalLink className="w-3 h-3" /> View on Casper
+                      <ExternalLink className="w-3 h-3" /> {genResult.deploy_hash ? 'View Deploy' : 'View Contract'}
                     </a>
                     <button onClick={() => handleExport(genResult.id)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 text-gray-400 text-xs font-mono hover:bg-white/10 transition-colors">
@@ -504,6 +504,16 @@ export default function Dashboard() {
                         </div>
                         <p className="font-mono text-[10px] text-gray-600 truncate mt-0.5">{p.proof_hash}</p>
                         <p className="text-[10px] text-gray-600">{p.agent} / {p.generation_ms}ms / {new Date(p.timestamp * 1000).toLocaleString()}</p>
+                        {p.deploy_hash && (
+                          <a
+                            href={`${EXPLORER}deploy/${p.deploy_hash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 mt-1"
+                          >
+                            Verify on-chain <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-3">
                         {p.valid ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
