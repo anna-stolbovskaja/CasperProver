@@ -196,28 +196,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-cp-black">
-      {/* Landing nav on dashboard */}
-      <nav className="fixed top-0 left-0 right-0 z-40 bg-cp-black/90 backdrop-blur-md border-b border-cp-border">
-        <div className="cp-section flex items-center justify-between h-16">
-          <a href="/" className="flex items-center gap-2">
-            <img src="/images/logo.png" alt="CasperProver" className="h-7 w-auto" />
-            <span className="font-bold text-white text-sm tracking-tight">CasperProver</span>
-          </a>
-          <div className="hidden sm:flex items-center gap-6">
-            {NAV_LINKS.map(l => (
-              <a key={l.label} href={l.href} className="text-sm text-gray-400 hover:text-white transition-colors">{l.label}</a>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleConnect} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-              wallet.connected ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500'
-            }`}>
-              {wallet.connected ? <LogOut className="w-3.5 h-3.5" /> : <Wallet className="w-3.5 h-3.5" />}
-              {wallet.connected ? shortKey(wallet.publicKey || '') : 'Connect Wallet'}
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Global Navbar handles nav — no duplicate nav here */}
       <div className="cp-section py-8 pt-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
