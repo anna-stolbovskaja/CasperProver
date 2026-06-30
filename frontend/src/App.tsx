@@ -11,6 +11,7 @@ import FAQ from './components/FAQ'
 import CtaFooter from './components/CtaFooter'
 import Footer from './components/Footer'
 import ScrollProgress from './components/ScrollProgress'
+import ScrollToTop from './components/ScrollToTop'
 import NotFound from './components/NotFound'
 import Dashboard from './components/Dashboard'
 
@@ -40,11 +41,12 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
+      <ScrollToTop />
       <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <main className="flex-1" onClick={mobileOpen ? closeMobile : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/app" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

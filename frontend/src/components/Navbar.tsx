@@ -14,14 +14,14 @@ const links = [
 ]
 
 const appLinks = [
-  { href: '/app', label: 'Dashboard' },
+  { href: '/dashboard', label: 'Dashboard' },
   { href: '/', label: 'Landing' },
 ]
 
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
-  const isApp = location.pathname === '/app'
+  const isApp = location.pathname === '/dashboard'
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50)
@@ -45,7 +45,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
         </div>
         <div className="flex items-center gap-3">
           {!isApp && (
-            <a href="/app" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
+            <a href="/dashboard" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
               Dashboard
             </a>
           )}

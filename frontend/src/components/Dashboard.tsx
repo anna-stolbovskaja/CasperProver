@@ -196,8 +196,8 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs">
-              <span className={`w-2 h-2 rounded-full ${health?.status === 'ok' ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-gray-400 font-mono">{health?.chain || 'offline'}</span>
+              <span className={`w-2 h-2 rounded-full ${health?.status === 'ok' || wallet.connected ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-gray-400 font-mono">{health?.chain || (wallet.connected ? 'casper-test' : 'offline')}</span>
             </div>
             <button onClick={handleConnect} className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
               wallet.connected ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20' : 'bg-red-600 text-white hover:bg-red-500'

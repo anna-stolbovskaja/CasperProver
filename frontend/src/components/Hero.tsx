@@ -125,8 +125,8 @@ export default function Hero() {
         )
       })}
 
-      {/* Mascot — centered, large */}
-      <div ref={mascotRef} className="absolute left-1/2 -translate-x-1/2 bottom-0 z-[5] w-[65%] sm:w-[55%] lg:w-[45%] max-w-2xl">
+      {/* Mascot — mobile: centered bottom, desktop: right + vertically centered */}
+      <div ref={mascotRef} className="absolute z-[5] left-1/2 -translate-x-1/2 bottom-0 w-[65%] sm:w-[55%] lg:left-auto lg:translate-x-0 lg:right-[5%] lg:top-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:w-[38%] max-w-2xl">
         <img src="/images/mascot/hero.webp" alt="CasperProver Spirit" className="w-full animate-fire-glow" loading="eager" />
       </div>
 
@@ -156,7 +156,7 @@ export default function Hero() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <a href="/app" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-500 transition-all shadow-lg shadow-red-600/20">
+            <a href="/dashboard" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-500 transition-all shadow-lg shadow-red-600/20">
               Generate Proof
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
             </a>
