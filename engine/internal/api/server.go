@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/submitter"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 )
 
@@ -20,17 +22,37 @@ type Server struct {
 	ver   *verifier.LocalVerifier
 	kyc   *kyc.DemoKYC
 	db    *store.PG
+	sub   *submitter.CasperSubmitter
 	port  int
 	log   *slog.Logger
 	start time.Time
 }
 
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
+	nodeURL := os.Getenv("CASPER_NODE_URL")
+	if nodeURL == "" {
+		nodeURL = "https://rpc.testnet.casperlabs.io"
+	}
+	chain := os.Getenv("CASPER_CHAIN")
+	if chain == "" {
+		chain = "casper-test"
+	}
+	keyPath := os.Getenv("DEPLOYER_KEY_PATH")
+
+	var sub *submitter.CasperSubmitter
+	if keyPath != "" {
+		sub = submitter.New(nodeURL, chain, keyPath)
+		slog.Info("submitter configured", "node", nodeURL, "chain", chain)
+	} else {
+		slog.Warn("no deployer key configured, anchored mode uses computed hashes")
+	}
+
 	return &Server{
 		eng:   eng,
 		ver:   verifier.New(),
 		kyc:   kyc.NewDemo(eng),
 		db:    db,
+		sub:   sub,
 		port:  port,
 		log:   slog.Default(),
 		start: time.Now(),
@@ -184,7 +206,18 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 	p := s.eng.GenerateWithKey(req.Agent, pubKey, []byte(req.Input), []byte(req.Output), []byte(req.Model), req.UseCase, mode)
 
 	if mode == "anchored" {
-		p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+		if s.sub != nil {
+			deployHash, err := s.sub.Submit(p)
+			if err != nil {
+				s.log.Warn("on-chain submit failed, using computed hash", "id", p.ID, "err", err)
+				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+			} else {
+				p.Deploy = deployHash
+				s.log.Info("proof anchored on-chain", "id", p.ID, "deploy", deployHash)
+			}
+		} else {
+			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+		}
 	}
 
 	s.persist(p)
@@ -228,7 +261,16 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 		}
 		p := s.eng.GenerateWithKey(pr.Agent, pubKey, []byte(pr.Input), []byte(pr.Output), []byte(pr.Model), pr.UseCase, mode)
 		if mode == "anchored" {
-			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+			if s.sub != nil {
+				dh, err := s.sub.Submit(p)
+				if err != nil {
+					p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+				} else {
+					p.Deploy = dh
+				}
+			} else {
+				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+			}
 		}
 		s.persist(p)
 		results = append(results, p)
