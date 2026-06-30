@@ -55,6 +55,11 @@ Agent computes f(x) = y with model M
 
 ---
 
+## Video
+[Video](TBD)
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Why |
@@ -88,5 +93,6 @@ Agent computes f(x) = y with model M
 
 ## Team
 
-**anna-stolbovskaja** — solo build  
-Track: Agentic Infrastructure / Verifiable Compute  
+**anna-stolbovskaja** — Solo builder focused on verifiable compute infrastructure. Architected the Merkle proof registry, wrote all three Casper smart contracts (Proof Registry, Verifier Gate, DeFi Mock), built the Go proof engine with SHA-256 Merkle trees, developed the REST API, created the Vite dashboard for live proof inspection, and shipped SDK clients in Go and Python plus an MCP adapter for AI frameworks. Background in cryptographic systems and blockchain infrastructure; track is Agentic Infrastructure / Verifiable Compute.
+
+GitHub: [github.com/anna-stolbovskaja](https://github.com/anna-stolbovskaja)
