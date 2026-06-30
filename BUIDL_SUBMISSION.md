@@ -1,115 +1,92 @@
-# CasperProver — BUIDL submission
+# CasperProver — Cryptographic Accountability for AI Agents
 
-## form
+## Project Name & Tagline
 
-| field | value |
-|-------|-------|
-| **name** | CasperProver |
-| **logo** | red/black terminal icon |
-| **category** | crypto/web3 |
-| **repo** | https://github.com/anna-stolbovskaja/CasperProver |
-| **site** | https://casperprover.xyz |
-| **video** | _(pending)_ |
-| **social** | github.com/anna-stolbovskaja |
+**CasperProver**  
+*Cryptographic accountability for AI agents — Merkle proof registry on Casper Network*
 
 ---
 
-## one-liner
+## The Problem
 
-merkle proofs for ai agent computations, stored on casper. verify what was computed without re-running it.
+AI agents are making consequential decisions — approving loans, running KYC checks, executing compliance rules — and nobody can audit them.
 
-## details
+There is no standard way to prove what an AI agent computed without:
+1. Re-running the entire model (expensive, often impossible)
+2. Trusting the operator's logs (centralized, mutable)
+3. Revealing the inputs or model weights (privacy violation)
 
-### the problem
+The result: AI outputs are **unverifiable black boxes** deployed in critical infrastructure. As agents become more autonomous, this accountability gap becomes a systemic risk.
 
-an ai agent runs inference. produces output. claims it used model X on input Y and got result Z.
+---
 
-how do you verify that?
+## The Solution
 
-option 1: re-run the computation. expensive. sometimes impossible (non-deterministic models, proprietary APIs, hardware-specific results).
+CasperProver is a **Merkle proof registry on Casper Network**. Agents submit a cryptographic fingerprint of their computation; anyone can verify inclusion on-chain — instantly, permanently, without replaying the model.
 
-option 2: trust the agent. fine until money is involved.
+### How it works
 
-option 3: store a cryptographic proof of the computation on-chain. anyone can verify inclusion without re-execution. that's CasperProver.
+```
+Agent computes f(x) = y with model M
+  → Submit: H(x), H(y), H(M)
+  → Engine builds Merkle tree over {H(x), H(y), H(M)}
+  → Root committed on-chain (Proof Registry contract)
+  → Inclusion proof stored + queryable
+  → Verifier Gate checks any proof in milliseconds
+```
 
-### how it works
+**Three contracts deployed on Casper testnet:**
+- **Proof Registry** — stores Merkle roots, proof metadata, verification status
+- **Verifier Gate** — checks inclusion proofs, manages downstream access
+- **DeFi Mock** — sample vault gated by verifier-gate (live KYC-gated DeFi demo)
 
-1. agent submits input hash + output hash to CasperProver API
-2. server builds a merkle tree from all registered computations
-3. merkle root gets written to casper via proof-registry contract
-4. inclusion proof (merkle path) is stored and queryable
-5. any third party calls verifier-gate contract with the proof — gets a boolean
+---
 
-the proof is compact. a tree of depth 12 has a 12-hash path regardless of how many leaves exist. verification is O(log n) hashes, not O(n) re-computation.
+## What's Live
 
-### why it matters
+| Artifact | Link |
+|---|---|
+| Dashboard (72 proofs) | https://casperprover.xyz/dashboard |
+| API | https://casperprover-api.onrender.com |
+| GitHub | https://github.com/anna-stolbovskaja/CasperProver |
+| Proof Registry contract | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
+| Verifier Gate contract | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
+| DeFi Mock contract | [b9b11a97...b81d3](https://testnet.cspr.live/contract/b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3) |
 
-defi protocols need to trust agent output before acting on it. a lending protocol shouldn't liquidate a position because an agent said the price dropped — it should verify the agent's computation is in the registered merkle root.
+---
 
-CasperProver adds that verification layer.
+## Tech Stack
 
-### kyc gating
+| Layer | Technology | Why |
+|---|---|---|
+| Smart contracts | Rust / Casper 2.x | Native Casper contract model, deterministic execution |
+| Proof engine | Go 1.22 | Fast Merkle tree construction, low latency |
+| API | Go HTTP | Lightweight, same language as engine |
+| Frontend | Vite + TypeScript + Tailwind | Fast dashboard, zero framework lock-in |
+| SDK | Go + Python + MCP adapter | Meets agents where they live |
 
-the verifier-gate contract also manages a kyc whitelist. accounts proven via merkle inclusion proofs get whitelisted for interaction with gated protocols.
+---
 
-defi-mock is a sample vault that only accepts deposits from whitelisted accounts. the whitelist check happens on-chain through verifier-gate. no off-chain dependency.
+## Unique Angle
 
-this pattern generalizes: any contract can call verifier-gate to check if a user has a valid proof before proceeding.
+**AI accountability, not just blockchain storage.** CasperProver is not a generic data registry. It is specifically designed so AI frameworks (LangChain, Claude via MCP, any REST client) can register proof commitments at inference time. The MCP server (`sdk/mcp_server.go`) means any AI agent using Model Context Protocol can call CasperProver as a native tool — submit a proof without custom integration.
 
-### contracts
+**Trustless verification** — the verifier-gate contract means a downstream DeFi protocol can gate access based on proof validity without trusting the agent operator. The KYC demo shows this end-to-end: agent proves KYC eligibility → on-chain gate checks proof → vault unlocks.
 
-three on casper testnet:
+---
 
-**proof-registry** (`96e97c4d...a10708`)
-- stores merkle roots, proof metadata (agent, input/output hashes, model hash)
-- verification status and timestamps
-- supports batch registration
+## Four Proof Types
 
-**verifier-gate** (`a37f9cde...9f77d3`)
-- verifies inclusion proofs against registered roots
-- manages kyc whitelist
-- access control for downstream contracts
+| Type | What it proves |
+|---|---|
+| `merkle-inclusion` | A value was part of a computation |
+| `kyc-eligibility` | Wallet passed KYC (no PII revealed) |
+| `balance-range` | Balance was in a range (no exact value) |
+| `transaction-membership` | A tx was processed by a specific agent |
 
-**defi-mock** (`b9b11a97...b81d3`)
-- sample defi vault gated by verifier-gate
-- deposit/withdraw restricted to whitelisted accounts
-- demonstrates the gating pattern
+---
 
-### server
+## Team
 
-go 1.22, standard library only (net/http, crypto/sha256, encoding/json). no frameworks. ~2200 lines.
-
-endpoints:
-- POST /proofs — register new proof
-- GET /proofs/:id — get proof with merkle path
-- GET /proofs — list with pagination
-- POST /verify — check inclusion
-- GET /health — status + contract info
-- GET /kyc/:account — check whitelist status
-
-postgresql on neon. two tables: proofs (17 columns), kyc_whitelist (4 columns).
-
-### frontend
-
-react + vite + tailwind. black/red theme. dashboard shows proof list with status badges, kyc section, contract links. navbar links to landing page sections from both landing and dashboard views.
-
-### numbers
-
-- 72 proofs registered in db
-- 22 kyc entries
-- 83 tests (62 go + 21 rust)
-- 3 contracts deployed
-- api response time: <50ms for proof lookup
-- merkle verification: 5-180ms depending on tree depth
-
-### what's different
-
-existing proof-of-computation projects focus on zk-snarks (heavy, slow to generate) or optimistic verification (requires challenge periods). CasperProver uses merkle trees — simple, fast, and sufficient for most agent verification use cases.
-
-a merkle proof takes milliseconds to generate and verify. a zk-snark takes seconds to minutes. for the common case of "prove this agent actually computed this output," merkle inclusion is the right tool.
-
-zk-snark support is on the roadmap for cases that need zero-knowledge properties (proving computation without revealing inputs). but the merkle layer works today.
-
-### next
-
-recursive proof aggregation, zk-snark adapter, multi-model proof chains, cross-chain bridging.
+**anna-stolbovskaja** — solo build  
+Track: Agentic Infrastructure / Verifiable Compute  
