@@ -4,26 +4,57 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 )
 
+const nownodesURL = "https://casper.nownodes.io/rpc"
+
 type CasperSubmitter struct {
-	nodeURL  string
-	chain    string
-	keyPath  string
-	client   *http.Client
+	nodeURL      string
+	chain        string
+	keyPath      string
+	nownodesKey  string
+	client       *http.Client
 }
 
 func New(nodeURL, chain, keyPath string) *CasperSubmitter {
-	return &CasperSubmitter{
-		nodeURL: nodeURL,
-		chain:   chain,
-		keyPath: keyPath,
-		client:  &http.Client{Timeout: 30 * time.Second},
+	key := os.Getenv("NOWNODES_API_KEY")
+	if key != "" {
+		slog.Info("NOWNodes RPC configured as primary provider")
 	}
+	return &CasperSubmitter{
+		nodeURL:     nodeURL,
+		chain:       chain,
+		keyPath:     keyPath,
+		nownodesKey: key,
+		client:      &http.Client{Timeout: 30 * time.Second},
+	}
+}
+
+// rpcCall sends a JSON-RPC request, trying NOWNodes first with automatic
+// fallback to the default node URL when NOWNodes is unavailable.
+func (s *CasperSubmitter) rpcCall(body []byte) (*http.Response, error) {
+	if s.nownodesKey != "" {
+		req, err := http.NewRequest("POST", nownodesURL, bytes.NewReader(body))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("api-key", s.nownodesKey)
+			resp, err := s.client.Do(req)
+			if err == nil && resp.StatusCode < 500 {
+				return resp, nil
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			slog.Warn("NOWNodes unavailable, falling back to default node", "err", err)
+		}
+	}
+	return s.client.Post(s.nodeURL+"/rpc", "application/json", bytes.NewReader(body))
 }
 
 func (s *CasperSubmitter) Submit(p *prover.Proof) (string, error) {
@@ -57,7 +88,7 @@ func (s *CasperSubmitter) Submit(p *prover.Proof) (string, error) {
 		return "", fmt.Errorf("marshal: %w", err)
 	}
 
-	resp, err := s.client.Post(s.nodeURL+"/rpc", "application/json", bytes.NewReader(body))
+	resp, err := s.rpcCall(body)
 	if err != nil {
 		return "", fmt.Errorf("post: %w", err)
 	}
@@ -98,7 +129,7 @@ func (s *CasperSubmitter) Revoke(pid, reason string) (string, error) {
 		return "", err
 	}
 
-	resp, err := s.client.Post(s.nodeURL+"/rpc", "application/json", bytes.NewReader(body))
+	resp, err := s.rpcCall(body)
 	if err != nil {
 		return "", err
 	}
