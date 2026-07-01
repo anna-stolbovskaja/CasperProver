@@ -91,6 +91,117 @@ var mcpTools = []MCPTool{
 			"required": []string{"proof_id", "reason"},
 		},
 	},
+	{
+		Name:        "batch_proofs",
+		Description: "Generate multiple proofs in a single batch request.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"proofs": map[string]interface{}{
+					"type":        "array",
+					"description": "Array of proof requests",
+					"items": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"agent_id": map[string]string{"type": "string"},
+							"input":    map[string]string{"type": "string"},
+							"output":   map[string]string{"type": "string"},
+							"model":    map[string]string{"type": "string"},
+						},
+					},
+				},
+			},
+			"required": []string{"proofs"},
+		},
+	},
+	{
+		Name:        "export_proof",
+		Description: "Export a proof as a portable JSON bundle for external verification.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"proof_id": map[string]string{"type": "string"},
+			},
+			"required": []string{"proof_id"},
+		},
+	},
+	{
+		Name:        "get_stats",
+		Description: "Get aggregate proof statistics: total proofs, verified count, models.",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	},
+	{
+		Name:        "kyc_check",
+		Description: "Check whether an address passes KYC whitelist verification.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"address": map[string]string{"type": "string", "description": "Address to verify"},
+			},
+			"required": []string{"address"},
+		},
+	},
+	{
+		Name:        "kyc_grant",
+		Description: "Grant KYC whitelist access to an address (admin only).",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"address": map[string]string{"type": "string"},
+				"admin":   map[string]string{"type": "string", "description": "Admin account hash"},
+			},
+			"required": []string{"address", "admin"},
+		},
+	},
+	{
+		Name:        "kyc_whitelist",
+		Description: "Check KYC whitelist status for a specific user.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"user": map[string]string{"type": "string"},
+			},
+			"required": []string{"user"},
+		},
+	},
+	{
+		Name:        "health_check",
+		Description: "Check API server, database, and blockchain connection health.",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	},
+	{
+		Name:        "get_model_info",
+		Description: "Get information about a registered model by its hash.",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"model_hash": map[string]string{"type": "string"},
+			},
+			"required": []string{"model_hash"},
+		},
+	},
+	{
+		Name:        "list_models",
+		Description: "List all registered models used in proof generation.",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	},
+	{
+		Name:        "get_merkle_root",
+		Description: "Get the current Merkle root of all proofs for on-chain verification.",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	},
 }
 
 // Manifest returns the MCP tool manifest.
