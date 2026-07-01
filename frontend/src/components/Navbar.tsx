@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 interface Props { mobileOpen: boolean; setMobileOpen: (v: boolean) => void }
 
@@ -16,6 +16,7 @@ const links = [
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const isApp = location.pathname === '/dashboard'
 
   useEffect(() => {
@@ -23,6 +24,21 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault()
+    const hash = href.split('#')[1]
+    if (location.pathname !== '/') {
+      navigate('/')
+      setTimeout(() => {
+        const el = document.getElementById(hash)
+        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } else {
+      const el = document.getElementById(hash)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur border-b border-gray-800/50' : 'bg-transparent'}`}>
@@ -33,7 +49,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
         </a>
         <div className="hidden md:flex items-center gap-1">
           {links.map(l => (
-            <a key={l.href} href={l.href} className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-400 rounded-lg transition-colors">{l.label}</a>
+            <a key={l.href} href={l.href} onClick={(e) => handleNavClick(e, l.href)} className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-400 rounded-lg transition-colors">{l.label}</a>
           ))}
         </div>
         <div className="flex items-center gap-3">
@@ -51,7 +67,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
         <div className="md:hidden bg-black/95 border-t border-gray-800">
           <div className="px-4 py-3 space-y-1">
             {links.map(l => (
-              <a key={l.href} href={l.href} onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-gray-300 rounded-lg hover:bg-white/5">{l.label}</a>
+              <a key={l.href} href={l.href} onClick={(e) => { handleNavClick(e, l.href); setMobileOpen(false) }} className="block px-3 py-2.5 text-gray-300 rounded-lg hover:bg-white/5">{l.label}</a>
             ))}
             {!isApp && (
               <a href="/dashboard" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-red-400 font-semibold rounded-lg hover:bg-white/5">Dashboard</a>
