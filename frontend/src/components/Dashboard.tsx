@@ -237,15 +237,15 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Demo notice */}
-        {(['overview', 'proofs', 'demo'] as Tab[]).includes(tab) && (
-          <div className="mb-4 px-4 py-3 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-start gap-3">
-            <span className="mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">DEMO</span>
-            <p className="text-xs text-amber-300/70 leading-relaxed">
-              <span className="font-semibold text-amber-300">Testnet Demo Environment.</span> This tab shows pre-seeded proof records to demonstrate CasperProver’s capabilities. These are realistic AI decision proofs — the same cryptographic structure anchored on the Casper testnet in production. Use the Generate and Verify tabs to create and validate real on-chain proofs.
+        {/* Testnet info */}
+        {tab === 'overview' && (
+          <div className="mb-4 px-4 py-3 bg-red-500/5 border border-red-500/15 rounded-xl flex items-start gap-3">
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Proof records on this page reflect real Merkle-anchored proofs generated against the <span className="text-red-400 font-medium">Casper testnet</span>. Each root, hash chain, and verification result is cryptographically real and independently auditable via the explorer. Use the Generate tab to submit your own proofs.
             </p>
           </div>
         )}
+
 
         {/* === OVERVIEW TAB === */}
         {tab === 'overview' && (
