@@ -1,30 +1,64 @@
-# roadmap
+# CasperProver — Roadmap
 
-## shipped (hackathon)
+> Cryptographic proof engine for AI inference verification on Casper Network
 
-- [x] 3 contracts on casper testnet (proof-registry, verifier-gate, defi-mock)
-- [x] go api server with postgresql
-- [x] merkle tree builder (sha-256, configurable depth)
-- [x] proof registration and on-chain verification
-- [x] kyc whitelisting via merkle inclusion
-- [x] defi vault gated by verifier-gate
-- [x] react dashboard at casperprover.xyz
-- [x] sdk + mcp server
-- [x] 83 tests (62 go + 21 rust)
-- [x] ci via github actions
+---
 
-## next
+## Shipped (Hackathon)
 
-- [ ] recursive proof aggregation (batch N proofs into 1 root)
-- [ ] zk-snark adapter (groth16 verifier on casper)
-- [ ] multi-model proof chains (model A output → model B input → combined proof)
-- [ ] proof explorer with search and filter
-- [ ] websocket real-time proof feed
+- [x] 3 contracts on Casper testnet (proof-registry, verifier-gate, defi-mock)
+- [x] Go API server with PostgreSQL
+- [x] Merkle tree builder (SHA-256, configurable depth)
+- [x] Proof registration and on-chain verification
+- [x] KYC whitelisting via Merkle inclusion
+- [x] DeFi vault gated by verifier-gate
+- [x] React dashboard at casperprover.xyz
+- [x] SDK + MCP server
+- [x] 83 tests (62 Go + 21 Rust)
+- [x] CI via GitHub Actions
 
-## later
+## Phase 2 — Core Upgrades
 
-- [ ] mainnet deployment
-- [ ] proof-of-inference standard proposal
-- [ ] integration with model registries (huggingface, replicate)
-- [ ] cross-chain proof bridging
-- [ ] hardware attestation support (tpm/sgx)
+- [ ] Proof-of-Inference contract — model_hash + input_hash + output_hash on-chain
+- [ ] Model hash commitment — SHA-256(architecture + weights + hyperparams) before inference
+- [ ] ModelRegistry contract — on-chain model binding to prevent model-swap attacks
+- [ ] Proof aggregation registry — N proofs → 1 root hash with Merkle inclusion
+- [ ] Post-quantum proof signing (ML-DSA FIPS 204 + SPHINCS+ FIPS 205 backup)
+- [ ] Recursive STARK aggregation (STARKPack pattern, Winterfell)
+- [ ] Groth16 zk-SNARK verifier (gnark, optimistic mode with fraud proofs)
+- [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof, 5.5KB/24ms
+- [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
+- [ ] MCP server expansion to 15+ tools with ProofOfInference JSON-Schema
+- [ ] Demo/Real data toggle in dashboard
+
+## Phase 3 — Advanced
+
+- [ ] Multi-model proof chains — DAG of proofs with topological validation
+- [ ] Full on-chain ZK-SNARK verifier (Groth16/PLONK in Wasm contract)
+- [ ] Hardware attestation support (TPM 2.0, Intel SGX, AMD SEV, ARM TrustZone)
+- [ ] Distributed prover workers with MPC threshold proving
+- [ ] Trusted setup ceremony manager
+- [ ] EVM compatibility layer (Solidity verifier contract)
+- [ ] Proof complexity classifier (ML-based)
+- [ ] Property-based testing (Go rapid) with proof system invariants
+- [ ] ZK circuit constraint testing + fuzz testing
+- [ ] Gas benchmarking suite
+
+## Phase 4 — Mainnet & Standard
+
+- [ ] Security audit
+- [ ] Mainnet deployment
+- [ ] Proof-of-Inference standard proposal (CEP-style)
+- [ ] ZK circuit design whitepaper
+- [ ] Integration with model registries (HuggingFace, Replicate)
+- [ ] Cross-chain proof bridging
+- [ ] Formal verification (TLA+ specification for proof system)
+
+## Planned Infrastructure (stubs in codebase)
+
+- `VerifierConfig` — Optimistic/ZK/Hybrid verification modes
+- `ProverConfig` — distributed proving parameters
+- `AttestationType` — Software/TPM/SGX/SEV/TrustZone enum
+- `HWQuote` struct — hardware attestation quote format
+- `ProofChain` + `ProofDAG` — multi-model pipeline proofs
+- `TargetVM` enum — CasperVM/EVM abstraction
