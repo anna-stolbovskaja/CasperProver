@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Shield, Hash, Wallet, LogOut, Play, Loader2, CheckCircle, XCircle,
-  BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, Filter, Eye, Layers, FileText
+  BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, Filter, Eye, Layers, FileText, Globe, ChevronDown
 } from 'lucide-react'
 import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof } from '../lib/api'
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
@@ -92,6 +92,24 @@ export default function Dashboard() {
   const [verifyModel, setVerifyModel] = useState('')
   const [verifyResult, setVerifyResult] = useState<Record<string, unknown> | null>(null)
   const [verifying, setVerifying] = useState(false)
+
+  // RPC provider selector
+  const RPC_PROVIDERS = [
+    { id: 'nownodes', label: 'NOWNodes', url: 'casper.nownodes.io' },
+    { id: 'default', label: 'Casper RPC', url: 'rpc.testnet.casperlabs.io' },
+    { id: 'cspr-cloud', label: 'CSPR.cloud', url: 'node.cspr.cloud' },
+  ] as const
+  const [rpcProvider, setRpcProvider] = useState<string>('nownodes')
+  const [rpcDropdownOpen, setRpcDropdownOpen] = useState(false)
+  const rpcRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (rpcRef.current && !rpcRef.current.contains(e.target as Node)) setRpcDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+  const activeRpc = RPC_PROVIDERS.find(p => p.id === rpcProvider) || RPC_PROVIDERS[0]
 
   // filter
   const [filterAgent, setFilterAgent] = useState('')
@@ -203,6 +221,39 @@ export default function Dashboard() {
             <p className="text-gray-500 text-sm mt-1">Generate, verify, and inspect cryptographic proofs for AI decisions</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* RPC Provider selector */}
+            <div ref={rpcRef} className="relative">
+              <button
+                onClick={() => setRpcDropdownOpen(!rpcDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs hover:border-red-500/40 transition-colors"
+              >
+                <Globe className="w-3.5 h-3.5 text-red-400" />
+                <span className="text-gray-300 font-medium">{activeRpc.label}</span>
+                <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${rpcDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {rpcDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-cp-card border border-cp-border rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-cp-border">
+                    <p className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">RPC Provider</p>
+                  </div>
+                  {RPC_PROVIDERS.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setRpcProvider(p.id); setRpcDropdownOpen(false) }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
+                        rpcProvider === p.id ? 'bg-red-500/10 text-red-400' : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${rpcProvider === p.id ? 'bg-red-500' : 'bg-gray-600'}`} />
+                      <div>
+                        <div className="font-medium">{p.label}</div>
+                        <div className="text-[11px] text-gray-500 font-mono">{p.url}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs">
               <span className={`w-2 h-2 rounded-full ${health?.status === 'ok' || wallet.connected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-gray-400 font-mono">{health?.chain || (wallet.connected ? 'casper-test' : 'offline')}</span>
