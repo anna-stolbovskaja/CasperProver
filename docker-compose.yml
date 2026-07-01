@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  engine:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      - GIN_MODE=release
+    restart: unless-stopped
