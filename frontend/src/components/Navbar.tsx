@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 
 interface Props { mobileOpen: boolean; setMobileOpen: (v: boolean) => void }
 
@@ -16,7 +16,6 @@ const links = [
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
   const isApp = location.pathname === '/dashboard'
 
   useEffect(() => {
@@ -29,21 +28,26 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     e.preventDefault()
     const hash = href.split('#')[1]
     if (location.pathname !== '/') {
-      navigate('/')
-      setTimeout(() => {
-        const el = document.getElementById(hash)
-        if (el) el.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
+      // Full page navigation from dashboard to landing — avoids SPA black screen issues
+      window.location.href = href
     } else {
       const el = document.getElementById(hash)
       if (el) el.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (location.pathname === '/') {
+      e.preventDefault()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    // If on another page, let the default <a href="/"> do a full reload
+  }
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur border-b border-gray-800/50' : 'bg-transparent'}`}>
       <div className="cp-section flex items-center justify-between h-16">
-        <a href="/" className="flex items-center gap-2">
+        <a href="/" onClick={handleLogoClick} className="flex items-center gap-2">
           <img src="/images/logo.webp" alt="CasperProver" className="h-7 w-auto" />
           <span className="font-bold text-white text-lg hidden sm:block">CasperProver</span>
         </a>
