@@ -14,10 +14,6 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 )
 
-func base64Decode(dst, src []byte) (int, error) {
-	return base64.StdEncoding.Decode(dst, src)
-}
-
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -92,13 +88,23 @@ func demoFlow(eng *prover.ProofEngine) {
 func serve(eng *prover.ProofEngine) {
 	// write deployer key from env to temp file if provided
 	if keyB64 := os.Getenv("DEPLOYER_KEY_B64"); keyB64 != "" {
-		decoded := make([]byte, len(keyB64))
-		n, err := base64Decode(decoded, []byte(keyB64))
+		decoded, err := base64.StdEncoding.DecodeString(keyB64)
 		if err == nil {
-			keyPath := "/tmp/deployer.pem"
-			if err := os.WriteFile(keyPath, decoded[:n], 0600); err == nil {
-				os.Setenv("DEPLOYER_KEY_PATH", keyPath)
-				slog.Info("deployer key written from env", "path", keyPath)
+			// Use secure random temp file instead of predictable /tmp/deployer.pem
+			tmpFile, err := os.CreateTemp("", "deployer-*.pem")
+			if err == nil {
+				keyPath := tmpFile.Name()
+				if _, err := tmpFile.Write(decoded); err == nil {
+					tmpFile.Close()
+					os.Chmod(keyPath, 0600)
+					os.Setenv("DEPLOYER_KEY_PATH", keyPath)
+					slog.Info("deployer key written from env", "path", keyPath)
+					// Schedule cleanup on exit
+					defer os.Remove(keyPath)
+				} else {
+					tmpFile.Close()
+					os.Remove(keyPath)
+				}
 			}
 		}
 	}

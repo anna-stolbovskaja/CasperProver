@@ -136,6 +136,14 @@ func (s *Server) listProofs(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(q.Get("page"))
 	limit, _ := strconv.Atoi(q.Get("limit"))
 
+	// Cap limit to prevent excessive memory allocation
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if page <= 0 {
+		page = 1
+	}
+
 	f := prover.ListFilter{
 		Agent:  q.Get("agent"),
 		PubKey: q.Get("public_key"),
@@ -174,6 +182,8 @@ func (s *Server) getProof(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
+	// Limit request body to 1MB to prevent DoS
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	var req struct {
 		Agent   string `json:"agent"`
 		Input   string `json:"input"`
@@ -229,6 +239,8 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
+	// Limit request body to 5MB
+	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
 	var req struct {
 		Proofs []struct {
 			Agent   string `json:"agent"`
@@ -336,6 +348,21 @@ func (s *Server) verifyProof(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) revokeProof(w http.ResponseWriter, r *http.Request) {
 	pid := r.PathValue("id")
+
+	// Authorization: require X-Public-Key header and verify ownership
+	pubKey := r.Header.Get("X-Public-Key")
+	if pubKey == "" {
+		s.jsonError(w, "X-Public-Key header required for revocation", http.StatusUnauthorized)
+		return
+	}
+	// Verify the caller owns this proof
+	if p, ok := s.eng.Get(pid); ok {
+		if p.PubKey != "" && p.PubKey != pubKey {
+			s.jsonError(w, "not authorized to revoke this proof", http.StatusForbidden)
+			return
+		}
+	}
+
 	var req struct {
 		Reason string `json:"reason"`
 	}

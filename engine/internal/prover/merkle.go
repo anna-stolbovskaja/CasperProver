@@ -71,12 +71,17 @@ func GetPath(leaves [][]byte, idx int) []string {
 		} else {
 			sibling = pos - 1
 		}
-		if sibling < len(hashes) {
+		if sibling >= 0 && sibling < len(hashes) {
 			path = append(path, hex.EncodeToString(hashes[sibling][:]))
 		}
 
 		var next [][32]byte
 		for i := 0; i < len(hashes); i += 2 {
+			if i+1 >= len(hashes) {
+				// Safety: should not happen after padding, but guard against OOB
+				next = append(next, hashes[i])
+				break
+			}
 			combined := append(hashes[i][:], hashes[i+1][:]...)
 			next = append(next, sha256.Sum256(combined))
 		}
