@@ -36,8 +36,10 @@ export default function Hero() {
       canvas.width = canvas.offsetWidth * 2
       canvas.height = canvas.offsetHeight * 2
       ctx.scale(2, 2)
+      particles.length = 0
     }
     resize()
+    window.addEventListener('resize', resize)
 
     const particles: { x: number; y: number; vx: number; vy: number; life: number; size: number }[] = []
 
@@ -47,8 +49,9 @@ export default function Hero() {
       const H = canvas.offsetHeight
       ctx.clearRect(0, 0, W, H)
 
-      const cx = W * 0.5
-      const cy = H * 0.55
+      const isDesktop = W > 768
+      const cx = isDesktop ? W * 0.75 : W * 0.5
+      const cy = isDesktop ? H * 0.5 : H * 0.75
 
       if (Math.random() < 0.4) {
         particles.push({
@@ -78,7 +81,7 @@ export default function Hero() {
       raf = requestAnimationFrame(animate)
     }
     animate()
-    return () => cancelAnimationFrame(raf)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize) }
   }, [])
 
   return (
@@ -93,7 +96,7 @@ export default function Hero() {
       </div>
 
       {/* Fire particles — behind mascot */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[4]" />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-[3]" />
 
       {/* Floating 3D info blocks */}
       {floatingBlocks.map((b, i) => {
@@ -126,7 +129,7 @@ export default function Hero() {
       })}
 
       {/* Mascot — mobile: centered bottom, desktop: right + vertically centered */}
-      <div ref={mascotRef} className="absolute z-[5] left-1/2 -translate-x-1/2 bottom-0 w-[65%] sm:w-[55%] lg:left-auto lg:translate-x-0 lg:right-[5%] lg:top-1/2 lg:-translate-y-1/2 lg:bottom-auto lg:w-[38%] max-w-2xl">
+      <div ref={mascotRef} className="absolute z-[5] left-1/2 -translate-x-1/2 top-16 w-[45%] sm:w-[40%] opacity-30 sm:opacity-40 lg:opacity-100 lg:left-auto lg:translate-x-0 lg:right-[5%] lg:top-1/2 lg:-translate-y-1/2 lg:w-[38%] max-w-2xl">
         <img src="/images/mascot/hero.webp" alt="CasperProver Spirit" className="w-full animate-fire-glow" loading="eager" />
       </div>
 
