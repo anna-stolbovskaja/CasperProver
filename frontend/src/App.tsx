@@ -16,6 +16,18 @@ import NotFound from './components/NotFound'
 import Dashboard from './components/Dashboard'
 
 function Landing() {
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (hash) {
+      // Wait for React to finish rendering all sections, then scroll
+      const raf = requestAnimationFrame(() => {
+        const el = document.getElementById(hash)
+        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [])
+
   return (
     <>
       <Hero />
