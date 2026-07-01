@@ -32,6 +32,8 @@ export default function Hero() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    const particles: { x: number; y: number; vx: number; vy: number; life: number; size: number }[] = []
+
     const resize = () => {
       canvas.width = canvas.offsetWidth * 2
       canvas.height = canvas.offsetHeight * 2
@@ -40,8 +42,6 @@ export default function Hero() {
     }
     resize()
     window.addEventListener('resize', resize)
-
-    const particles: { x: number; y: number; vx: number; vy: number; life: number; size: number }[] = []
 
     let raf: number
     const animate = () => {
