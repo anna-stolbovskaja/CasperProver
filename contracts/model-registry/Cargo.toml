@@ -1,0 +1,12 @@
+[package]
+name = "model-registry"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+casper-contract = "4.0.0"
+casper-types = "4.0.1"
+
+[[bin]]
+name = "model-registry"
+path = "src/main.rs"
