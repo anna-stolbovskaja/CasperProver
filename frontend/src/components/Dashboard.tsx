@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Shield, Hash, Wallet, LogOut, Play, Loader2, CheckCircle, XCircle,
-  BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, Filter, Eye, Layers, FileText, Globe, ChevronDown
+  BarChart3, ExternalLink, Search, ChevronLeft, ChevronRight, Filter, Eye, Layers, FileText, Globe, ChevronDown,
+  Database, Activity, Cpu, Code
 } from 'lucide-react'
 import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof } from '../lib/api'
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
@@ -61,7 +62,7 @@ const DEMO_SCENARIOS = [
 
 const STEPS = ['Hashing inputs', 'Building Merkle tree', 'Generating proof', 'Anchoring on-chain', 'Complete']
 
-type Tab = 'overview' | 'generate' | 'proofs' | 'demo' | 'verify'
+type Tab = 'overview' | 'generate' | 'proofs' | 'demo' | 'verify' | 'models' | 'complexity' | 'workers' | 'contracts'
 
 export default function Dashboard() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -275,6 +276,10 @@ export default function Dashboard() {
             ['proofs', 'Proofs', Layers],
             ['demo', 'Use Cases', Eye],
             ['verify', 'Verify', Search],
+            ['models', 'Models', Database],
+            ['complexity', 'Complexity', Activity],
+            ['workers', 'Workers', Cpu],
+            ['contracts', 'Contracts', Code],
           ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -682,6 +687,113 @@ export default function Dashboard() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ========== MODELS TAB ========== */}
+        {tab === 'models' && (
+          <div className="space-y-4">
+            <div className="bg-[#111] border border-gray-800 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Database size={14} className="text-red-400" /> Model Registry</h3>
+              <p className="text-sm text-gray-400 mb-6">On-chain registry of AI models eligible for proof generation. Each model is identified by its SHA-256 weight hash and versioned for auditability.</p>
+              <div className="space-y-3">
+                {[
+                  { name: 'ResNet-50-ONNX', hash: 'e3b0c44298fc...', framework: 'ONNX', version: 'v1.2.0', proofs: 89 },
+                  { name: 'GPT-2-Small', hash: 'a7c4f1d82e9b...', framework: 'PyTorch', version: 'v1.0.0', proofs: 34 },
+                  { name: 'ViT-Base-16', hash: 'f5d6e8c2a1b3...', framework: 'TensorFlow', version: 'v2.1.0', proofs: 12 },
+                ].map((m, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-black/40 border border-gray-800/60">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{m.name}</div>
+                      <div className="text-xs font-mono text-gray-500 mt-1">{m.hash} · {m.framework} · {m.version}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-red-400 font-semibold">{m.proofs}</div>
+                      <div className="text-xs text-gray-600">proofs</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== COMPLEXITY TAB ========== */}
+        {tab === 'complexity' && (
+          <div className="space-y-4">
+            <div className="bg-[#111] border border-gray-800 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Activity size={14} className="text-red-400" /> Proof Complexity Analyzer</h3>
+              <p className="text-sm text-gray-400 mb-6">Estimates computational cost and time for proof generation based on model parameters, input size, and proof type.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                {[
+                  { label: 'Avg. Generation', value: '2.3s', sub: 'Per proof' },
+                  { label: 'Merkle Depth', value: '18', sub: 'Current tree' },
+                  { label: 'Gas Estimate', value: '~450K', sub: 'Per anchor tx' },
+                ].map((s, i) => (
+                  <div key={i} className="p-4 rounded-lg bg-black/40 border border-gray-800/60 text-center">
+                    <div className="text-2xl font-bold text-white">{s.value}</div>
+                    <div className="text-sm text-gray-400 mt-1">{s.label}</div>
+                    <div className="text-xs text-gray-600">{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== WORKERS TAB ========== */}
+        {tab === 'workers' && (
+          <div className="space-y-4">
+            <div className="bg-[#111] border border-gray-800 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Cpu size={14} className="text-red-400" /> Worker Nodes</h3>
+              <p className="text-sm text-gray-400 mb-6">Distributed proof generation cluster. Tasks are split across worker nodes for parallel processing with fault-tolerant scheduling.</p>
+              <div className="space-y-3">
+                {[
+                  { id: 'worker-01', status: 'Active', load: '72%', tasks: 156, region: 'us-east' },
+                  { id: 'worker-02', status: 'Active', load: '45%', tasks: 98, region: 'eu-west' },
+                  { id: 'worker-03', status: 'Idle', load: '0%', tasks: 0, region: 'ap-south' },
+                ].map((w, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 rounded-lg bg-black/40 border border-gray-800/60">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full ${w.status === 'Active' ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+                      <div>
+                        <div className="text-sm font-mono text-white">{w.id}</div>
+                        <div className="text-xs text-gray-500">{w.region}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-300">Load: <span className="text-red-400">{w.load}</span></div>
+                      <div className="text-xs text-gray-600">{w.tasks} tasks completed</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========== CONTRACTS TAB ========== */}
+        {tab === 'contracts' && (
+          <div className="space-y-4">
+            <div className="bg-[#111] border border-gray-800 rounded-xl p-6">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Code size={14} className="text-red-400" /> Smart Contracts</h3>
+              <p className="text-sm text-gray-400 mb-6">Odra smart contracts deployed on Casper testnet for proof anchoring, aggregation, and model registry.</p>
+              <div className="space-y-3">
+                {[
+                  { name: 'ProofOfInference', status: 'Deployed', desc: 'Anchors individual proof hashes with Merkle roots on-chain' },
+                  { name: 'ProofAggregation', status: 'Deployed', desc: 'Batch-aggregates proofs for gas-efficient on-chain verification' },
+                  { name: 'ModelRegistry', status: 'Deployed', desc: 'On-chain registry of approved models with version tracking' },
+                ].map((c, i) => (
+                  <div key={i} className="p-4 rounded-lg bg-black/40 border border-gray-800/60">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-white">{c.name}</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">{c.status}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{c.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
