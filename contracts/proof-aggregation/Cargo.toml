@@ -4,9 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-casper-contract = "4.0.0"
-casper-types = "4.0.1"
+casper-contract = "5.1"
+casper-types = "6.0"
 
 [[bin]]
 name = "proof-aggregation"
 path = "src/main.rs"
+
+[features]
+
+[profile.release]
+codegen-units = 1
+lto = true
