@@ -3,6 +3,9 @@ members = [
     "proof-registry",
     "verifier-gate",
     "defi-mock",
+    "model-registry",
+    "proof-aggregation",
+    "proof-of-inference",
     "tests",
 ]
 resolver = "2"
