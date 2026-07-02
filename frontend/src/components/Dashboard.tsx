@@ -8,6 +8,7 @@ import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof }
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
 import { connectWallet, disconnectWallet, shortKey } from '../lib/wallet'
 import type { WalletState } from '../lib/wallet'
+import DataModeToggle, { useDataMode } from './DataModeToggle'
 /* Navbar and Footer rendered by App.tsx */
 
 const REGISTRY = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
@@ -255,6 +256,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            <DataModeToggle />
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs">
               <span className={`w-2 h-2 rounded-full ${health?.status === 'ok' || wallet.connected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-gray-400 font-mono">{health?.chain || (wallet.connected ? 'casper-test' : 'offline')}</span>

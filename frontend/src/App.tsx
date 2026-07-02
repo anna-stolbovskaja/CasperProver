@@ -14,6 +14,7 @@ import ScrollProgress from './components/ScrollProgress'
 import ScrollToTop from './components/ScrollToTop'
 import NotFound from './components/NotFound'
 import Dashboard from './components/Dashboard'
+import { DataModeProvider } from './components/DataModeToggle'
 
 function Landing() {
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function App() {
   }, [mobileOpen])
 
   return (
+    <DataModeProvider>
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
       <ScrollToTop />
@@ -65,5 +67,6 @@ export default function App() {
       </main>
       <Footer />
     </div>
+    </DataModeProvider>
   )
 }
