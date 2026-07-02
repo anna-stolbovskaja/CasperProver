@@ -6,6 +6,46 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.1.0] — 2026-07-02
+
+*Major feature expansion — pre-submission hardening*
+
+### Added
+
+#### Smart Contracts (Rust/Odra)
+- **ProofOfInference** (409 LOC) — individual proof anchoring with Merkle root on-chain verification
+- **ProofAggregation** (346 LOC) — batch-aggregated proofs for gas-efficient on-chain anchoring
+- **ModelRegistry** (278 LOC) — on-chain registry of approved AI models with version tracking
+
+#### Backend Modules (Go)
+- **Model Registry** (`engine/internal/model/registry.go`, 266 LOC) — model CRUD, versioning, metadata management, and framework validation
+- **Complexity Analyzer** (`engine/internal/prover/complexity.go`, 162 LOC) — proof complexity estimation based on model parameters and input size
+- **Distributed Worker** (`engine/internal/worker/distributed.go`, 431 LOC) — task distribution, worker pool management, and fault-tolerant scheduling
+
+#### MCP Server
+- Expanded from 15 to 23 tools — new tools for model registry, complexity analysis, and distributed task management
+
+#### Dashboard
+- 4 new tabs: Models, Complexity, Workers, Contracts
+- Model registry browser with version and framework info
+- Complexity metrics: average generation time, Merkle depth, gas estimates
+- Worker node status with real-time load and region info
+
+#### Tests
+- 51 new business logic tests (3 files, 1,373 LOC)
+- `registry_test.go`: 16 tests — model CRUD, versioning, metadata
+- `complexity_test.go`: 15 tests — complexity estimation, boundary analysis
+- `distributed_test.go`: 20 tests — task distribution, worker pool, fault tolerance
+
+### Security
+- Secure temp file creation for deployer keys (os.CreateTemp)
+- X-Public-Key header validation for revoke operations
+- Capped pagination limits
+- Request body size limits
+- Bounds checking in Merkle tree operations
+
+---
+
 ## [1.0.0] — 2026-06-30
 
 ### Added
