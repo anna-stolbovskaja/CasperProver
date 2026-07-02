@@ -1,14 +1,18 @@
 package model
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
+
+var hexHashRe = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 type ModelVersion struct {
 	Major int
@@ -78,8 +82,9 @@ func ComputeModelHash(architecture, weights, hyperparams []byte) string {
 
 func genID() string {
 	b := make([]byte, 16)
-	for i := range b {
-		b[i] = byte(time.Now().UnixNano() % 256)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback: should never happen
+		panic("crypto/rand failed: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }
@@ -92,11 +97,23 @@ func (r *Registry) Register(name, owner string, hash string, ipfsCID string, sch
 		return nil, fmt.Errorf("name, owner, and hash required")
 	}
 
+	if !hexHashRe.MatchString(hash) {
+		return nil, fmt.Errorf("hash must be 64-character hex SHA-256")
+	}
+
+	if len(name) > 256 {
+		return nil, fmt.Errorf("name too long (max 256 chars)")
+	}
+
 	if _, ok := r.byHash[hash]; ok {
 		return nil, fmt.Errorf("model with hash already exists")
 	}
 
 	id := genID()
+	// Ensure no ID collision
+	for _, exists := r.models[id]; exists; _, exists = r.models[id] {
+		id = genID()
+	}
 	now := time.Now()
 
 	inputSchema := ""
