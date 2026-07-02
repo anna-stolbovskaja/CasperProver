@@ -55,12 +55,28 @@ func DefaultConfig() ClassifierConfig {
 }
 
 func Classify(inputSize, outputSize, modelSize int) *ComplexityMetrics {
-	total := inputSize + outputSize + modelSize
+	// Guard against negative inputs
+	if inputSize < 0 {
+		inputSize = 0
+	}
+	if outputSize < 0 {
+		outputSize = 0
+	}
+	if modelSize < 0 {
+		modelSize = 0
+	}
+	// Use int64 throughout to prevent overflow
+	total64 := int64(inputSize) + int64(outputSize) + int64(modelSize)
+	total := int(total64)
 	leafCount := 3
 	treeDepth := int(math.Ceil(math.Log2(float64(leafCount))))
 	merkleOps := leafCount*2 - 1
-	gasEstimate := baseGas + perByteGas*int64(total) + perMerkleOp*int64(merkleOps)
-	timeEstimate := baseTimeMs + perKBMs*int64(total/1024)
+	gasEstimate := baseGas + perByteGas*total64 + perMerkleOp*int64(merkleOps)
+	// Cap gas to prevent wraparound
+	if gasEstimate < 0 {
+		gasEstimate = math.MaxInt64
+	}
+	timeEstimate := baseTimeMs + perKBMs*(total64/1024)
 
 	var class ComplexityClass
 	switch {
@@ -90,6 +106,9 @@ func Classify(inputSize, outputSize, modelSize int) *ComplexityMetrics {
 }
 
 func ClassifyProof(p *Proof) *ComplexityMetrics {
+	if p == nil {
+		return &ComplexityMetrics{}
+	}
 	return Classify(len(p.IH), len(p.OH), len(p.MH))
 }
 
@@ -112,6 +131,8 @@ func EstimateBatchGas(proofs []*Proof) int64 {
 	return total
 }
 
+const maxBatchSize = 1024
+
 func SuggestBatchSize(proofs []*Proof, maxGas int64) int {
 	if maxGas <= 0 {
 		return 0
@@ -128,6 +149,9 @@ func SuggestBatchSize(proofs []*Proof, maxGas int64) int {
 		}
 		sum += m.EstGasCSPR
 		count++
+		if count >= maxBatchSize {
+			break
+		}
 	}
 	return count
 }
@@ -144,7 +168,7 @@ func ComplexityDistribution(proofs []*Proof) map[ComplexityClass]int {
 	return dist
 }
 
-func (c ComplexityClass) String() string Supreme {
+func (c ComplexityClass) String() string {
 	switch c {
 	case TRIVIAL:
 		return "TRIVIAL"

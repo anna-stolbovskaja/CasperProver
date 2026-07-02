@@ -347,12 +347,19 @@ func RunStdio(handler func(name string, args map[string]interface{}) (string, er
 		case "tools/call":
 			name, _ := req.Params["name"].(string)
 			args, _ := req.Params["arguments"].(map[string]interface{})
-			text, err := handler(name, args)
-			if err != nil {
-				text = fmt.Sprintf(`{"error":"%s"}`, err.Error())
-			}
-			resp.Result = map[string]interface{}{
-				"content": []map[string]string{{"type": "text", "text": text}},
+			if name == "" {
+				resp.Result = map[string]interface{}{
+					"content": []map[string]string{{"type": "text", "text": `{"error":"missing tool name"}`}},
+				}
+			} else {
+				text, err := handler(name, args)
+				if err != nil {
+					// Sanitize error: don't expose internal details
+					text = `{"error":"tool execution failed"}`
+				}
+				resp.Result = map[string]interface{}{
+					"content": []map[string]string{{"type": "text", "text": text}},
+				}
 			}
 		default:
 			resp.Result = map[string]string{"error": "unknown method"}
