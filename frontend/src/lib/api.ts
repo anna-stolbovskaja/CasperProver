@@ -1,167 +1,369 @@
-const API_BASE = 'https://casperprover-api.onrender.com'
 
-async function request<T>(path: string, opts?: RequestInit): Promise<T> {
-  const url = `${API_BASE}${path}`
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...opts?.headers },
-    ...opts,
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`API ${res.status}: ${body}`)
+const BASE_URL = 'https://casperprover-api.onrender.com';
+
+// --- Utility Types ---
+type ApiResponse<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+};
+
+async function fetcher<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: data.message || 'An unknown error occurred', message: data.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error(`API call to ${endpoint} failed:`, error);
+    return { success: false, error: (error as Error).message || 'Network error' };
   }
-  return res.json()
 }
 
-export interface ProofRecord {
+// --- Main API Schemas & Types ---
+
+// Health
+export interface HealthResponse {
+  status: string
+  version: string
+  contracts: Record<string, number>
+}
+
+
+// Proofs
+export interface Proof {
   id: string
-  agent: string
-  proof_hash: string
-  input_hash: string
-  output_hash: string
-  model_hash: string
-  merkle_root: string
-  merkle_path: string[]
-  leaf_index: number
-  timestamp: number
-  valid: boolean
-  revoked: boolean
-  use_case: string
-  public_key?: string
-  deploy_hash?: string
-  generation_ms: number
-  mode?: string
+  agentId: string
+  inputHash: string
+  outputHash: string
+  proofData: string
+  createdAt: string
+  status: any
+  merklePath?: string[]
 }
 
-export interface ProofListResponse {
-  proofs: ProofRecord[]
+export interface ProofsListResponse {
+  proofs: any[]
   total: number
   page: number
   limit: number
 }
 
-export interface HealthResponse {
-  status: string
-  version: string
-  uptime_s: number
-  total_proofs: number
-  chain: string
-  contracts: {
-    proof_registry: string
-    verifier_gate: string
-    defi_mock: string
-  }
+
+export interface CreateProofRequest {
+  agentId: string
+  inputHash: string
+  outputHash: string
+  proofData: string
 }
 
+
+export type BatchProofRequest = CreateProofRequest[];
+
+export interface VerifyProofRequest {
+  proofId: string
+}
+
+export interface VerifyProofResponse {
+  isValid: boolean
+  message: string
+}
+
+// Stats
 export interface StatsResponse {
-  total_proofs: number
-  valid_proofs: number
-  revoked_proofs: number
-  unique_agents: number
-  avg_generation_ms: number
-  max_merkle_depth: number
-  use_cases: Record<string, number>
+  totalProofs: number
+  validProofs: number
+  revokedProofs: number
+  uniqueAgents: number
+  averageGenerationTimeMs: number
 }
 
-export interface VerifyResponse {
-  proof_id: string
-  valid: boolean
-  revoked: boolean
-  verified?: boolean
-  error?: string
-  checks?: {
-    input_hash_match: boolean
-    output_hash_match: boolean
-    model_hash_match: boolean
-    commit_valid: boolean
-    merkle_valid: boolean
-  }
+
+// KYC
+export interface KYCStatusRequest {
+  userId: string
 }
 
-export function getHealth(): Promise<HealthResponse> {
-  return request('/health')
+export interface KYCStatusResponse {
+  userId: string
+  isWhitelisted: boolean
+  status: string
 }
 
-export function getProofs(params?: {
-  agent?: string
-  public_key?: string
-  mode?: string
-  page?: number
-  limit?: number
-}): Promise<ProofListResponse> {
-  const q = new URLSearchParams()
-  if (params?.agent) q.set('agent', params.agent)
-  if (params?.public_key) q.set('public_key', params.public_key)
-  if (params?.mode) q.set('mode', params.mode)
-  if (params?.page) q.set('page', String(params.page))
-  if (params?.limit) q.set('limit', String(params.limit))
-  const qs = q.toString()
-  return request(`/proofs${qs ? '?' + qs : ''}`)
+export interface KYCGrantRequest {
+  userId: string
+  reason?: string
 }
 
-export function getProof(id: string): Promise<ProofRecord> {
-  return request(`/proofs/${id}`)
+export interface KYCGrantResponse {
+  userId: string
+  granted: boolean
+  message: string
 }
 
-export function createProof(
-  data: { agent: string; input: string; output: string; model: string; use_case?: string; mode?: string },
-  publicKey?: string,
-): Promise<ProofRecord> {
-  const headers: Record<string, string> = {}
-  if (publicKey) headers['X-Public-Key'] = publicKey
-  return request('/proofs', {
-    method: 'POST',
-    body: JSON.stringify(data),
-    headers,
-  })
+export interface KYCWhitelistResponse {
+  users: string[]
 }
 
-export function batchProofs(
-  proofs: { agent: string; input: string; output: string; model: string; use_case?: string }[],
-  mode?: string,
-  publicKey?: string,
-): Promise<{ proofs: ProofRecord[]; generated: number }> {
-  const headers: Record<string, string> = {}
-  if (publicKey) headers['X-Public-Key'] = publicKey
-  return request('/proofs/batch', {
-    method: 'POST',
-    body: JSON.stringify({ proofs, mode: mode || 'local' }),
-    headers,
-  })
+// Inference
+export interface RegisterModelRequest {
+  modelName: string
+  modelHash: string
+  verifierContract: string
+  description?: string
 }
 
-export function verifyProof(data: {
-  proof_id: string
-  input?: string
-  output?: string
-  model?: string
-}): Promise<VerifyResponse> {
-  return request('/verify', { method: 'POST', body: JSON.stringify(data) })
+export interface RegisterModelResponse {
+  modelId: string
+  message: string
 }
 
-export function revokeProof(id: string, reason?: string): Promise<{ proof_id: string; revoked: boolean }> {
-  return request(`/proofs/${id}/revoke`, {
-    method: 'POST',
-    body: JSON.stringify({ reason: reason || '' }),
-  })
+export interface ModelDetails {
+  modelId: string
+  modelName: string
+  modelHash: string
+  verifierContract: string
+  description?: string
+  registeredAt: string
 }
 
-export function exportProof(id: string): Promise<Record<string, unknown>> {
-  return request(`/proofs/${id}/export`)
+export interface InferenceProveRequest {
+  modelId: string
+  inputData: string
+  agentId: string
 }
 
-export function getStats(): Promise<StatsResponse> {
-  return request('/stats')
+export interface InferenceProveResponse {
+  proofId: string
+  proofData: string
+  outputHash: string
+  message: string
 }
 
-export function kycCheck(proofId: string): Promise<{ proof_id: string; verified: boolean; timestamp: number }> {
-  return request('/kyc/check', { method: 'POST', body: JSON.stringify({ proof_id: proofId }) })
+export interface InferenceVerifyRequest {
+  modelId: string
+  proofId: string
+  inputData: string
+  outputHash: string
 }
 
-export function kycGrant(user: string, proofId: string): Promise<{ user: string; whitelisted: boolean; proof_id: string }> {
-  return request('/kyc/grant', { method: 'POST', body: JSON.stringify({ user, proof_id: proofId }) })
+export interface InferenceVerifyResponse {
+  isValid: boolean
+  message: string
 }
 
-export function kycWhitelist(user: string): Promise<{ user: string; whitelisted: boolean }> {
-  return request(`/kyc/whitelist/${user}`)
+// Aggregation
+export interface CreateBatchRequest {
+  batchName: string
+  description?: string
 }
+
+export interface CreateBatchResponse {
+  batchId: string
+  message: string
+}
+
+export interface AddProofToBatchRequest {
+  batchId: string
+  proofId: string
+}
+
+export interface AddProofToBatchResponse {
+  batchId: string
+  proofId: string
+  message: string
+}
+
+export interface FinalizeBatchRequest {
+  batchId: string
+}
+
+export interface FinalizeBatchResponse {
+  batchId: string
+  merkleRoot: string
+  finalProof: string
+  message: string
+}
+
+export interface BatchDetails {
+  batchId: string
+  batchName: string
+  description?: string
+  proofIds: string[]
+  status: any
+  merkleRoot?: string
+  finalProof?: string
+  createdAt: string
+  finalizedAt?: string
+}
+
+// ZK
+export interface ZKVerifyGroth16Request {
+  proof: string
+  publicSignals: string[]
+}
+
+export interface ZKVerifyGroth16Response {
+  isValid: boolean
+  message: string
+}
+
+export interface ZKBatchVerifyRequest {
+  proofIds: string[]
+}
+
+export interface ZKBatchVerifyResponse {
+  results: Record<string, number>
+  message: string
+}
+
+export interface ZKChallengeRequest {
+  challengerId: string
+  proofId: string
+  challengeData: string
+}
+
+export interface ZKChallengeResponse {
+  challengeId: string
+  message: string
+}
+
+export interface ZKChallengeDetails {
+  challengeId: string
+  challengerId: string
+  proofId: string
+  challengeData: string
+  status: any
+  resolvedAt?: string
+  resolution?: string
+}
+
+// PQ
+export interface PQSignSphincsRequest {
+  message: string
+  privateKey?: string
+}
+
+export interface PQSignSphincsResponse {
+  signature: string
+  publicKey: string
+}
+
+export interface PQVerifySphincsRequest {
+  message: string
+  signature: string
+  publicKey: string
+}
+
+export interface PQVerifySphincsResponse {
+  isValid: boolean
+}
+
+export interface PQHybridSignRequest {
+  message: string
+  classicalPrivateKey?: string
+  pqPrivateKey?: string
+}
+
+export interface PQHybridSignResponse {
+  classicalSignature: string
+  pqSignature: string
+  classicalPublicKey: string
+  pqPublicKey: string
+}
+
+export interface PQHybridVerifyRequest {
+  message: string
+  classicalSignature: string
+  pqSignature: string
+  classicalPublicKey: string
+  pqPublicKey: string
+}
+
+export interface PQHybridVerifyResponse {
+  isValid: boolean
+}
+
+
+// --- API Functions ---
+
+// Main
+export const getHealth = () => fetcher<HealthResponse>('/health');
+export const getProofs = (agent?: string, page: number = 1, limit: number = 10) =>
+  fetcher<ProofsListResponse>(`/proofs?page=${page}&limit=${limit}${agent ? `&agent=${agent}` : ''}`);
+export const getProofById = (id: string) => fetcher<Proof>(`/proofs/${id}`);
+export const createProof = (data: CreateProofRequest) =>
+  fetcher<Proof>('/proofs', { method: 'POST', body: JSON.stringify(data) });
+export const createBatchProofs = (data: BatchProofRequest) =>
+  fetcher<ProofsListResponse>('/proofs/batch', { method: 'POST', body: JSON.stringify(data) });
+export const verifyProof = (data: VerifyProofRequest) =>
+  fetcher<VerifyProofResponse>('/verify', { method: 'POST', body: JSON.stringify(data) });
+export const revokeProof = (id: string) =>
+  fetcher<{ message: string }>(`/proofs/${id}/revoke`, { method: 'POST' });
+export const exportProof = (id: string) =>
+  fetcher<string>(`/proofs/${id}/export`, { method: 'GET' }); // Returns raw proof data
+
+export const getStats = () => fetcher<StatsResponse>('/stats');
+
+// KYC
+export const checkKycStatus = (data: KYCStatusRequest) =>
+  fetcher<KYCStatusResponse>('/kyc/check', { method: 'POST', body: JSON.stringify(data) });
+export const grantKycAccess = (data: KYCGrantRequest) =>
+  fetcher<KYCGrantResponse>('/kyc/grant', { method: 'POST', body: JSON.stringify(data) });
+export const getKycWhitelist = (user: string) =>
+  fetcher<KYCWhitelistResponse>(`/kyc/whitelist/${user}`);
+
+// Inference
+export const registerModel = (data: RegisterModelRequest) =>
+  fetcher<RegisterModelResponse>('/inference/register-model', { method: 'POST', body: JSON.stringify(data) });
+export const getModelById = (id: string) =>
+  fetcher<ModelDetails>(`/inference/model/${id}`);
+export const inferenceProve = (data: InferenceProveRequest) =>
+  fetcher<InferenceProveResponse>('/inference/prove', { method: 'POST', body: JSON.stringify(data) });
+export const inferenceVerify = (data: InferenceVerifyRequest) =>
+  fetcher<InferenceVerifyResponse>('/inference/verify', { method: 'POST', body: JSON.stringify(data) });
+
+// Aggregation
+export const createAggregationBatch = (data: CreateBatchRequest) =>
+  fetcher<CreateBatchResponse>('/aggregation/create-batch', { method: 'POST', body: JSON.stringify(data) });
+export const addProofToAggregationBatch = (data: AddProofToBatchRequest) =>
+  fetcher<AddProofToBatchResponse>('/aggregation/add-proof', { method: 'POST', body: JSON.stringify(data) });
+export const finalizeAggregationBatch = (data: FinalizeBatchRequest) =>
+  fetcher<FinalizeBatchResponse>('/aggregation/finalize', { method: 'POST', body: JSON.stringify(data) });
+export const getAggregationBatchById = (id: string) =>
+  fetcher<BatchDetails>(`/aggregation/batch/${id}`);
+
+// ZK
+export const verifyGroth16 = (data: ZKVerifyGroth16Request) =>
+  fetcher<ZKVerifyGroth16Response>('/zk/verify-groth16', { method: 'POST', body: JSON.stringify(data) });
+export const batchVerifyZK = (data: ZKBatchVerifyRequest) =>
+  fetcher<ZKBatchVerifyResponse>('/zk/batch-verify', { method: 'POST', body: JSON.stringify(data) });
+export const challengeZK = (data: ZKChallengeRequest) =>
+  fetcher<ZKChallengeResponse>('/zk/challenge', { method: 'POST', body: JSON.stringify(data) });
+export const getZKChallengeById = (id: string) =>
+  fetcher<ZKChallengeDetails>(`/zk/challenge/${id}`);
+
+// PQ
+export const signSphincs = (data: PQSignSphincsRequest) =>
+  fetcher<PQSignSphincsResponse>('/pq/sign-sphincs', { method: 'POST', body: JSON.stringify(data) });
+export const verifySphincs = (data: PQVerifySphincsRequest) =>
+  fetcher<PQVerifySphincsResponse>('/pq/verify-sphincs', { method: 'POST', body: JSON.stringify(data) });
+export const hybridSign = (data: PQHybridSignRequest) =>
+  fetcher<PQHybridSignResponse>('/pq/hybrid-sign', { method: 'POST', body: JSON.stringify(data) });
+export const hybridVerify = (data: PQHybridVerifyRequest) =>
+  fetcher<PQHybridVerifyResponse>('/pq/hybrid-verify', { method: 'POST', body: JSON.stringify(data) });

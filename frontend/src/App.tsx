@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -13,14 +13,21 @@ import Footer from './components/Footer'
 import ScrollProgress from './components/ScrollProgress'
 import ScrollToTop from './components/ScrollToTop'
 import NotFound from './components/NotFound'
-import Lab from './components/Lab'
-
+import LabLayout from './components/lab/LabLayout'
+import Overview from './components/lab/Overview'
+import Proofs from './components/lab/Proofs'
+import Models from './components/lab/Models'
+import Aggregation from './components/lab/Aggregation'
+import PQCrypto from './components/lab/PQCrypto'
+import LabContracts from './components/lab/Contracts'
+import AgentDemo from './components/lab/AgentDemo'
+import LabPlayground from './components/lab/Playground'
+import KYC from './components/lab/KYC'
 
 function Landing() {
   useEffect(() => {
     const hash = window.location.hash.slice(1)
     if (hash) {
-      // Wait for React to finish rendering all sections, then scroll
       const raf = requestAnimationFrame(() => {
         const el = document.getElementById(hash)
         if (el) el.scrollIntoView({ behavior: 'smooth' })
@@ -46,14 +53,13 @@ function Landing() {
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const closeMobile = useCallback(() => setMobileOpen(false), [])
-  const location = useLocation()
+
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
   return (
-    
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
       <ScrollToTop />
@@ -61,12 +67,22 @@ export default function App() {
       <main className="flex-1" onClick={mobileOpen ? closeMobile : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/lab" element={<Lab />} />
+          <Route path="/lab" element={<LabLayout />}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<Overview />} />
+            <Route path="proofs" element={<Proofs />} />
+            <Route path="models" element={<Models />} />
+            <Route path="aggregation" element={<Aggregation />} />
+            <Route path="pq-crypto" element={<PQCrypto />} />
+            <Route path="contracts" element={<LabContracts />} />
+            <Route path="agent-demo" element={<AgentDemo />} />
+            <Route path="playground" element={<LabPlayground />} />
+            <Route path="kyc" element={<KYC />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <Footer />
     </div>
-    
   )
 }
