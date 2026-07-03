@@ -1,4 +1,5 @@
 import React from 'react';
+import ErrorBoundary from './ErrorBoundary';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 
@@ -7,7 +8,7 @@ const tabs = [
   { name: 'Proofs', path: 'proofs' },
   { name: 'Models', path: 'models' },
   { name: 'Aggregation', path: 'aggregation' },
-  { name: 'PQ Crypto', path: 'pqcrypt' },
+  { name: 'PQ Crypto', path: 'pq-crypto' },
   { name: 'Contracts', path: 'contracts' },
   { name: 'Agent Demo', path: 'agent-demo' },
   { name: 'Playground', path: 'playground' },
@@ -19,7 +20,7 @@ const LabLayout: React.FC = () => {
     <div className="min-h-screen bg-[#0b0b10] text-gray-100 font-sans">
       <header className="py-4 px-6 border-b border-[#222235] flex items-center justify-between">
         <h1 className="text-2xl font-bold text-red-500">CasperProver Lab</h1>
-        <div className="text-sm text-gray-400">by anna-stolbovskaja</div>
+
       </header>
 
       <div className="container mx-auto px-4 py-6">
@@ -49,7 +50,9 @@ const LabLayout: React.FC = () => {
         </nav>
 
         <main className="p-4 bg-[#13131d] border border-[#222235] rounded-lg shadow-lg min-h-[calc(100vh-200px)]">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

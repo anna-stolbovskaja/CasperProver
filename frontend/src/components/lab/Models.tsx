@@ -66,7 +66,7 @@ const Models: React.FC = () => {
     try {
       const res = await registerModel(newModelData);
       if (res.success && res.data) {
-        toast.success(`Box "${newModelData.modelName}" registered successfully! ID: ${res.data.modelId}`);
+        toast.success(`Model "${newModelData.modelName}" registered successfully! ID: ${res.data.modelId}`);
         // Add to local list for display (assuming we can fetch it back)
         const fetchedModelRes = await getModelById(res.data.modelId);
         if (fetchedModelRes.success && fetchedModelRes.data) {
@@ -88,7 +88,7 @@ const Models: React.FC = () => {
   const handleSearchModel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchModelId) {
-      setSearchError('Please enter a Box ID to search.');
+      setSearchError('Please enter a Model ID to search.');
       setFoundModel(null);
       return;
     }
@@ -122,7 +122,7 @@ const Models: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
         >
           <PlusCircle size={20} />
-          Register New Box
+          Register New Model
         </button>
       </div>
 
@@ -148,7 +148,7 @@ const Models: React.FC = () => {
           <form onSubmit={handleSearchModel} className="space-y-4">
             <div>
               <label htmlFor="searchModelId" className="block text-sm font-medium text-gray-300 mb-1">
-                Box ID
+                Model ID
               </label>
               <div className="relative">
                 <input
@@ -157,7 +157,7 @@ const Models: React.FC = () => {
                   value={searchModelId}
                   onChange={(e) => setSearchModelId(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
-                  placeholder="Enter Box ID"
+                  placeholder="Enter Model ID"
                   required
                 />
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -208,7 +208,7 @@ const Models: React.FC = () => {
               <thead className="bg-[#13131d]">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Box ID
+                    Model ID
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Name

@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { Link as LinkIcon, FileText, Code, Shield } from 'lucide-react';
 
 const CONTRACTS = {
-  'Proof Registry': '7f71b026b79014c5b82e2db4c2e8cf7fa23c2a23e7e06247d4078c12ac28e5d6',
-  'Verifier Gate': '09c1f7f4ff8b6b8e2fb16c2b52b38a0d3d1e3c4f5a6b7c8d9e0f1a2b3c4d5e6f',
-  'DeFi Mock': 'a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12345678',
+  'Proof Registry': '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+  'Verifier Gate': 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
+  'DeFi Mock': 'b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3',
 };
 
 const EXPLORER_BASE_URL = 'https://testnet.cspr.live/contract/';
