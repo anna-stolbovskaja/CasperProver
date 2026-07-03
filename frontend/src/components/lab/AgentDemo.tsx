@@ -4,11 +4,13 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Model,
+  Box,
   FlaskConical,
   ShieldCheck,
   GitMerge,
   ArrowRight,
+  PlusCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   registerModel,
@@ -24,7 +26,7 @@ import {
   AddProofToBatchRequest,
   FinalizeBatchRequest,
 } from '../../lib/api';
-import { toast } from 'react-toastify';
+import { toast } from '../ui/toast';
 
 // Helper to generate a simple UUID-like string
 const generateId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
@@ -58,15 +60,15 @@ const AgentDemo: React.FC = () => {
   const initialSteps: Step[] = [
     {
       id: 1,
-      name: 'Register AI Model',
-      icon: Model,
+      name: 'Register AI Box',
+      icon: Box,
       description: 'Register a new AI model on the CasperProver registry.',
       action: async () => {
         const request: RegisterModelRequest = {
-          modelName: `AI-Decision-Model-${generateId('')}`,
+          modelName: `AI-Decision-Box-${generateId('')}`,
           modelHash: modelHash,
           verifierContract: verifierContract,
-          description: 'Model for secure AI decision-making.',
+          description: 'Box for secure AI decision-making.',
         };
         const res = await registerModel(request);
         if (res.success && res.data) {
@@ -85,7 +87,7 @@ const AgentDemo: React.FC = () => {
       icon: FlaskConical,
       description: 'Run an AI inference and generate a ZK proof for its decision.',
       action: async () => {
-        if (!modelId) throw new Error('Model ID not available. Complete Step 1 first.');
+        if (!modelId) throw new Error('Box ID not available. Complete Step 1 first.');
         const request: InferenceProveRequest = {
           modelId: modelId,
           inputData: inputData,

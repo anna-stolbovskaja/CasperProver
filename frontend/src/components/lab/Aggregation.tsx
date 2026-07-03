@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, List, CheckCircle, Eye, Loader2, AlertTriangle, GitMerge, FileText } from 'lucide-react';
+import { PlusCircle, List, CheckCircle, Eye, Loader2, AlertTriangle, GitMerge, FileText, XCircle,
+} from 'lucide-react';
 import {
   createAggregationBatch,
   addProofToAggregationBatch,
@@ -10,8 +11,7 @@ import {
   FinalizeBatchRequest,
   BatchDetails,
 } from '../../lib/api';
-import { toast } from 'react-toastify';
-import Modal from '../ui/Modal'; // Assuming a generic Modal component
+import { toast } from '../ui/toast';
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{

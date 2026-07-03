@@ -86,7 +86,7 @@ const Overview: React.FC = () => {
   const renderUseCaseDistribution = () => {
     // This data is not from API, so we'll use a mock for demonstration.
     const useCases = [
-      { name: 'AI Model Verification', value: 45, color: 'bg-red-500' },
+      { name: 'AI Box Verification', value: 45, color: 'bg-red-500' },
       { name: 'Data Integrity', value: 25, color: 'bg-purple-500' },
       { name: 'Identity Proofs', value: 15, color: 'bg-blue-500' },
       { name: 'Financial Transactions', value: 10, color: 'bg-green-500' },

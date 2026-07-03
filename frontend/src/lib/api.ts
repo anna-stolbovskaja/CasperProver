@@ -2,7 +2,7 @@
 const BASE_URL = 'https://casperprover-api.onrender.com';
 
 // --- Utility Types ---
-type ApiResponse<T> = {
+export type ApiResponse<T> = {
   success: boolean;
   data?: T;
   error?: string;

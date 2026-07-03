@@ -22,8 +22,7 @@ import {
   CreateProofRequest,
   VerifyProofRequest,
 } from '../../lib/api';
-import Modal from '../ui/Modal'; // Assuming a generic Modal component
-import { toast } from 'react-toastify'; // Assuming react-toastify for notifications
+import { toast } from '../ui/toast'; // Assuming react-toastify for notifications
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{
