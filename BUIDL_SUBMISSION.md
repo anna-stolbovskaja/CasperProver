@@ -46,7 +46,7 @@ Agent computes f(x) = y with model M
 
 | Artifact | Link |
 |---|---|
-| Dashboard (72 proofs) | https://casperprover.xyz/dashboard |
+| Lab (72 proofs) | https://casperprover.xyz/lab |
 | API | https://casperprover-api.onrender.com |
 | GitHub | https://github.com/anna-stolbovskaja/CasperProver |
 | Proof Registry contract | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
@@ -67,7 +67,7 @@ Agent computes f(x) = y with model M
 | Smart contracts | Rust / Casper 2.x | Native Casper contract model, deterministic execution |
 | Proof engine | Go 1.22 | Fast Merkle tree construction, low latency |
 | API | Go HTTP | Lightweight, same language as engine |
-| Frontend | Vite + TypeScript + Tailwind | Fast dashboard, zero framework lock-in |
+| Frontend | Vite + TypeScript + Tailwind | Fast lab, zero framework lock-in |
 | SDK | Go + Python + MCP adapter | Meets agents where they live |
 
 ---
@@ -93,6 +93,6 @@ Agent computes f(x) = y with model M
 
 ## Team
 
-**anna-stolbovskaja** — Solo builder focused on verifiable compute infrastructure. Architected the Merkle proof registry, wrote all three Casper smart contracts (Proof Registry, Verifier Gate, DeFi Mock), built the Go proof engine with SHA-256 Merkle trees, developed the REST API, created the Vite dashboard for live proof inspection, and shipped SDK clients in Go and Python plus an MCP adapter for AI frameworks. Background in cryptographic systems and blockchain infrastructure; track is Agentic Infrastructure / Verifiable Compute.
+**anna-stolbovskaja** — Solo builder focused on verifiable compute infrastructure. Architected the Merkle proof registry, wrote all three Casper smart contracts (Proof Registry, Verifier Gate, DeFi Mock), built the Go proof engine with SHA-256 Merkle trees, developed the REST API, created the Vite lab for live proof inspection, and shipped SDK clients in Go and Python plus an MCP adapter for AI frameworks. Background in cryptographic systems and blockchain infrastructure; track is Agentic Infrastructure / Verifiable Compute.
 
 GitHub: [github.com/anna-stolbovskaja](https://github.com/anna-stolbovskaja)

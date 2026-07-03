@@ -8,7 +8,7 @@ import { createProof, getProofs, getHealth, getStats, verifyProof, exportProof }
 import type { ProofRecord, StatsResponse, HealthResponse } from '../lib/api'
 import { connectWallet, disconnectWallet, shortKey } from '../lib/wallet'
 import type { WalletState } from '../lib/wallet'
-import DataModeToggle, { useDataMode } from './DataModeToggle'
+
 /* Navbar and Footer rendered by App.tsx */
 
 const REGISTRY = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
@@ -65,7 +65,7 @@ const STEPS = ['Hashing inputs', 'Building Merkle tree', 'Generating proof', 'An
 
 type Tab = 'overview' | 'generate' | 'proofs' | 'demo' | 'verify' | 'models' | 'complexity' | 'workers' | 'contracts'
 
-export default function Dashboard() {
+export default function Lab() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('overview')
   const [proofs, setProofs] = useState<ProofRecord[]>([])
@@ -219,7 +219,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-extrabold text-white">Proof Dashboard</h1>
+            <h1 className="text-2xl font-extrabold text-white">Proof Lab</h1>
             <p className="text-gray-500 text-sm mt-1">Generate, verify, and inspect cryptographic proofs for AI decisions</p>
           </div>
           <div className="flex items-center gap-3">
@@ -256,7 +256,6 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <DataModeToggle />
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cp-card border border-cp-border text-xs">
               <span className={`w-2 h-2 rounded-full ${health?.status === 'ok' || wallet.connected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-gray-400 font-mono">{health?.chain || (wallet.connected ? 'casper-test' : 'offline')}</span>

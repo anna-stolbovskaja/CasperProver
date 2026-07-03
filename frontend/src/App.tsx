@@ -13,8 +13,8 @@ import Footer from './components/Footer'
 import ScrollProgress from './components/ScrollProgress'
 import ScrollToTop from './components/ScrollToTop'
 import NotFound from './components/NotFound'
-import Dashboard from './components/Dashboard'
-import { DataModeProvider } from './components/DataModeToggle'
+import Lab from './components/Lab'
+
 
 function Landing() {
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function App() {
   }, [mobileOpen])
 
   return (
-    <DataModeProvider>
+    
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
       <ScrollToTop />
@@ -61,12 +61,12 @@ export default function App() {
       <main className="flex-1" onClick={mobileOpen ? closeMobile : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/lab" element={<Lab />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <Footer />
     </div>
-    </DataModeProvider>
+    
   )
 }

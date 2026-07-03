@@ -12,9 +12,9 @@
 [![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![Casper 2.x](https://img.shields.io/badge/Casper-2.x-FF0000.svg?style=flat-square)](https://casper.network)
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/dashboard)
+[![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
 
-[**Live Demo →**](https://casperprover.xyz/dashboard) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [API](https://casperprover-api.onrender.com)
+[**Live Demo →**](https://casperprover.xyz/lab) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [API](https://casperprover-api.onrender.com)
 
 </div>
 
@@ -25,11 +25,11 @@
 
 ## 📸 Screenshots
 
-| Homepage — proof registry | Dashboard — 72 proofs | Proof detail — Merkle path | KYC-gated DeFi demo |
+| Homepage — proof registry | Lab — 72 proofs | Proof detail — Merkle path | KYC-gated DeFi demo |
 |---|---|---|---|
-| ![Homepage](docs/screenshots/01-homepage.png) | ![Dashboard](docs/screenshots/02-dashboard.png) | ![Proof detail](docs/screenshots/03-proof-detail.png) | ![KYC demo](docs/screenshots/04-kyc-demo.png) |
+| ![Homepage](docs/screenshots/01-homepage.png) | ![Lab](docs/screenshots/02-lab.png) | ![Proof detail](docs/screenshots/03-proof-detail.png) | ![KYC demo](docs/screenshots/04-kyc-demo.png) |
 
-> Live at [casperprover.xyz/dashboard](https://casperprover.xyz/dashboard)
+> Live at [casperprover.xyz/lab](https://casperprover.xyz/lab)
 
 ---
 
@@ -114,7 +114,7 @@ curl https://casperprover-api.onrender.com/api/v1/proof/verify \
 
 ## Live Demo
 
-**Dashboard:** [casperprover.xyz/dashboard](https://casperprover.xyz/dashboard)  
+**Lab:** [casperprover.xyz/lab](https://casperprover.xyz/lab)  
 72 proofs live on Casper testnet. Filter by proof type, click any row to see the Merkle path and on-chain tx.
 
 **Deployed Contracts (testnet):**
@@ -157,17 +157,9 @@ CasperProver/
 │   ├── client.go
 │   ├── mcp_server.go   # MCP adapter for AI frameworks
 │   └── python_client.py
-├── frontend/           # Vite/TS dashboard
+├── frontend/           # Vite/TS lab
 └── docs/               # Architecture, SDK docs
 ```
-
----
-
-## Team
-
-**anna-stolbovskaja** — full-stack engineer focused on cryptographic systems and verifiable compute. Built CasperProver end-to-end: three Casper smart contracts in Rust/WASM, the Go Merkle proof engine, REST API, TypeScript/Vite dashboard, and the MCP adapter for AI framework integration. Specializes in zero-knowledge-adjacent approaches to agent accountability and DeFi compliance infrastructure. ([GitHub](https://github.com/anna-stolbovskaja))
-
-Track: Agentic Infrastructure / Verifiable Compute
 
 ---
 

@@ -1,7 +1,7 @@
 package prover
 
 // SeedDemoData populates the engine with realistic demo proofs so that
-// the dashboard always has meaningful data even after a restart.
+// the lab always has meaningful data even after a restart.
 func (e *ProofEngine) SeedDemoData() {
 	demos := []struct {
 		agent   string

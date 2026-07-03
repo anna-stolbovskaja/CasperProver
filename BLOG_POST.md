@@ -56,9 +56,9 @@ That's it. No model re-run. No operator trust. The on-chain root is immutable �
 
 CasperProver has 72 proofs registered on Casper testnet right now. Here's the live flow:
 
-**1. Land on [casperprover.xyz/dashboard](https://casperprover.xyz/dashboard)**
+**1. Land on [casperprover.xyz/lab](https://casperprover.xyz/lab)**
 
-The dashboard shows all registered proofs — type, timestamp, verification status. Green badges mean the on-chain root is present and the inclusion path is valid.
+The lab shows all registered proofs — type, timestamp, verification status. Green badges mean the on-chain root is present and the inclusion path is valid.
 
 **2. Submit a proof via the API**
 
@@ -139,7 +139,7 @@ CasperProver is a hackathon submission — but the problem it solves is real and
 
 ## Try It
 
-- **Dashboard:** [casperprover.xyz/dashboard](https://casperprover.xyz/dashboard)
+- **Lab:** [casperprover.xyz/lab](https://casperprover.xyz/lab)
 - **API:** [casperprover-api.onrender.com](https://casperprover-api.onrender.com)
 - **GitHub:** [github.com/anna-stolbovskaja/CasperProver](https://github.com/anna-stolbovskaja/CasperProver)
 

@@ -10,7 +10,7 @@
 |------|-------|
 | repo | https://github.com/anna-stolbovskaja/CasperProver |
 | site | https://casperprover.xyz |
-| dashboard | https://casperprover.xyz/dashboard |
+| lab | https://casperprover.xyz/lab |
 | api | https://casperprover-api.onrender.com |
 | proof-registry | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
 | verifier-gate | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
