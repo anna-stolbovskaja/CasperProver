@@ -87,7 +87,7 @@ const AgentDemo: React.FC = () => {
       icon: FlaskConical,
       description: 'Run an AI inference and generate a ZK proof for its decision.',
       action: async () => {
-        if (!modelId) throw new Error('Box ID not available. Complete Step 1 first.');
+        if (!modelId) throw new Error('Model ID not available. Complete Step 1 first.');
         const request: InferenceProveRequest = {
           modelId: modelId,
           inputData: inputData,
