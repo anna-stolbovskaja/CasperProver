@@ -1,0 +1,456 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlusCircle, List, CheckCircle, Eye, Loader2, AlertTriangle, GitMerge, FileText } from 'lucide-react';
+import {
+  createAggregationBatch,
+  addProofToAggregationBatch,
+  finalizeAggregationBatch,
+  getAggregationBatchById,
+  CreateBatchRequest,
+  AddProofToBatchRequest,
+  FinalizeBatchRequest,
+  BatchDetails,
+} from '../../lib/api';
+import { toast } from 'react-toastify';
+import Modal from '../ui/Modal'; // Assuming a generic Modal component
+
+// Placeholder for a generic Modal component
+const Modal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}> = ({ isOpen, onClose, title, children, className }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className={`bg-[#13131d] border border-[#222235] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${className}`}>
+        <div className="flex justify-between items-center p-4 border-b border-[#222235]">
+          <h2 className="text-xl font-semibold text-gray-100">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-100">
+            <XCircle size={24} />
+          </button>
+        </div>
+        <div className="p-4 text-gray-200">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Aggregation: React.FC = () => {
+  // Create Batch State
+  const [isCreateBatchModalOpen, setIsCreateBatchModalOpen] = useState(false);
+  const [newBatchData, setNewBatchData] = useState<CreateBatchRequest>({ batchName: '', description: '' });
+  const [isCreatingBatch, setIsCreatingBatch] = useState(false);
+  const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
+
+  // Add Proof State
+  const [isAddProofModalOpen, setIsAddProofModalOpen] = useState(false);
+  const [addProofData, setAddProofData] = useState<AddProofToBatchRequest>({ batchId: '', proofId: '' });
+  const [isAddingProof, setIsAddingProof] = useState(false);
+
+  // Finalize Batch State
+  const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+  const [finalizeBatchId, setFinalizeBatchId] = useState('');
+  const [isFinalizing, setIsFinalizing] = useState(false);
+
+  // View Batch State
+  const [searchBatchId, setSearchBatchId] = useState('');
+  const [foundBatch, setFoundBatch] = useState<BatchDetails | null>(null);
+  const [isSearchingBatch, setIsSearchingBatch] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const handleCreateBatchChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewBatchData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingBatch(true);
+    try {
+      const res = await createAggregationBatch(newBatchData);
+      if (res.success && res.data) {
+        toast.success(`Batch "${newBatchData.batchName}" created successfully! ID: ${res.data.batchId}`);
+        setCreatedBatchId(res.data.batchId);
+        setIsCreateBatchModalOpen(false);
+        setNewBatchData({ batchName: '', description: '' });
+        setAddProofData((prev) => ({ ...prev, batchId: res.data!.batchId })); // Pre-fill for add proof
+        setFinalizeBatchId(res.data!.batchId); // Pre-fill for finalize
+      } else {
+        toast.error(res.error || 'Failed to create batch');
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred during batch creation.');
+      console.error(err);
+    } finally {
+      setIsCreatingBatch(false);
+    }
+  };
+
+  const handleAddProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setAddProofData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddProofSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingProof(true);
+    try {
+      const res = await addProofToAggregationBatch(addProofData);
+      if (res.success) {
+        toast.success(`Proof ${addProofData.proofId.substring(0, 8)}... added to batch ${addProofData.batchId.substring(0, 8)}...`);
+        setIsAddProofModalOpen(false);
+        setAddProofData((prev) => ({ ...prev, proofId: '' })); // Clear proofId only
+        // Optionally refresh batch details if currently viewing
+        if (foundBatch?.batchId === addProofData.batchId) {
+          handleSearchBatch({ preventDefault: () => {} } as React.FormEvent);
+        }
+      } else {
+        toast.error(res.error || 'Failed to add proof to batch');
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred while adding proof.');
+      console.error(err);
+    } finally {
+      setIsAddingProof(false);
+    }
+  };
+
+  const handleFinalizeBatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFinalizeBatchId(e.target.value);
+  };
+
+  const handleFinalizeBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsFinalizing(true);
+    try {
+      const res = await finalizeAggregationBatch({ batchId: finalizeBatchId });
+      if (res.success) {
+        toast.success(`Batch ${finalizeBatchId.substring(0, 8)}... finalized successfully! Merkle Root: ${res.data?.merkleRoot?.substring(0, 8)}...`);
+        setIsFinalizeModalOpen(false);
+        setFinalizeBatchId('');
+        // Optionally refresh batch details if currently viewing
+        if (foundBatch?.batchId === finalizeBatchId) {
+          handleSearchBatch({ preventDefault: () => {} } as React.FormEvent);
+        }
+      } else {
+        toast.error(res.error || 'Failed to finalize batch');
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred during batch finalization.');
+      console.error(err);
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  const handleSearchBatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchBatchId(e.target.value);
+  };
+
+  const handleSearchBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchBatchId) {
+      setSearchError('Please enter a Batch ID to search.');
+      setFoundBatch(null);
+      return;
+    }
+    setIsSearchingBatch(true);
+    setSearchError(null);
+    setFoundBatch(null);
+    try {
+      const res = await getAggregationBatchById(searchBatchId);
+      if (res.success && res.data) {
+        setFoundBatch(res.data);
+        toast.success(`Batch ${searchBatchId} found.`);
+      } else {
+        setSearchError(res.error || `Batch with ID ${searchBatchId} not found.`);
+        toast.error(res.error || `Batch with ID ${searchBatchId} not found.`);
+      }
+    } catch (err) {
+      setSearchError('An unexpected error occurred during batch search.');
+      toast.error('An unexpected error occurred during batch search.');
+      console.error(err);
+    } finally {
+      setIsSearchingBatch(false);
+    }
+  };
+
+  // Merkle Tree Visualization (simplified text representation)
+  const renderMerkleTree = (proofIds: string[], merkleRoot?: string) => {
+    if (!proofIds || proofIds.length === 0) {
+      return <p className="text-gray-500">No proofs in this batch to visualize.</p>;
+    }
+
+    const nodes = proofIds.map((id, index) => (
+      <div key={index} className="flex items-center text-sm">
+        <span className="text-red-500 mr-2">Leaf {index + 1}:</span>
+        <span className="font-mono break-all">{id.substring(0, 16)}...</span>
+      </div>
+    ));
+
+    return (
+      <div className="bg-[#0b0b10] p-4 rounded-md border border-[#222235] mt-4">
+        <h4 className="text-lg font-medium text-gray-300 mb-3">Merkle Tree Visualization (Simplified)</h4>
+        <div className="space-y-2">
+          {nodes}
+          {proofIds.length > 1 && (
+            <div className="flex items-center text-sm">
+              <span className="text-red-500 mr-2">Intermediate Nodes:</span>
+              <span className="text-gray-400">... (hashes of pairs)</span>
+            </div>
+          )}
+          {merkleRoot && (
+            <div className="flex items-center text-sm">
+              <span className="text-red-500 mr-2">Merkle Root:</span>
+              <span className="font-mono break-all">{merkleRoot}</span>
+            </div>
+          )}
+          {!merkleRoot && <p className="text-gray-500 text-sm">Batch not finalized, Merkle Root not available.</p>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-100">Proof Aggregation Lab</h2>
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setIsCreateBatchModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
+          >
+            <PlusCircle size={20} />
+            Create Batch
+          </button>
+          <button
+            onClick={() => setIsAddProofModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
+          >
+            <List size={20} />
+            Add Proof
+          </button>
+          <button
+            onClick={() => setIsFinalizeModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
+          >
+            <CheckCircle size={20} />
+            Finalize Batch
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Batch Creation Status */}
+        <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
+          <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center gap-2">
+            <GitMerge size={24} className="text-red-500" />
+            Batch Operations Overview
+          </h3>
+          <p className="text-gray-400 mb-4">
+            Manage your proof batches: create new ones, add individual proofs, and finalize them into an aggregated proof.
+          </p>
+          {createdBatchId && (
+            <div className="mt-4 p-3 bg-green-900/30 text-green-300 border border-green-700 rounded-md flex items-center gap-2">
+              <CheckCircle size={20} />
+              Last Created Batch ID: <span className="font-mono break-all">{createdBatchId}</span>
+            </div>
+          )}
+          {!createdBatchId && (
+            <div className="mt-4 p-3 bg-gray-900/30 text-gray-400 border border-gray-700 rounded-md flex items-center gap-2">
+              <FileText size={20} />
+              No batches created yet in this session.
+            </div>
+          )}
+        </div>
+
+        {/* View Batch Details */}
+        <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
+          <h3 className="text-xl font-semibold text-gray-100 mb-4">View Batch Details</h3>
+          <form onSubmit={handleSearchBatch} className="space-y-4">
+            <div>
+              <label htmlFor="searchBatchId" className="block text-sm font-medium text-gray-300 mb-1">
+                Batch ID
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  id="searchBatchId"
+                  value={searchBatchId}
+                  onChange={handleSearchBatchChange}
+                  className="w-full pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
+                  placeholder="Enter Batch ID"
+                  required
+                />
+                <Eye size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={isSearchingBatch}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSearchingBatch ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}
+              {isSearchingBatch ? 'Searching...' : 'View Batch'}
+            </button>
+          </form>
+
+          {searchError && (
+            <div className="mt-4 p-3 bg-red-900/30 text-red-300 border border-red-700 rounded-md flex items-center gap-2">
+              <AlertTriangle size={20} /> {searchError}
+            </div>
+          )}
+
+          {foundBatch && (
+            <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
+              <h4 className="text-lg font-semibold text-red-400">Batch Details:</h4>
+              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundBatch.batchId}</span></p>
+              <p><span className="font-medium text-gray-300">Name:</span> {foundBatch.batchName}</p>
+              {foundBatch.description && <p><span className="font-medium text-gray-300">Description:</span> {foundBatch.description}</p>}
+              <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{foundBatch.status.toUpperCase()}</span></p>
+              <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proofIds.length}</p>
+              {foundBatch.merkleRoot && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkleRoot}</span></p>}
+              {foundBatch.finalProof && <p><span className="font-medium text-gray-300">Final Proof:</span> <span className="font-mono break-all">{foundBatch.finalProof.substring(0, 60)}...</span></p>}
+              <p><span className="font-medium text-gray-300">Created At:</span> {new Date(foundBatch.createdAt).toLocaleString()}</p>
+              {foundBatch.finalizedAt && <p><span className="font-medium text-gray-300">Finalized At:</span> {new Date(foundBatch.finalizedAt).toLocaleString()}</p>}
+
+              {renderMerkleTree(foundBatch.proofIds, foundBatch.merkleRoot)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Batch Modal */}
+      <Modal
+        isOpen={isCreateBatchModalOpen}
+        onClose={() => setIsCreateBatchModalOpen(false)}
+        title="Create New Proof Batch"
+      >
+        <form onSubmit={handleCreateBatchSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="batchName" className="block text-sm font-medium text-gray-300 mb-1">
+              Batch Name
+            </label>
+            <input
+              type="text"
+              id="batchName"
+              name="batchName"
+              value={newBatchData.batchName}
+              onChange={handleCreateBatchChange}
+              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              rows={3}
+              value={newBatchData.description}
+              onChange={handleCreateBatchChange}
+              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            disabled={isCreatingBatch}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isCreatingBatch ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
+            {isCreatingBatch ? 'Creating...' : 'Create Batch'}
+          </button>
+        </form>
+      </Modal>
+
+      {/* Add Proof to Batch Modal */}
+      <Modal
+        isOpen={isAddProofModalOpen}
+        onClose={() => setIsAddProofModalOpen(false)}
+        title="Add Proof to Batch"
+      >
+        <form onSubmit={handleAddProofSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="addProofBatchId" className="block text-sm font-medium text-gray-300 mb-1">
+              Batch ID
+            </label>
+            <input
+              type="text"
+              id="addProofBatchId"
+              name="batchId"
+              value={addProofData.batchId}
+              onChange={handleAddProofChange}
+              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
+              placeholder="Enter existing Batch ID"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="addProofProofId" className="block text-sm font-medium text-gray-300 mb-1">
+              Proof ID
+            </label>
+            <input
+              type="text"
+              id="addProofProofId"
+              name="proofId"
+              value={addProofData.proofId}
+              onChange={handleAddProofChange}
+              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
+              placeholder="Enter Proof ID to add"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isAddingProof}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAddingProof ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
+            {isAddingProof ? 'Adding Proof...' : 'Add Proof'}
+          </button>
+        </form>
+      </Modal>
+
+      {/* Finalize Batch Modal */}
+      <Modal
+        isOpen={isFinalizeModalOpen}
+        onClose={() => setIsFinalizeModalOpen(false)}
+        title="Finalize Proof Batch"
+      >
+        <form onSubmit={handleFinalizeBatchSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="finalizeBatchId" className="block text-sm font-medium text-gray-300 mb-1">
+              Batch ID to Finalize
+            </label>
+            <input
+              type="text"
+              id="finalizeBatchId"
+              name="batchId"
+              value={finalizeBatchId}
+              onChange={handleFinalizeBatchChange}
+              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
+              placeholder="Enter Batch ID"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isFinalizing}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isFinalizing ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+            {isFinalizing ? 'Finalizing...' : 'Finalize Batch'}
+          </button>
+        </form>
+      </Modal>
+    </div>
+  );
+};
+
+export default Aggregation;
