@@ -16,17 +16,17 @@
 [SUBTITLE: "This KYC approval just got permanently anchored to Casper blockchain."]
 
 **Hook C:**
-[SHOW: split-screen — bank dashboard left, Casper explorer right, deploy hash matching]  
+[SHOW: split-screen — bank lab left, Casper explorer right, deploy hash matching]  
 [SUBTITLE: "Without proof, an AI said 'approved'. Now anyone can verify it forever."]
 
 ---
 
 ## SECTION 1 — KYC Demo (0:00–0:40)
 
-[SHOW: Terminal / dashboard. Use case selector set to "KYC / Identity"]
+[SHOW: Terminal / lab. Use case selector set to "KYC / Identity"]
 
 [NARRATION / SUBTITLE]
-> "Open the dashboard. Go to the Generate tab. Switch to **Anchored** mode — this writes the proof to Casper testnet."
+> "Open the lab. Go to the Generate tab. Switch to **Anchored** mode — this writes the proof to Casper testnet."
 
 [SHOW: Fill in Agent = "kyc-verifier-v2", Model = "kyc-model-v2.1", Use Case = KYC]
 
@@ -65,13 +65,13 @@
 
 [SHOW: Switch to Proofs tab — list of attestations, each row with proof_hash, deploy_hash]
 
-[SUBTITLE: "Every proof is indexed on your dashboard — filter by agent, use case, or mode."]
+[SUBTITLE: "Every proof is indexed on your lab — filter by agent, use case, or mode."]
 
 [SHOW: Click a proof row to expand detail — merkle_root, factors hash shown]
 
 [SHOW: Click "Verify on-chain" link next to a proof → testnet.cspr.live/deploy/... opens]
 
-[B-ROLL: Casper explorer showing deploy details, hash matching the dashboard]
+[B-ROLL: Casper explorer showing deploy details, hash matching the lab]
 
 [SHOW: Switch to Verify tab. Enter the proof ID]
 
@@ -101,6 +101,6 @@
 
 ## OUTRO (1:55–2:00)
 
-[SHOW: Dashboard overview with stats + Casper explorer in background]  
+[SHOW: Lab overview with stats + Casper explorer in background]  
 [SUBTITLE: "CasperProver. AI accountability, on-chain."]  
 [B-ROLL: GitHub repo URL]

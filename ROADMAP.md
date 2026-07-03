@@ -12,7 +12,7 @@
 - [x] Proof registration and on-chain verification
 - [x] KYC whitelisting via Merkle inclusion
 - [x] DeFi vault gated by verifier-gate
-- [x] React dashboard at casperprover.xyz
+- [x] React lab at casperprover.xyz
 - [x] SDK + MCP server
 - [x] 83 tests (62 Go + 21 Rust)
 - [x] CI via GitHub Actions
@@ -29,7 +29,7 @@
 - [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof, 5.5KB/24ms
 - [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
 - [ ] MCP server expansion to 15+ tools with ProofOfInference JSON-Schema
-- [ ] Demo/Real data toggle in dashboard
+- [ ] Demo/Real data toggle in lab
 
 ## Phase 3 — Advanced
 

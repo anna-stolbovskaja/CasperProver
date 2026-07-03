@@ -16,7 +16,7 @@ const links = [
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const location = useLocation()
-  const isApp = location.pathname === '/dashboard'
+  const isLab = location.pathname === '/lab'
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50)
@@ -28,7 +28,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     e.preventDefault()
     const hash = href.split('#')[1]
     if (location.pathname !== '/') {
-      // Full page navigation from dashboard to landing — avoids SPA black screen issues
+      // Full page navigation from lab to landing — avoids SPA black screen issues
       window.location.href = href
     } else {
       const el = document.getElementById(hash)
@@ -57,9 +57,9 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          {!isApp && (
-            <a href="/dashboard" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
-              Dashboard
+          {!isLab && (
+            <a href="/lab" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
+              Proof Lab
             </a>
           )}
           <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2 text-gray-400">
@@ -73,8 +73,8 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
             {links.map(l => (
               <a key={l.href} href={l.href} onClick={(e) => { handleNavClick(e, l.href); setMobileOpen(false) }} className="block px-3 py-2.5 text-gray-300 rounded-lg hover:bg-white/5">{l.label}</a>
             ))}
-            {!isApp && (
-              <a href="/dashboard" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-red-400 font-semibold rounded-lg hover:bg-white/5">Dashboard</a>
+            {!isLab && (
+              <a href="/lab" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-red-400 font-semibold rounded-lg hover:bg-white/5">Proof Lab</a>
             )}
           </div>
         </div>

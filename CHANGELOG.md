@@ -25,7 +25,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 #### MCP Server
 - Expanded from 15 to 23 tools — new tools for model registry, complexity analysis, and distributed task management
 
-#### Dashboard
+#### Lab
 - 4 new tabs: Models, Complexity, Workers, Contracts
 - Model registry browser with version and framework info
 - Complexity metrics: average generation time, Merkle depth, gas estimates
@@ -55,7 +55,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Merkle tree builder** in Go engine — SHA-256 leaf hashing over `{H(input), H(output), H(model)}` triplets, binary tree construction, path serialization
 - **Four proof types supported**: `merkle-inclusion`, `kyc-eligibility`, `balance-range`, `transaction-membership`
 - **REST API** at `https://casperprover-api.onrender.com` — endpoints: `POST /api/v1/proof/submit`, `POST /api/v1/proof/verify`, `GET /api/v1/proofs`, `GET /api/v1/stats`
-- **Dashboard** at `casperprover.xyz/dashboard` — 72 live proofs registered on testnet, proof type breakdown, verification status badges
+- **Lab** at `casperprover.xyz/lab` — 72 live proofs registered on testnet, proof type breakdown, verification status badges
 - **Go SDK** (`sdk/`) — `client.go` with submit/verify helpers, Python client (`python_client.py`)
 - **MCP server** (`sdk/mcp_server.go`) — Model Context Protocol adapter so AI frameworks (Claude, LangChain) can call CasperProver as a tool
 - **Contract test suite** (`contracts/tests/`) — integration tests covering registry, gate, and mock interactions
@@ -75,5 +75,5 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Mainnet deployment
 - zk-SNARK proof type (Groth16)
 - Batch proof submission
-- Grafana/Prometheus metrics dashboard
+- Grafana/Prometheus metrics lab
 - Proof expiry and rotation policies

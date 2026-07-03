@@ -43,7 +43,7 @@ One curl call to verify. Immutable. Permanent.
 **Tweet 4 — Live Demo**
 72 proofs registered on Casper testnet right now.
 
-Dashboard: casperprover.xyz/dashboard
+Lab: casperprover.xyz/lab
 API: casperprover-api.onrender.com
 
 Try it:
@@ -97,4 +97,4 @@ For teams building regulated AI pipelines or compliance infrastructure, this is 
 
 ## Telegram Announcement (3 sentences)
 
-🔐 **CasperProver is live on Casper testnet** — a Merkle proof registry for AI agent computations. Submit hashes of any agent's inputs, outputs, and model; get an on-chain inclusion proof you can verify anytime without replaying the model. 72 proofs registered, 4 proof types, KYC-gated DeFi demo included → casperprover.xyz/dashboard
+🔐 **CasperProver is live on Casper testnet** — a Merkle proof registry for AI agent computations. Submit hashes of any agent's inputs, outputs, and model; get an on-chain inclusion proof you can verify anytime without replaying the model. 72 proofs registered, 4 proof types, KYC-gated DeFi demo included → casperprover.xyz/lab
