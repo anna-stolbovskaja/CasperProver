@@ -17,7 +17,7 @@ export default function LiveDemo() {
     setError(null)
     setResult(null)
     try {
-      const proof = await createProof({ agent, input, output, model })
+      const proof = await createProof({ agentId: agent, inputHash: input, outputHash: output, proofData: model })
       setResult(proof)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -103,7 +103,7 @@ export default function LiveDemo() {
                     <p className="text-green-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Proof generated</p>
                     <p className="text-gray-500">---</p>
                     <p className="text-gray-400">id: <span className="text-white">{result.id}</span></p>
-                    <p className="text-gray-400">agent: <span className="text-white">{result.agent}</span></p>
+                    <p className="text-gray-400">agentId: <span className="text-white">{result.agent}</span></p>
                     <p className="text-gray-400">proof_hash: <span className="text-red-400">{result.proof_hash}</span></p>
                     <p className="text-gray-400">input_hash: <span className="text-orange-300">{result.input_hash}</span></p>
                     <p className="text-gray-400">output_hash: <span className="text-orange-300">{result.output_hash}</span></p>

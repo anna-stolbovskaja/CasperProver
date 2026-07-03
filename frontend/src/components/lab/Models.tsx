@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, Search, FileText, Loader2, AlertTriangle, Eye } from 'lucide-react';
+import { PlusCircle, Search, FileText, Loader2, AlertTriangle, Eye, XCircle,
+} from 'lucide-react';
 import {
   registerModel,
   getModelById,
@@ -7,8 +8,7 @@ import {
   RegisterModelResponse,
   ModelDetails,
 } from '../../lib/api';
-import { toast } from 'react-toastify';
-import Modal from '../ui/Modal'; // Assuming a generic Modal component
+import { toast } from '../ui/toast';
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{
@@ -66,11 +66,11 @@ const Models: React.FC = () => {
     try {
       const res = await registerModel(newModelData);
       if (res.success && res.data) {
-        toast.success(`Model "${newModelData.modelName}" registered successfully! ID: ${res.data.modelId}`);
+        toast.success(`Box "${newModelData.modelName}" registered successfully! ID: ${res.data.modelId}`);
         // Add to local list for display (assuming we can fetch it back)
         const fetchedModelRes = await getModelById(res.data.modelId);
         if (fetchedModelRes.success && fetchedModelRes.data) {
-          setRegisteredModels((prev) => [...prev, fetchedModelRes.data]);
+          setRegisteredModels((prev) => [...prev, fetchedModelRes.data!]);
         }
         setIsRegisterModalOpen(false);
         setNewModelData({ modelName: '', modelHash: '', verifierContract: '', description: '' });
@@ -88,7 +88,7 @@ const Models: React.FC = () => {
   const handleSearchModel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchModelId) {
-      setSearchError('Please enter a Model ID to search.');
+      setSearchError('Please enter a Box ID to search.');
       setFoundModel(null);
       return;
     }
@@ -99,10 +99,10 @@ const Models: React.FC = () => {
       const res = await getModelById(searchModelId);
       if (res.success && res.data) {
         setFoundModel(res.data);
-        toast.success(`Model ${searchModelId} found.`);
+        toast.success(`Box ${searchModelId} found.`);
       } else {
-        setSearchError(res.error || `Model with ID ${searchModelId} not found.`);
-        toast.error(res.error || `Model with ID ${searchModelId} not found.`);
+        setSearchError(res.error || `Box with ID ${searchModelId} not found.`);
+        toast.error(res.error || `Box with ID ${searchModelId} not found.`);
       }
     } catch (err) {
       setSearchError('An unexpected error occurred during model search.');
@@ -116,20 +116,20 @@ const Models: React.FC = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">AI Model Registry</h2>
+        <h2 className="text-2xl font-bold text-gray-100">AI Box Registry</h2>
         <button
           onClick={() => setIsRegisterModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
         >
           <PlusCircle size={20} />
-          Register New Model
+          Register New Box
         </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Register Model Form (or button to open modal) */}
+        {/* Register Box Form (or button to open modal) */}
         <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
-          <h3 className="text-xl font-semibold text-gray-100 mb-4">Register AI Model</h3>
+          <h3 className="text-xl font-semibold text-gray-100 mb-4">Register AI Box</h3>
           <p className="text-gray-400 mb-4">
             Register a new AI model with its unique hash and the associated verifier contract on Casper.
           </p>
@@ -142,13 +142,13 @@ const Models: React.FC = () => {
           </button>
         </div>
 
-        {/* View Model Details */}
+        {/* View Box Details */}
         <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
-          <h3 className="text-xl font-semibold text-gray-100 mb-4">View Model Details</h3>
+          <h3 className="text-xl font-semibold text-gray-100 mb-4">View Box Details</h3>
           <form onSubmit={handleSearchModel} className="space-y-4">
             <div>
               <label htmlFor="searchModelId" className="block text-sm font-medium text-gray-300 mb-1">
-                Model ID
+                Box ID
               </label>
               <div className="relative">
                 <input
@@ -157,7 +157,7 @@ const Models: React.FC = () => {
                   value={searchModelId}
                   onChange={(e) => setSearchModelId(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
-                  placeholder="Enter Model ID"
+                  placeholder="Enter Box ID"
                   required
                 />
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -169,7 +169,7 @@ const Models: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSearchingModel ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}
-              {isSearchingModel ? 'Searching...' : 'View Model'}
+              {isSearchingModel ? 'Searching...' : 'View Box'}
             </button>
           </form>
 
@@ -181,7 +181,7 @@ const Models: React.FC = () => {
 
           {foundModel && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
-              <h4 className="text-lg font-semibold text-red-400">Model Found:</h4>
+              <h4 className="text-lg font-semibold text-red-400">Box Found:</h4>
               <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundModel.modelId}</span></p>
               <p><span className="font-medium text-gray-300">Name:</span> {foundModel.modelName}</p>
               <p><span className="font-medium text-gray-300">Hash:</span> <span className="font-mono break-all">{foundModel.modelHash}</span></p>
@@ -208,7 +208,7 @@ const Models: React.FC = () => {
               <thead className="bg-[#13131d]">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Model ID
+                    Box ID
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                     Name
@@ -243,16 +243,16 @@ const Models: React.FC = () => {
       </div>
 
 
-      {/* Register Model Modal */}
+      {/* Register Box Modal */}
       <Modal
         isOpen={isRegisterModalOpen}
         onClose={() => setIsRegisterModalOpen(false)}
-        title="Register New AI Model"
+        title="Register New AI Box"
       >
         <form onSubmit={handleRegisterModelSubmit} className="space-y-4">
           <div>
             <label htmlFor="modelName" className="block text-sm font-medium text-gray-300 mb-1">
-              Model Name
+              Box Name
             </label>
             <input
               type="text"
@@ -266,7 +266,7 @@ const Models: React.FC = () => {
           </div>
           <div>
             <label htmlFor="modelHash" className="block text-sm font-medium text-gray-300 mb-1">
-              Model Hash (e.g., IPFS CID, cryptographic hash)
+              Box Hash (e.g., IPFS CID, cryptographic hash)
             </label>
             <input
               type="text"
@@ -311,7 +311,7 @@ const Models: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRegistering ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
-            {isRegistering ? 'Registering...' : 'Register Model'}
+            {isRegistering ? 'Registering...' : 'Register Box'}
           </button>
         </form>
       </Modal>

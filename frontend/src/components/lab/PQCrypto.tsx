@@ -10,7 +10,7 @@ import {
   PQHybridSignRequest,
   PQHybridVerifyRequest,
 } from '../../lib/api';
-import { toast } from 'react-toastify';
+import { toast } from '../ui/toast';
 
 const PQCrypto: React.FC = () => {
   // SPHINCS+ State

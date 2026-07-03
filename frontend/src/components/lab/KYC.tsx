@@ -7,7 +7,7 @@ import {
   KYCStatusRequest,
   KYCGrantRequest,
 } from '../../lib/api';
-import { toast } from 'react-toastify';
+import { toast } from '../ui/toast';
 
 const KYC: React.FC = () => {
   // Check KYC Status State

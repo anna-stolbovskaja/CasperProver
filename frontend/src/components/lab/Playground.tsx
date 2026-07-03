@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Play, Code, AlertTriangle, Loader2 } from 'lucide-react';
 import * as api from '../../lib/api'; // Import all API functions and types
-import { toast } from 'react-toastify';
+import { toast } from '../ui/toast';
 
 // Define a structure for each endpoint in the playground
 interface EndpointConfig {
@@ -507,7 +507,7 @@ const Playground: React.FC = () => {
               )}
 
               {/* Query Parameters */}
-              {selectedEndpoint.params?.filter(p => !selectedEndpoint.path.includes(`{${p.name}}`)).length > 0 && (
+              {(selectedEndpoint?.params?.filter(p => !selectedEndpoint.path.includes(`{${p.name}}`))?.length ?? 0) > 0 && (
                 <div className="mb-4">
                   <h4 className="text-md font-medium text-gray-300 mb-2">Query Parameters</h4>
                   {selectedEndpoint.params?.filter(p => !selectedEndpoint.path.includes(`{${p.name}}`)).map(param => (
