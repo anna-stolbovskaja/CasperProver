@@ -29,6 +29,7 @@ func (e *ProofEngine) GenerateWithKey(agent, pubKey string, input, output, model
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	e.evictIfNeeded()
 	e.seq++
 	pid := fmt.Sprintf("P-%d", e.seq)
 	ph := hasher.CommitHash(input, output, model)
@@ -90,6 +91,37 @@ func (e *ProofEngine) Revoke(pid, reason string) error {
 	p.Valid = false
 	p.Revoked = true
 	return nil
+}
+
+// EvictRevoked removes revoked proofs older than maxAge to prevent unbounded memory growth.
+func (e *ProofEngine) EvictRevoked(maxAge time.Duration) int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	cutoff := time.Now().Add(-maxAge)
+	evicted := 0
+	for id, p := range e.proofs {
+		if p.Revoked && p.Timestamp.Before(cutoff) {
+			delete(e.proofs, id)
+			evicted++
+		}
+	}
+	return evicted
+}
+
+// MaxProofs is the upper bound for in-memory proofs. Oldest non-revoked proofs
+// are kept when the limit is hit; eviction runs on each Generate call.
+const MaxProofs = 100_000
+
+func (e *ProofEngine) evictIfNeeded() {
+	if len(e.proofs) <= MaxProofs {
+		return
+	}
+	// Remove revoked proofs first (any age)
+	for id, p := range e.proofs {
+		if p.Revoked {
+			delete(e.proofs, id)
+		}
+	}
 }
 
 func (e *ProofEngine) Verify(pid string) (bool, error) {
