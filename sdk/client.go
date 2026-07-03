@@ -1,15 +1,8 @@
-// Package sdk provides a Go client for the CasperProver REST API.
-//
-// Usage:
-//
-//	c := sdk.NewClient("http://localhost:9090")
-//	proof, _ := c.Submit("agent-1", []byte("in"), []byte("out"), []byte("m"), "inference")
-//	status, _ := c.Get(proof.ID)
-//	ok, _ := c.Verify(proof.ID)
 package sdk
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,129 +10,203 @@ import (
 	"time"
 )
 
-// Proof mirrors the server's JSON representation.
-type Proof struct {
-	ID      string   `json:"id"`
-	AgentID string   `json:"agent_id"`
-	PH      string   `json:"proof_hash"`
-	IH      string   `json:"input_hash"`
-	OH      string   `json:"output_hash"`
-	MH      string   `json:"model_hash"`
-	Root    string   `json:"root"`
-	Path    []string `json:"path,omitempty"`
-	Idx     int      `json:"idx"`
-	UseCase string   `json:"use_case"`
-	Valid   bool     `json:"valid"`
-	Revoked bool     `json:"revoked"`
-	TS      int64    `json:"timestamp"`
+const (
+	defaultBaseURL = "http://localhost:8080/api/v1"
+	defaultTimeout = 30 * time.Second
+)
+
+// CasperProverClient is a client for interacting with the CasperProver API.
+type CasperProverClient struct {
+	authToken  string
+	baseURL    string
+	httpClient *http.Client
 }
 
-// SubmitRequest is the body for POST /proofs.
-type SubmitRequest struct {
-	AgentID string `json:"agent_id"`
-	Input   string `json:"input"`
-	Output  string `json:"output"`
-	Model   string `json:"model"`
-	UseCase string `json:"use_case"`
+// NewCasperProverClient creates a new CasperProverClient with default or custom options.
+func NewCasperProverClient(opts ...ClientOption) *CasperProverClient {
+	client := &CasperProverClient{
+		baseURL: defaultBaseURL,
+		httpClient: &http.Client{
+			Timeout: defaultTimeout,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	return client
 }
 
-// Client talks to a CasperProver API server.
-type Client struct {
-	base   string
-	http   *http.Client
-}
+// ClientOption defines a functional option for CasperProverClient.
+type ClientOption func(*CasperProverClient)
 
-// NewClient creates a client pointed at the given base URL.
-func NewClient(baseURL string) *Client {
-	return &Client{
-		base: baseURL,
-		http: &http.Client{Timeout: 30 * time.Second},
+// WithBaseURL sets the base URL for the CasperProver API.
+func WithBaseURL(url string) ClientOption {
+	return func(c *CasperProverClient) {
+		c.baseURL = url
 	}
 }
 
-// Health returns true if the server is reachable.
-func (c *Client) Health() (bool, error) {
-	resp, err := c.http.Get(c.base + "/health")
+// WithHTTPClient sets a custom HTTP client.
+func WithHTTPClient(httpClient *http.Client) ClientOption {
+	return func(c *CasperProverClient) {
+		c.httpClient = httpClient
+	}
+}
+
+// WithAuthToken sets the authentication token for API requests.
+func WithAuthToken(token string) ClientOption {
+	return func(c *CasperProverClient) {
+		c.authToken = token
+	}
+}
+
+// SetAuthToken updates the authentication token at runtime.
+func (c *CasperProverClient) SetAuthToken(token string) {
+	c.authToken = token
+}
+
+// doRequest performs an HTTP request and decodes the JSON response.
+func (c *CasperProverClient) doRequest(ctx context.Context, method, path string, reqBody interface{}, resp interface{}) error {
+	var bodyReader io.Reader
+	if reqBody != nil {
+		jsonBody, err := json.Marshal(reqBody)
+		if err != nil {
+			return fmt.Errorf("failed to marshal request body: %w", err)
+		}
+		bodyReader = bytes.NewBuffer(jsonBody)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bodyReader)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("failed to create request: %w", err)
 	}
-	defer resp.Body.Close()
-	return resp.StatusCode == 200, nil
-}
-
-// Submit generates a new proof on the server.
-func (c *Client) Submit(agentID string, input, output, model []byte, useCase string) (*Proof, error) {
-	body := SubmitRequest{
-		AgentID: agentID,
-		Input:   string(input),
-		Output:  string(output),
-		Model:   string(model),
-		UseCase: useCase,
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	if c.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
-	return c.postProof("/proofs", body)
-}
 
-// Get fetches a proof by ID.
-func (c *Client) Get(proofID string) (*Proof, error) {
-	resp, err := c.http.Get(fmt.Sprintf("%s/proofs/%s", c.base, proofID))
+	respHTTP, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, c.readError(resp)
+	defer respHTTP.Body.Close()
+
+	if respHTTP.StatusCode < 200 || respHTTP.StatusCode >= 300 {
+		errorBody, _ := io.ReadAll(respHTTP.Body)
+		return fmt.Errorf("API request failed with status %d: %s", respHTTP.StatusCode, string(errorBody))
 	}
-	var p Proof
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		return nil, err
+
+	if resp != nil {
+		if err := json.NewDecoder(respHTTP.Body).Decode(resp); err != nil {
+			return fmt.Errorf("failed to decode response body: %w", err)
+		}
 	}
-	return &p, nil
+
+	return nil
 }
 
-// List returns all proofs.
-func (c *Client) List() ([]Proof, error) {
-	resp, err := c.http.Get(c.base + "/proofs")
+// SubmitProof submits a new ZK proof to the prover.
+func (c *CasperProverClient) SubmitProof(ctx context.Context, proof *Proof) (*VerificationResult, error) {
+	var result VerificationResult
+	err := c.doRequest(ctx, http.MethodPost, "/proofs", proof, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to submit proof: %w", err)
 	}
-	defer resp.Body.Close()
-	var proofs []Proof
-	if err := json.NewDecoder(resp.Body).Decode(&proofs); err != nil {
-		return nil, err
-	}
-	return proofs, nil
+	return &result, nil
 }
 
-// Verify checks a proof's validity server-side.
-func (c *Client) Verify(proofID string) (bool, error) {
-	p, err := c.Get(proofID)
+// VerifyProof retrieves the verification status of a specific proof.
+func (c *CasperProverClient) VerifyProof(ctx context.Context, proofID string) (*VerificationResult, error) {
+	var result VerificationResult
+	err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/proofs/%s/verify", proofID), nil, &result)
 	if err != nil {
-		return false, err
+		return nil, fmt.Errorf("failed to verify proof %s: %w", proofID, err)
 	}
-	return p.Valid && !p.Revoked, nil
+	return &result, nil
 }
 
-func (c *Client) postProof(path string, body interface{}) (*Proof, error) {
-	b, err := json.Marshal(body)
+// BatchProofs submits a batch of proof IDs for verification.
+func (c *CasperProverClient) BatchProofs(ctx context.Context, proofIDs []string) (*BatchResult, error) {
+	var result BatchResult
+	reqBody := struct {
+		ProofIDs []string `json:"proof_ids"`
+	}{ProofIDs: proofIDs}
+	err := c.doRequest(ctx, http.MethodPost, "/proofs/batch", reqBody, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to batch proofs: %w", err)
 	}
-	resp, err := c.http.Post(c.base+path, "application/json", bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return nil, c.readError(resp)
-	}
-	var p Proof
-	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
-		return nil, err
-	}
-	return &p, nil
+	return &result, nil
 }
 
-func (c *Client) readError(resp *http.Response) error {
-	b, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("api error %d: %s", resp.StatusCode, string(b))
+// RegisterModel registers a new AI model with the prover.
+func (c *CasperProverClient) RegisterModel(ctx context.Context, model *Model) (*Model, error) {
+	var result Model
+	err := c.doRequest(ctx, http.MethodPost, "/models", model, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register model: %w", err)
+	}
+	return &result, nil
+}
+
+// AggregateSTARK requests the aggregation of STARK proofs.
+func (c *CasperProverClient) AggregateSTARK(ctx context.Context, challenge *Challenge) (*Proof, error) {
+	var result Proof
+	err := c.doRequest(ctx, http.MethodPost, "/proofs/stark/aggregate", challenge, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate STARK: %w", err)
+	}
+	return &result, nil
+}
+
+// VerifyGroth16 verifies a specific Groth16 proof.
+func (c *CasperProverClient) VerifyGroth16(ctx context.Context, proofID string) (*VerificationResult, error) {
+	var result VerificationResult
+	err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/proofs/groth16/%s/verify", proofID), nil, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify Groth16 proof %s: %w", proofID, err)
+	}
+	return &result, nil
+}
+
+// SignSPHINCS requests the prover to sign a message using SPHINCS+.
+func (c *CasperProverClient) SignSPHINCS(ctx context.Context, message []byte) ([]byte, error) {
+	reqBody := struct {
+		Message string `json:"message"`
+	}{Message: string(message)} // Assuming message is base64 encoded or similar string
+	var respBody struct {
+		Signature string `json:"signature"`
+	}
+	err := c.doRequest(ctx, http.MethodPost, "/crypto/sphincs/sign", reqBody, &respBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign with SPHINCS+: %w", err)
+	}
+	return []byte(respBody.Signature), nil // Assuming signature is returned as a string
+}
+
+// HybridSign requests the prover to sign a message using a hybrid signature scheme.
+func (c *CasperProverClient) HybridSign(ctx context.Context, message []byte) ([]byte, error) {
+	reqBody := struct {
+		Message string `json:"message"`
+	}{Message: string(message)} // Assuming message is base64 encoded or similar string
+	var respBody struct {
+		Signature string `json:"signature"`
+	}
+	err := c.doRequest(ctx, http.MethodPost, "/crypto/hybrid/sign", reqBody, &respBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign with hybrid scheme: %w", err)
+	}
+	return []byte(respBody.Signature), nil // Assuming signature is returned as a string
+}
+
+// GetPQCryptoStatus retrieves the current post-quantum cryptography status.
+func (c *CasperProverClient) GetPQCryptoStatus(ctx context.Context) (*PQCryptoStatus, error) {
+	var status PQCryptoStatus
+	err := c.doRequest(ctx, http.MethodGet, "/crypto/pq/status", nil, &status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PQ crypto status: %w", err)
+	}
+	return &status, nil
 }

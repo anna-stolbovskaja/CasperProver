@@ -1,0 +1,214 @@
+openapi: 3.1.0
+info:
+  title: CasperProver API
+  summary: API for ZK-proof engine for AI decisions on Casper Network.
+  description: |
+    This API provides endpoints for submitting, verifying, and managing Zero-Knowledge Proofs
+    generated from AI model inferences. It also includes functionalities for registering AI models
+    and querying the post-quantum cryptography readiness status.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://prover.casper.network/api/v1
+    description: Production server
+tags:
+  - name: Proofs
+    description: Operations related to ZK proofs (submission, verification, aggregation).
+  - name: Models
+    description: Management of AI models registered with the prover.
+  - name: Cryptography
+    description: Post-quantum cryptography status and signing operations.
+
+paths:
+  /proofs:
+    get:
+      tags:
+        - Proofs
+      summary: List all proofs
+      operationId: listProofs
+      parameters:
+        - name: type
+          in: query
+          description: Filter proofs by type (inference, batch, groth16, stark)
+          schema:
+            type: string
+            enum: [inference, batch, groth16, stark]
+        - name: status
+          in: query
+          description: Filter proofs by status (pending, verified, failed)
+          schema:
+            type: string
+            enum: [pending, verified, failed]
+        - name: model_id
+          in: query
+          description: Filter proofs by associated AI model ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of proofs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Proof'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags:
+        - Proofs
+      summary: Submit a new ZK proof
+      operationId: submitProof
+      requestBody:
+        description: Proof object to be submitted
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofInput'
+      responses:
+        '201':
+          description: Proof submitted and verification initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /proofs/{proofId}:
+    get:
+      tags:
+        - Proofs
+      summary: Get proof details by ID
+      operationId: getProofById
+      parameters:
+        - name: proofId
+          in: path
+          required: true
+          description: ID of the proof to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proof details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proof'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /proofs/{proofId}/verify:
+    get:
+      tags:
+        - Proofs
+      summary: Get verification status for a specific proof
+      operationId: getProofVerificationStatus
+      parameters:
+        - name: proofId
+          in: path
+          required: true
+          description: ID of the proof to check verification status for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /proofs/batch:
+    post:
+      tags:
+        - Proofs
+      summary: Submit a batch of proof IDs for verification
+      operationId: batchVerifyProofs
+      requestBody:
+        description: List of proof IDs to verify in a batch
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                proof_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of proof IDs
+              required:
+                - proof_ids
+      responses:
+        '202':
+          description: Batch verification request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /proofs/stark/aggregate:
+    post:
+      tags:
+        - Proofs
+      summary: Request aggregation of multiple STARK proofs
+      operationId: aggregateStarkProofs
+      requestBody:
+        description: Challenge object containing proof IDs for aggregation
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Challenge'
+      responses:
+        '202':
+          description: STARK aggregation initiated. Returns a new aggregated proof.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proof'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /proofs/groth16/{proofId}/verify:
+    get:
+      tags:
+        - Proofs
+      summary: Verify a specific Groth16 proof
+      operationId: verifyGroth16Proof
+      parameters:
+        - name: proofId
+          in: path
+          required: true
+          description: ID of the Groth16 proof to verify
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Groth16 verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#
