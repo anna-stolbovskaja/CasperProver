@@ -1,0 +1,21 @@
+name: Verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build engine
+        run: cd engine && go build ./...
+      - name: Run tests
+        run: cd engine && go test ./... -v -count=1
+      - name: Vet
+        run: cd engine && go vet ./...
