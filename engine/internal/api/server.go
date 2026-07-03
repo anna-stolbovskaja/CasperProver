@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
@@ -100,13 +101,52 @@ func (s *Server) Start() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      s.corsMiddleware(s.logMiddleware(mux)),
+		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.logMiddleware(mux))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 	s.log.Info("api starting", "addr", addr)
 	return srv.ListenAndServe()
+}
+
+// rateLimiter tracks per-IP request counts (60 req/min).
+type rateLimiter struct {
+	mu      sync.Mutex
+	clients map[string]*rlEntry
+}
+
+type rlEntry struct {
+	count int
+	reset time.Time
+}
+
+var rl = &rateLimiter{clients: make(map[string]*rlEntry)}
+
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := r.RemoteAddr
+		now := time.Now()
+		rl.mu.Lock()
+		entry, ok := rl.clients[ip]
+		if !ok || now.After(entry.reset) {
+			rl.clients[ip] = &rlEntry{count: 1, reset: now.Add(time.Minute)}
+			rl.mu.Unlock()
+		} else {
+			entry.count++
+			if entry.count > 60 {
+				rl.mu.Unlock()
+				http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+				return
+			}
+			rl.mu.Unlock()
+		}
+		// Limit POST body to 1MB
+		if r.Method == http.MethodPost {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
