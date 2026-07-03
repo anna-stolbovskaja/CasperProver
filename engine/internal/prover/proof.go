@@ -97,10 +97,10 @@ func (e *ProofEngine) Revoke(pid, reason string) error {
 func (e *ProofEngine) EvictRevoked(maxAge time.Duration) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	cutoff := time.Now().Add(-maxAge)
+	cutoff := time.Now().Add(-maxAge).Unix()
 	evicted := 0
 	for id, p := range e.proofs {
-		if p.Revoked && p.Timestamp.Before(cutoff) {
+		if p.Revoked && p.TS < cutoff {
 			delete(e.proofs, id)
 			evicted++
 		}
