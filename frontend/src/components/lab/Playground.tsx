@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Play, Code, AlertTriangle, Loader2 } from 'lucide-react';
 import * as api from '../../lib/api'; // Import all API functions and types
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 // Define a structure for each endpoint in the playground
 interface EndpointConfig {
@@ -506,6 +507,13 @@ const Playground: React.FC = () => {
 
   return (
     <div className="p-4">
+      <SectionIntro
+        title="API Playground"
+        description="Interactive API explorer — select any endpoint, fill in parameters, and see the live response from the CasperProver backend. Every request hits the real API. Use this to test proof creation, verification, model registration, ZK operations, and more."
+        dataSource="Direct HTTP calls to the live CasperProver API (casperprover-api.onrender.com)."
+        badge="Live API"
+        badgeColor="blue"
+      />
       <h2 className="text-2xl font-bold text-gray-100 mb-6">API Playground</h2>
       <p className="text-gray-400 mb-6">
         Experiment with CasperProver API endpoints. Select an endpoint, fill in parameters/body, and see the live response.

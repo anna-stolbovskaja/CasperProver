@@ -1,4 +1,5 @@
 import React from 'react';
+import SectionIntro from './SectionIntro';
 import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink } from 'lucide-react';
 
 interface ContractInfo {
@@ -83,6 +84,13 @@ const Contracts: React.FC = () => {
 
   return (
     <div className="p-4">
+      <SectionIntro
+        title="Smart Contracts"
+        description="7 Rust/Wasm smart contracts built for CasperProver: 4 deployed on Casper testnet (proof_registry, verifier_gate, defi_mock, stake_slashing) and 3 written but not yet deployed (proof-of-inference, model-registry, proof-aggregation). Each contract is verified on-chain with real deploy hashes — click to view on Casper Explorer."
+        dataSource="Real smart contracts deployed on Casper testnet. Deploy hashes and contract hashes verified via CSPR.cloud API."
+        badge="On-chain verified"
+        badgeColor="green"
+      />
       <h2 className="text-2xl font-bold text-gray-100 mb-2">CasperProver Contracts</h2>
       <p className="text-gray-400 mb-6">
         {deployed.length} deployed on Casper testnet · {written.length} written and ready for mainnet · {CONTRACTS.reduce((s, c) => s + c.lines, 0).toLocaleString()} lines of Rust

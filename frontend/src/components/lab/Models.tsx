@@ -9,6 +9,7 @@ import {
   
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{
@@ -113,8 +114,24 @@ const Models: React.FC = () => {
     }
   };
 
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success(`${label} copied to clipboard`);
+    }).catch(() => {
+      toast.error('Failed to copy');
+    });
+  };
+
   return (
     <div className="p-4">
+      <SectionIntro
+        title="AI Box Registry"
+        description="Register and look up AI model boxes (LLMs, decision engines) in the CasperProver model registry. Each box is identified by a cryptographic hash and linked to a verifier smart contract on Casper testnet. This enables tamper-proof model provenance — any proof can be traced back to the exact model version that produced it."
+        dataSource="On-chain model registry via the verifier_gate smart contract on Casper testnet."
+        badge="On-chain registry"
+        badgeColor="green"
+      />
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-100">AI Box Registry</h2>
         <button
@@ -168,10 +185,10 @@ const Models: React.FC = () => {
           {foundModel && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
               <h4 className="text-lg font-semibold text-red-400">Box Found:</h4>
-              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundModel.model_id}</span></p>
-              <p><span className="font-medium text-gray-300">Name:</span> {foundModel.model_id}</p>
-              <p><span className="font-medium text-gray-300">Hash:</span> <span className="font-mono break-all">{foundModel.model_hash}</span></p>
-              <p><span className="font-medium text-gray-300">Verifier Contract:</span> <span className="font-mono break-all">{foundModel.verifier_contract}</span></p>
+              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all cursor-pointer hover:text-red-300 text-red-400 transition-colors" onClick={() => copyToClipboard(foundModel.model_id, 'Model ID')} title="Click to copy">{foundModel.model_id}</span></p>
+              <p><span className="font-medium text-gray-300">Name:</span> <span className="cursor-pointer hover:text-gray-100 transition-colors" onClick={() => copyToClipboard(foundModel.model_id, 'Model name')} title="Click to copy">{foundModel.model_id}</span></p>
+              <p><span className="font-medium text-gray-300">Hash:</span> <span className="font-mono break-all cursor-pointer hover:text-gray-100 transition-colors" onClick={() => copyToClipboard(foundModel.model_hash, 'Hash')} title="Click to copy">{foundModel.model_hash}</span></p>
+              <p><span className="font-medium text-gray-300">Verifier Contract:</span> <span className="font-mono break-all cursor-pointer hover:text-gray-100 transition-colors" onClick={() => copyToClipboard(foundModel.verifier_contract, 'Contract')} title="Click to copy">{foundModel.verifier_contract}</span></p>
               {foundModel?.description && <p><span className="font-medium text-gray-300">Description:</span> {foundModel?.description}</p>}
               <p><span className="font-medium text-gray-300">Registered At:</span> {new Date(foundModel.registered_at).toLocaleString()}</p>
             </div>
@@ -210,14 +227,32 @@ const Models: React.FC = () => {
               <tbody className="divide-y divide-[#222235]">
                 {registeredModels.map((model) => (
                   <tr key={model.model_id} className="hover:bg-[#1a1a2a]/50 transition-colors duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
+                    <td
+                      className="px-6 py-4 whitespace-nowrap text-sm font-mono text-red-400 cursor-pointer hover:text-red-300 transition-colors"
+                      onClick={() => copyToClipboard(model.model_id, 'Model ID')}
+                      title={`${model.model_id} — click to copy`}
+                    >
                       {model?.model_id?.substring(0, 8)}...{model?.model_id?.substring(model.model_id.length - 8)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{model.model_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
+                    <td
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 cursor-pointer hover:text-gray-100 transition-colors"
+                      onClick={() => copyToClipboard(model.model_id, 'Model name')}
+                      title="Click to copy full name"
+                    >
+                      {model.model_id}
+                    </td>
+                    <td
+                      className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300 cursor-pointer hover:text-gray-100 transition-colors"
+                      onClick={() => copyToClipboard(model.model_hash, 'Model hash')}
+                      title={`${model.model_hash} — click to copy`}
+                    >
                       {model?.model_hash?.substring(0, 8)}...
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
+                    <td
+                      className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300 cursor-pointer hover:text-gray-100 transition-colors"
+                      onClick={() => copyToClipboard(model.verifier_contract, 'Contract address')}
+                      title={`${model.verifier_contract} — click to copy`}
+                    >
                       {model?.verifier_contract?.substring(0, 8)}...
                     </td>
                   </tr>

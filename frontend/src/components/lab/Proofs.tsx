@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   PlusCircle,
   CheckCircle,
@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Search,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import {
   getProofs,
@@ -22,6 +23,8 @@ import {
   Proof,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
+import ConfirmModal from './ConfirmModal';
 
 const Modal: React.FC<{
   isOpen: boolean;
@@ -60,13 +63,13 @@ function truncHash(h: string, len = 10): string {
 }
 
 const Proofs: React.FC = () => {
-  const [proofs, setProofs] = useState<Proof[]>([]);
+  const [allProofs, setAllProofs] = useState<Proof[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState('');
+  const filterRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
-  const [totalProofs, setTotalProofs] = useState(0);
-  const [agentFilter, setAgentFilter] = useState('');
+  const limit = 10;
 
   const [selectedProof, setSelectedProof] = useState<Proof | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -74,19 +77,22 @@ const Proofs: React.FC = () => {
   const [isRevoking, setIsRevoking] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<string | null>(null);
 
+  // Revoke confirm modal
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+
   // Create proof
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ agent: 'agent-alpha', input: 'loan_application_42', output: 'approved_with_conditions', model: 'gpt-4o', use_case: 'merkle-inclusion', mode: 'local' });
 
-  const fetchProofs = useCallback(async () => {
+  // Load ALL proofs from API (no server-side filter)
+  const fetchAllProofs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getProofs(agentFilter || undefined, page, limit);
+      const res = await getProofs(undefined, 1, 200);
       if (res.success && res.data) {
-        setProofs(res.data.proofs || []);
-        setTotalProofs(res.data.total);
+        setAllProofs(res.data.proofs || []);
       } else {
         setError(res.error || 'Failed to fetch proofs');
         toast.error(res.error || 'Failed to fetch proofs');
@@ -98,11 +104,34 @@ const Proofs: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, agentFilter]);
+  }, []);
 
   useEffect(() => {
-    fetchProofs();
-  }, [fetchProofs]);
+    fetchAllProofs();
+  }, [fetchAllProofs]);
+
+  // Client-side substring filter
+  const filteredProofs = useMemo(() => {
+    if (!filterText.trim()) return allProofs;
+    const q = filterText.trim().toLowerCase();
+    return allProofs.filter(
+      (p) =>
+        p.agent?.toLowerCase().includes(q) ||
+        p.id?.toLowerCase().includes(q) ||
+        p.use_case?.toLowerCase().includes(q)
+    );
+  }, [allProofs, filterText]);
+
+  // Client-side pagination
+  const totalFiltered = filteredProofs.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const pagedProofs = useMemo(
+    () => filteredProofs.slice((page - 1) * limit, page * limit),
+    [filteredProofs, page, limit]
+  );
+
+  // Reset page when filter changes
+  useEffect(() => { setPage(1); }, [filterText]);
 
   const handleVerifyProof = async (proofId: string) => {
     setIsVerifying(proofId);
@@ -121,14 +150,16 @@ const Proofs: React.FC = () => {
     }
   };
 
-  const handleRevokeProof = async (proofId: string) => {
-    if (!window.confirm(`Revoke proof ${proofId}? This cannot be undone.`)) return;
+  const confirmRevoke = async () => {
+    if (!revokeTarget) return;
+    const proofId = revokeTarget;
+    setRevokeTarget(null);
     setIsRevoking(proofId);
     try {
       const res = await revokeProof(proofId);
       if (res.success) {
         toast.success(`Proof ${proofId} revoked.`);
-        fetchProofs();
+        fetchAllProofs();
       } else {
         toast.error(res.error || 'Revocation failed');
       }
@@ -174,7 +205,7 @@ const Proofs: React.FC = () => {
         toast.success('Proof created!');
         setIsCreateModalOpen(false);
         setCreateForm({ agent: '', input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
-        fetchProofs();
+        fetchAllProofs();
       } else {
         toast.error(res.error || 'Failed to create proof');
       }
@@ -194,8 +225,6 @@ const Proofs: React.FC = () => {
     setSelectedProof(null);
     setIsDetailModalOpen(false);
   };
-
-  const totalPages = useMemo(() => Math.ceil(totalProofs / limit), [totalProofs, limit]);
 
   if (loading) {
     return (
@@ -217,7 +246,15 @@ const Proofs: React.FC = () => {
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
+      <SectionIntro
+        title="Proof Registry"
+        description="Browse, create, verify, and revoke cryptographic proofs generated by CasperProver. Each proof contains a Merkle tree commitment, SHA-256 hashes of the AI model's input/output, and can be anchored on-chain for tamper-proof verification."
+        dataSource="Real proofs from the CasperProver cryptographic engine. Proofs with deploy hashes are anchored on Casper testnet."
+        badge="Live engine data"
+        badgeColor="green"
+      />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold text-gray-100">Proof Registry</h2>
           <button
@@ -231,22 +268,39 @@ const Proofs: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="relative">
             <input
+              ref={filterRef}
               type="text"
-              placeholder="Filter by Agent (exact match)"
-              value={agentFilter}
-              onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
-              className="pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500 w-56"
+              placeholder="Search by agent, ID, or use case..."
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="pl-10 pr-8 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500 w-64"
             />
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            {filterText && (
+              <button
+                onClick={() => { setFilterText(''); filterRef.current?.focus(); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                title="Clear filter"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
-          <span className="text-sm text-gray-400">{totalProofs} proofs total</span>
+          <span className="text-sm text-gray-400 whitespace-nowrap">
+            {filterText ? `${totalFiltered} of ${allProofs.length}` : `${allProofs.length} proofs`}
+          </span>
         </div>
       </div>
 
-      {proofs.length === 0 ? (
+      {pagedProofs.length === 0 ? (
         <div className="text-center p-8 text-gray-400 bg-[#1a1a2a] rounded-lg border border-[#222235]">
           <FileText className="mx-auto mb-4" size={48} />
-          <p className="text-xl font-semibold">No proofs found{agentFilter ? ` for "${agentFilter}"` : ''}.</p>
+          <p className="text-xl font-semibold">No proofs found{filterText ? ` matching "${filterText}"` : ''}.</p>
+          {filterText && (
+            <button onClick={() => setFilterText('')} className="mt-2 text-red-400 hover:text-red-300 text-sm underline">
+              Clear filter
+            </button>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto bg-[#1a1a2a] rounded-lg border border-[#222235]">
@@ -263,7 +317,7 @@ const Proofs: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#222235]">
-              {proofs.map((proof) => {
+              {pagedProofs.map((proof) => {
                 const status = proofStatus(proof);
                 return (
                   <tr key={proof.id} className="hover:bg-[#222235]/50 transition-colors duration-150">
@@ -295,7 +349,7 @@ const Proofs: React.FC = () => {
                         <button onClick={() => handleVerifyProof(proof.id)} disabled={isVerifying === proof.id} className="text-green-400 hover:text-green-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Verify">
                           {isVerifying === proof.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                         </button>
-                        <button onClick={() => handleRevokeProof(proof.id)} disabled={status === 'revoked' || isRevoking === proof.id} className="text-yellow-400 hover:text-yellow-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Revoke">
+                        <button onClick={() => setRevokeTarget(proof.id)} disabled={status === 'revoked' || isRevoking === proof.id} className="text-yellow-400 hover:text-yellow-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Revoke">
                           {isRevoking === proof.id ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
                         </button>
                         <button onClick={() => handleExportProof(proof.id)} disabled={isExporting === proof.id} className="text-purple-400 hover:text-purple-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Export">
@@ -322,6 +376,18 @@ const Proofs: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Revoke Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!revokeTarget}
+        title="Revoke Proof"
+        message={`Are you sure you want to revoke proof ${revokeTarget}? This action cannot be undone.`}
+        confirmLabel="Revoke"
+        cancelLabel="Cancel"
+        onConfirm={confirmRevoke}
+        onCancel={() => setRevokeTarget(null)}
+        variant="danger"
+      />
 
       {/* Proof Detail Modal */}
       <Modal isOpen={isDetailModalOpen} onClose={closeDetailModal} title="Proof Details" className="max-w-3xl">
