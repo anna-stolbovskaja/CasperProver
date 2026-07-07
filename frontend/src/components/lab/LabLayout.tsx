@@ -265,7 +265,7 @@ const LabLayout: React.FC = () => {
         </div>
       )}
 
-      {/* Demo mode banner (below sticky header, only when no wallet) */}
+      {/* Mode banner */}
       {!isConnected && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-2">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-900/20 border border-yellow-700/30 text-yellow-300 text-xs">

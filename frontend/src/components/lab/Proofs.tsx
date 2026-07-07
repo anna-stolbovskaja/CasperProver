@@ -25,6 +25,9 @@ import {
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
 import ConfirmModal from './ConfirmModal';
+import { useWallet } from '../../lib/CsprClickProvider';
+import { submitProofOnChain, revokeProofOnChain } from '../../lib/liveTx';
+import { shortKey } from '../../lib/wallet';
 
 const Modal: React.FC<{
   isOpen: boolean;
@@ -63,9 +66,11 @@ function truncHash(h: string, len = 10): string {
 }
 
 const Proofs: React.FC = () => {
+  const { publicKey, connected: isWalletConnected, clickRef } = useWallet();
   const [allProofs, setAllProofs] = useState<Proof[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [anchoringProofId, setAnchoringProofId] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
   const filterRef = useRef<HTMLInputElement>(null);
   const [page, setPage] = useState(1);
@@ -84,6 +89,13 @@ const Proofs: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ agent: 'agent-alpha', input: 'loan_application_42', output: 'approved_with_conditions', model: 'gpt-4o', use_case: 'merkle-inclusion', mode: 'local' });
+
+  // Auto-fill agent with wallet publicKey when connected
+  useEffect(() => {
+    if (isWalletConnected && publicKey) {
+      setCreateForm(prev => ({ ...prev, agent: publicKey }));
+    }
+  }, [isWalletConnected, publicKey]);
 
   // Load ALL proofs from API (no server-side filter)
   const fetchAllProofs = useCallback(async () => {
@@ -156,10 +168,27 @@ const Proofs: React.FC = () => {
     setRevokeTarget(null);
     setIsRevoking(proofId);
     try {
+      // Backend revoke
       const res = await revokeProof(proofId);
       if (res.success) {
         toast.success(`Proof ${proofId} revoked.`);
         fetchAllProofs();
+
+        // Also revoke on-chain if wallet connected
+        if (isWalletConnected && clickRef && publicKey) {
+          toast.info('Signing on-chain revocation…');
+          const txResult = await revokeProofOnChain(clickRef, {
+            proofId,
+            senderPublicKeyHex: publicKey,
+          });
+          if (txResult.ok) {
+            toast.success(`On-chain revoke tx: ${txResult.transactionHash.substring(0, 16)}…`);
+          } else if ('cancelled' in txResult && txResult.cancelled) {
+            toast.info('On-chain revocation cancelled.');
+          } else {
+            toast.error(`On-chain revoke failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+          }
+        }
       } else {
         toast.error(res.error || 'Revocation failed');
       }
@@ -201,11 +230,39 @@ const Proofs: React.FC = () => {
     setIsCreating(true);
     try {
       const res = await createProof(createForm);
-      if (res.success) {
+      if (res.success && res.data) {
         toast.success('Proof created!');
         setIsCreateModalOpen(false);
-        setCreateForm({ agent: '', input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
+        const resetAgent = isWalletConnected && publicKey ? publicKey : '';
+        setCreateForm({ agent: resetAgent, input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
         fetchAllProofs();
+
+        // If wallet connected, offer to anchor on-chain
+        if (isWalletConnected && clickRef && publicKey && res.data.proof_hash) {
+          const proofData = res.data;
+          toast.info(`Wallet connected — anchoring proof ${proofData.id} on-chain…`);
+          setAnchoringProofId(proofData.id);
+          try {
+            const txResult = await submitProofOnChain(clickRef, {
+              proofHash: proofData.proof_hash || '',
+              inputHash: proofData.input_hash || '',
+              outputHash: proofData.output_hash || '',
+              modelHash: proofData.model_hash || '',
+              senderPublicKeyHex: publicKey,
+            });
+            if (txResult.ok) {
+              toast.success(`On-chain tx: ${txResult.transactionHash.substring(0, 16)}…`);
+            } else if ('cancelled' in txResult && txResult.cancelled) {
+              toast.info('On-chain anchoring cancelled by user.');
+            } else {
+              toast.error(`On-chain anchoring failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+            }
+          } catch (txErr: any) {
+            toast.error(`On-chain error: ${txErr.message}`);
+          } finally {
+            setAnchoringProofId(null);
+          }
+        }
       } else {
         toast.error(res.error || 'Failed to create proof');
       }

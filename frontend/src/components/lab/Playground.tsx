@@ -16,6 +16,8 @@ import {
 import * as api from '../../lib/api';
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
+import { useWallet } from '../../lib/CsprClickProvider';
+import { submitProofOnChain, registerAgentOnChain } from '../../lib/liveTx';
 
 /* ================================================================
    SHARED TYPES
@@ -93,6 +95,7 @@ interface PipelineStep {
    ================================================================ */
 
 const AgentPlayground: React.FC = () => {
+  const { publicKey, connected: isWalletConnected, clickRef } = useWallet();
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -100,8 +103,13 @@ const AgentPlayground: React.FC = () => {
   const proofIdRef = useRef('');
   const batchIdRef = useRef('');
   const proofHashRef = useRef('');
+  const proofInputHashRef = useRef('');
+  const proofOutputHashRef = useRef('');
+  const proofModelHashRef = useRef('');
 
-  const [agentId] = useState(genId('agent'));
+  // Use wallet publicKey as agent when connected, random ID otherwise
+  const [agentId] = useState(() => genId('agent'));
+  const effectiveAgent = isWalletConnected && publicKey ? publicKey : agentId;
   const inputData = JSON.stringify({ temperature: 0.7, prompt: 'Generate a secure proof for AI decision.' });
   const outputData = JSON.stringify({ decision: 'approved', confidence: 0.95, risk_score: 12 });
 
@@ -122,8 +130,15 @@ const AgentPlayground: React.FC = () => {
       description: 'Run an AI inference and generate a cryptographic proof.',
       action: async () => {
         if (!modelIdRef.current) throw new Error('Model ID not available. Complete Step 1 first.');
-        const res = await api.inferenceProve({ model_id: modelIdRef.current, input: inputData, agent: agentId, output: outputData, use_case: 'kyc-eligibility' });
-        if (res.success && res.data) { proofIdRef.current = res.data.id || ''; proofHashRef.current = res.data.proof_hash || ''; return res.data; }
+        const res = await api.inferenceProve({ model_id: modelIdRef.current, input: inputData, agent: effectiveAgent, output: outputData, use_case: 'kyc-eligibility' });
+        if (res.success && res.data) {
+          proofIdRef.current = res.data.id || '';
+          proofHashRef.current = res.data.proof_hash || '';
+          proofInputHashRef.current = res.data.input_hash || '';
+          proofOutputHashRef.current = res.data.output_hash || '';
+          proofModelHashRef.current = res.data.model_hash || '';
+          return res.data;
+        }
         throw new Error(res.error || 'Failed to generate inference proof');
       },
       status: 'idle', response: null, error: null,
@@ -185,6 +200,9 @@ const AgentPlayground: React.FC = () => {
     proofIdRef.current = '';
     batchIdRef.current = '';
     proofHashRef.current = '';
+    proofInputHashRef.current = '';
+    proofOutputHashRef.current = '';
+    proofModelHashRef.current = '';
   }, []);
 
   const runStep = useCallback(async (index: number) => {
@@ -213,8 +231,32 @@ const AgentPlayground: React.FC = () => {
       await new Promise((r) => setTimeout(r, 800));
     }
     setIsDemoRunning(false);
+
+    // After pipeline completes, anchor proof on-chain if wallet connected
+    if (isWalletConnected && clickRef && publicKey && proofHashRef.current) {
+      toast.info('Pipeline done — anchoring proof on-chain via your wallet…');
+      try {
+        const txResult = await submitProofOnChain(clickRef, {
+          proofHash: proofHashRef.current,
+          inputHash: proofInputHashRef.current,
+          outputHash: proofOutputHashRef.current,
+          modelHash: proofModelHashRef.current,
+          senderPublicKeyHex: publicKey,
+        });
+        if (txResult.ok) {
+          toast.success(`On-chain anchored! Tx: ${txResult.transactionHash.substring(0, 16)}…`);
+        } else if ('cancelled' in txResult && txResult.cancelled) {
+          toast.info('On-chain anchoring cancelled by user.');
+        } else {
+          toast.error(`On-chain failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+        }
+      } catch (err: any) {
+        toast.error(`On-chain error: ${err.message}`);
+      }
+    }
+
     toast.success('Full pipeline completed!');
-  }, [steps, runStep, resetDemo]);
+  }, [steps, runStep, resetDemo, isWalletConnected, clickRef, publicKey]);
 
   const statusBorder = (s: PipelineStep['status']) => {
     switch (s) {
