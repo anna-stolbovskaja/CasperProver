@@ -14,7 +14,7 @@ import { toast } from '../ui/toast';
 
 const PQCrypto: React.FC = () => {
   // SPHINCS+ State
-  const [sphincsMessage, setSphincsMessage] = useState('');
+  const [sphincsMessage, setSphincsMessage] = useState('Hello, post-quantum world!');
   const [sphincsSignature, setSphincsSignature] = useState('');
   const [sphincsPublicKey, setSphincsPublicKey] = useState('');
   const [isSigningSphincs, setIsSigningSphincs] = useState(false);
@@ -22,7 +22,7 @@ const PQCrypto: React.FC = () => {
   const [sphincsVerifyResult, setSphincsVerifyResult] = useState<boolean | null>(null);
 
   // Hybrid State
-  const [hybridMessage, setHybridMessage] = useState('');
+  const [hybridMessage, setHybridMessage] = useState('Verify my AI agent decision');
   const [hybridClassicalSignature, setHybridClassicalSignature] = useState('');
   const [hybridPQSignature, setHybridPQSignature] = useState('');
   const [hybridClassicalPublicKey, setHybridClassicalPublicKey] = useState('');

@@ -11,19 +11,19 @@ import { toast } from '../ui/toast';
 
 const KYC: React.FC = () => {
   // Check KYC Status State
-  const [checkUserId, setCheckUserId] = useState('');
+  const [checkUserId, setCheckUserId] = useState('alice-agent-01');
   const [kycStatusResult, setKycStatusResult] = useState<any>(null);
   const [isCheckingKyc, setIsCheckingKyc] = useState(false);
   const [checkKycError, setCheckKycError] = useState<string | null>(null);
 
   // Grant KYC Access State
-  const [grantUserId, setGrantUserId] = useState('');
-  const [grantReason, setGrantReason] = useState('');
+  const [grantUserId, setGrantUserId] = useState('alice-agent-01');
+  const [grantReason, setGrantReason] = useState('Manual verification after document submission');
   const [isGrantingKyc, setIsGrantingKyc] = useState(false);
   const [grantKycError, setGrantKycError] = useState<string | null>(null);
 
   // View Whitelist State
-  const [whitelistUser, setWhitelistUser] = useState(''); // Can be specific user or 'all' (if API supports)
+  const [whitelistUser, setWhitelistUser] = useState('alice-agent-01'); // Can be specific user or 'all' (if API supports)
   const [whitelistResult, setWhitelistResult] = useState<string[] | null>(null);
   const [isViewingWhitelist, setIsViewingWhitelist] = useState(false);
   const [whitelistError, setWhitelistError] = useState<string | null>(null);

@@ -43,7 +43,7 @@ const Modal: React.FC<{
 const Aggregation: React.FC = () => {
   // Create Batch State
   const [isCreateBatchModalOpen, setIsCreateBatchModalOpen] = useState(false);
-  const [newBatchData, setNewBatchData] = useState<CreateBatchRequest>({ batch_id: '', max_proofs: 100 });
+  const [newBatchData, setNewBatchData] = useState<CreateBatchRequest>({ batch_id: `batch-${Date.now().toString(36)}`, max_proofs: 100 });
   const [isCreatingBatch, setIsCreatingBatch] = useState(false);
   const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
 
@@ -108,7 +108,7 @@ const Aggregation: React.FC = () => {
     try {
       const res = await addProofToAggregationBatch(addProofData);
       if (res.success) {
-        toast.success(`Proof ${addProofData.proof_hash.substring(0, 8)}... added to batch ${addProofData.batch_id.substring(0, 8)}...`);
+        toast.success(`Proof ${addProofData?.proof_hash?.substring(0, 8)}... added to batch ${addProofData?.batch_id?.substring(0, 8)}...`);
         setIsAddProofModalOpen(false);
         setAddProofData((prev) => ({ ...prev, proof_hash: '' })); // Clear proofId only
         // Optionally refresh batch details if currently viewing
@@ -138,7 +138,7 @@ const Aggregation: React.FC = () => {
       const res = await verifyAggregationBatch(verifyBatchId);
       if (res.success) {
         setVerifyBatchResult(res.data);
-        toast.success(`Batch ${verifyBatchId.substring(0, 8)}... verification complete!`);
+        toast.success(`Batch ${verifyBatchId?.substring(0, 8)}... verification complete!`);
       } else {
         toast.error(res.error || 'Verification failed');
         setVerifyBatchResult({ error: res.error });
@@ -157,7 +157,7 @@ const Aggregation: React.FC = () => {
     try {
       const res = await finalizeAggregationBatch({ batch_id: finalizeBatchId });
       if (res.success) {
-        toast.success(`Batch ${finalizeBatchId.substring(0, 8)}... finalized successfully! Merkle Root: ${res.data?.merkle_root?.substring(0, 8)}...`);
+        toast.success(`Batch ${finalizeBatchId?.substring(0, 8)}... finalized successfully! Merkle Root: ${res.data?.merkle_root?.substring(0, 8)}...`);
         setIsFinalizeModalOpen(false);
         setFinalizeBatchId('');
         // Optionally refresh batch details if currently viewing
@@ -349,7 +349,7 @@ const Aggregation: React.FC = () => {
               <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{foundBatch.status.toUpperCase()}</span></p>
               <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proof_hashs.length}</p>
               {foundBatch.merkle_root && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkle_root}</span></p>}
-              {foundBatch.finalProof && <p><span className="font-medium text-gray-300">Final Proof:</span> <span className="font-mono break-all">{foundBatch.finalProof.substring(0, 60)}...</span></p>}
+              {foundBatch.finalProof && <p><span className="font-medium text-gray-300">Final Proof:</span> <span className="font-mono break-all">{foundBatch?.finalProof?.substring(0, 60)}...</span></p>}
               <p><span className="font-medium text-gray-300">Created At:</span> {new Date(foundBatch.createdAt).toLocaleString()}</p>
               {foundBatch.finalizedAt && <p><span className="font-medium text-gray-300">Finalized At:</span> {new Date(foundBatch.finalizedAt).toLocaleString()}</p>}
 

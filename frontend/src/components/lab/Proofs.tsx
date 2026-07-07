@@ -77,7 +77,7 @@ const Proofs: React.FC = () => {
   // Create proof
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ agent: '', input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
+  const [createForm, setCreateForm] = useState({ agent: 'agent-alpha', input: 'loan_application_42', output: 'approved_with_conditions', model: 'gpt-4o', use_case: 'merkle-inclusion', mode: 'local' });
 
   const fetchProofs = useCallback(async () => {
     setLoading(true);
