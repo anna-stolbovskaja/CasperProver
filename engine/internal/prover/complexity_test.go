@@ -2,6 +2,7 @@ package prover
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -51,9 +52,9 @@ func TestClassify(t *testing.T) {
 func TestClassifyProof(t *testing.T) {
 	t.Run("classifies proof correctly", func(t *testing.T) {
 		p := &Proof{
-			IH: []byte{1, 2, 3},
-			OH: []byte{4, 5, 6},
-			MH: []byte{7, 8, 9},
+			IH: "010203",
+			OH: "040506",
+			MH: "070809",
 		}
 		metrics := ClassifyProof(p)
 		if metrics == nil {
@@ -103,11 +104,11 @@ func TestEstimateBatchGas(t *testing.T) {
 
 	t.Run("sums gas for multiple proofs", func(t *testing.T) {
 		proofs := []*Proof{
-			{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}},
-			{IH: []byte{4}, OH: []byte{5}, MH: []byte{6}},
+			{IH: "01", OH: "02", MH: "03"},
+			{IH: "04", OH: "05", MH: "06"},
 		}
 		gas := EstimateBatchGas(proofs)
-		expected := int64(21000+68*3+2000*5) * 2
+		expected := int64(21000+68*6+2000*5) * 2 // total bytes per proof = len("01")+len("02")+len("03") = 6
 		if gas != expected {
 			t.Errorf("Expected gas %d, got %d", expected, gas)
 		}
@@ -115,12 +116,12 @@ func TestEstimateBatchGas(t *testing.T) {
 
 	t.Run("skips nil proofs", func(t *testing.T) {
 		proofs := []*Proof{
-			{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}},
+			{IH: "01", OH: "02", MH: "03"},
 			nil,
-			{IH: []byte{4}, OH: []byte{5}, MH: []byte{6}},
+			{IH: "04", OH: "05", MH: "06"},
 		}
 		gas := EstimateBatchGas(proofs)
-		expected := int64(21000+68*3+2000*5) * 2
+		expected := int64(21000+68*6+2000*5) * 2 // total bytes per proof = len("01")+len("02")+len("03") = 6
 		if gas != expected {
 			t.Errorf("Expected gas %d, got %d", expected, gas)
 		}
@@ -143,8 +144,8 @@ func TestSuggestBatchSize(t *testing.T) {
 	})
 
 	t.Run("fits single proof within limit", func(t *testing.T) {
-		proofs := []*Proof{{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}}}
-		size := SuggestBatchSize(proofs, 30000)
+		proofs := []*Proof{{IH: "01", OH: "02", MH: "03"}}
+		size := SuggestBatchSize(proofs, 35000) // > 31408 (one proof's real EstGasCSPR)
 		if size != 1 {
 			t.Errorf("Expected batch size 1, got %d", size)
 		}
@@ -152,10 +153,10 @@ func TestSuggestBatchSize(t *testing.T) {
 
 	t.Run("fits multiple proofs within limit", func(t *testing.T) {
 		proofs := []*Proof{
-			{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}},
-			{IH: []byte{4}, OH: []byte{5}, MH: []byte{6}},
+			{IH: "01", OH: "02", MH: "03"},
+			{IH: "04", OH: "05", MH: "06"},
 		}
-		size := SuggestBatchSize(proofs, 60000)
+		size := SuggestBatchSize(proofs, 65000) // > 2*31408
 		if size != 2 {
 			t.Errorf("Expected batch size 2, got %d", size)
 		}
@@ -163,11 +164,11 @@ func TestSuggestBatchSize(t *testing.T) {
 
 	t.Run("stops when limit exceeded", func(t *testing.T) {
 		proofs := []*Proof{
-			{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}},
-			{IH: []byte{4}, OH: []byte{5}, MH: []byte{6}},
-			{IH: []byte{7}, OH: []byte{8}, MH: []byte{9}},
+			{IH: "01", OH: "02", MH: "03"},
+			{IH: "04", OH: "05", MH: "06"},
+			{IH: "07", OH: "08", MH: "09"},
 		}
-		size := SuggestBatchSize(proofs, 50000)
+		size := SuggestBatchSize(proofs, 65000) // fits 2 proofs (62816) but not 3 (94224)
 		if size != 2 {
 			t.Errorf("Expected batch size 2, got %d", size)
 		}
@@ -176,11 +177,11 @@ func TestSuggestBatchSize(t *testing.T) {
 	t.Run("skips nil proofs", func(t *testing.T) {
 		proofs := []*Proof{
 			nil,
-			{IH: []byte{1}, OH: []byte{2}, MH: []byte{3}},
+			{IH: "01", OH: "02", MH: "03"},
 			nil,
-			{IH: []byte{4}, OH: []byte{5}, MH: []byte{6}},
+			{IH: "04", OH: "05", MH: "06"},
 		}
-		size := SuggestBatchSize(proofs, 50000)
+		size := SuggestBatchSize(proofs, 65000) // fits 2 proofs (62816) but not 3 (94224)
 		if size != 2 {
 			t.Errorf("Expected batch size 2, got %d", size)
 		}
@@ -197,11 +198,11 @@ func TestComplexityDistribution(t *testing.T) {
 
 	t.Run("counts complexity classes correctly", func(t *testing.T) {
 		proofs := []*Proof{
-			{IH: make([]byte, 100), OH: make([]byte, 100), MH: make([]byte, 100)}, // TRIVIAL
-			{IH: make([]byte, 1025), OH: make([]byte, 100), MH: make([]byte, 100)}, // LOW
-			{IH: make([]byte, 65537), OH: make([]byte, 100), MH: make([]byte, 100)}, // MEDIUM
-			{IH: make([]byte, 1048577), OH: make([]byte, 100), MH: make([]byte, 100)}, // HIGH
-			{IH: make([]byte, 16777217), OH: make([]byte, 100), MH: make([]byte, 100)}, // EXTREME
+			{IH: strings.Repeat("a", 100), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)}, // TRIVIAL
+			{IH: strings.Repeat("a", 1025), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)}, // LOW
+			{IH: strings.Repeat("a", 65537), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)}, // MEDIUM
+			{IH: strings.Repeat("a", 1048577), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)}, // HIGH
+			{IH: strings.Repeat("a", 16777217), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)}, // EXTREME
 		}
 		dist := ComplexityDistribution(proofs)
 		if dist[TRIVIAL] != 1 {
@@ -224,7 +225,7 @@ func TestComplexityDistribution(t *testing.T) {
 	t.Run("skips nil proofs", func(t *testing.T) {
 		proofs := []*Proof{
 			nil,
-			{IH: make([]byte, 100), OH: make([]byte, 100), MH: make([]byte, 100)},
+			{IH: strings.Repeat("a", 100), OH: strings.Repeat("a", 100), MH: strings.Repeat("a", 100)},
 			nil,
 		}
 		dist := ComplexityDistribution(proofs)
@@ -306,7 +307,7 @@ func TestGasEstimation(t *testing.T) {
 	}{
 		{"trivial gas", 100, 100, 100, 21000 + 68*300 + 2000*5, 50 + 10*(300/1024)},
 		{"low gas", 1025, 100, 100, 21000 + 68*1225 + 2000*5, 50 + 10*(1225/1024)},
-		{"medium gas", 65537, 100, 100, 21000 + 68*66637 + 2000*5, 50 + 10*(66637/1024)},
+		{"medium gas", 65537, 100, 100, 21000 + 68*65737 + 2000*5, 50 + 10*(65737/1024)}, // total = 65537+100+100 = 65737
 	}
 
 	for _, tt := range tests {
@@ -413,7 +414,11 @@ func TestThresholdBoundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := Classify(tt.totalSize/3, tt.totalSize/3, tt.totalSize/3)
+			// Pass the exact boundary as a single component instead of
+			// dividing by 3 (integer division on non-multiples-of-3 values
+			// like 16777217 silently shrinks the reconstructed total below
+			// the intended boundary and misclassifies it).
+			metrics := Classify(tt.totalSize, 0, 0)
 			if metrics.Class != tt.expectedClass {
 				t.Errorf("Expected class %v for size %d, got %v", tt.expectedClass, tt.totalSize, metrics.Class)
 			}

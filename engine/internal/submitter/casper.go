@@ -145,3 +145,56 @@ func (s *CasperSubmitter) Revoke(pid, reason string) (string, error) {
 	}
 	return result.Result.DeployHash, nil
 }
+
+// SubmitModelRegistration submits a register_model deploy to the on-chain
+// model-registry contract, binding a model_id to its content hash and the
+// verifier contract that should be used to check proofs against it.
+func (s *CasperSubmitter) SubmitModelRegistration(modelID, modelHash, verifierContract string, metadata map[string]string) (string, error) {
+	metaJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return "", fmt.Errorf("marshal metadata: %w", err)
+	}
+
+	deploy := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      1,
+		"method":  "account_put_deploy",
+		"params": map[string]interface{}{
+			"deploy": map[string]interface{}{
+				"session": map[string]interface{}{
+					"StoredContractByName": map[string]interface{}{
+						"name":        "model_registry",
+						"entry_point": "register_model",
+						"args": map[string]interface{}{
+							"model_id":           modelID,
+							"model_hash":         modelHash,
+							"verifier_contract":  verifierContract,
+							"metadata":           string(metaJSON),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(deploy)
+	if err != nil {
+		return "", fmt.Errorf("marshal: %w", err)
+	}
+
+	resp, err := s.rpcCall(body)
+	if err != nil {
+		return "", fmt.Errorf("post: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Result struct {
+			DeployHash string `json:"deploy_hash"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
+	return result.Result.DeployHash, nil
+}

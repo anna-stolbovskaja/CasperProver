@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -52,7 +51,10 @@ func generateSimulatedKeyPair(keyLen int) ([]byte, []byte, error) {
 	}
 	// For public key, we'll just hash the private key conceptually
 	h := sha256.Sum256(privateKey)
-	copy(publicKey, h[:keyLen]) // Truncate or pad as needed for conceptual length
+	// copy() already truncates/pads to len(publicKey) automatically; slicing
+	// h[:keyLen] directly panics whenever keyLen > len(h) (32), which happens
+	// for every key length used by this package except simulatedClassicSigLen.
+	copy(publicKey, h[:])
 	return privateKey, publicKey, nil
 }
 

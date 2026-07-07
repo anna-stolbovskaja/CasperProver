@@ -1,273 +1,87 @@
 package crypto
 
-import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
-	"testing"
+import "testing"
 
-	"github.com/stretchr/testify/assert"
-)
+// NOTE: package crypto is not currently wired into any HTTP endpoint or the
+// main binary (see docs/KNOWN_LIMITATIONS.md) - it's scaffolding for the
+// roadmap's "post-quantum proof signing" item, not a live feature. These are
+// honest tests of its actual current behavior. A prior version of this file
+// referenced functions (GenerateKeyPair, SignMessage, VerifySignature,
+// HashMessage, Sha256Hash, HexEncode, HexDecode, GenerateRandomBytes,
+// GenerateRandomString) that never existed anywhere in this package and had
+// never been compiled; it was replaced with this file.
 
-func TestGenerateKeyPair(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantErr bool
-	}{
-		{
-			name:    "valid key pair",
-			wantErr: false,
-		},
-		{
-			name:    "invalid key pair",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := GenerateKeyPair()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+func TestGenerateSimulatedKeyPair_Lengths(t *testing.T) {
+	for _, keyLen := range []int{simulatedSPHINCSKeyLen, simulatedMLDSAKeyLen, simulatedClassicSigLen} {
+		priv, pub, err := generateSimulatedKeyPair(keyLen)
+		if err != nil {
+			t.Fatalf("keyLen=%d: unexpected error: %v", keyLen, err)
+		}
+		if len(priv) != keyLen || len(pub) != keyLen {
+			t.Errorf("keyLen=%d: got priv=%d pub=%d", keyLen, len(priv), len(pub))
+		}
 	}
 }
 
-func TestSignMessage(t *testing.T) {
-	tests := []struct {
-		name    string
-		message string
-		wantErr bool
-	}{
-		{
-			name:    "valid message",
-			message: "Hello, World!",
-			wantErr: false,
-		},
-		{
-			name:    "invalid message",
-			message: "",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := SignMessage(tt.message)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+func TestSignSPHINCS_RejectsWrongKeyLength(t *testing.T) {
+	if _, err := SignSPHINCS([]byte("too-short"), []byte("msg")); err == nil {
+		t.Error("expected error for wrong-length private key")
 	}
 }
 
-func TestVerifySignature(t *testing.T) {
-	tests := []struct {
-		name    string
-		message string
-		signature string
-		wantErr bool
-	}{
-		{
-			name:    "valid signature",
-			message: "Hello, World!",
-			signature: "signature",
-			wantErr: false,
-		},
-		{
-			name:    "invalid signature",
-			message: "Hello, World!",
-			signature: "",
-			wantErr: true,
-		},
+func TestSignSPHINCS_ProducesFixedLengthSignature(t *testing.T) {
+	priv, _, err := generateSimulatedKeyPair(simulatedSPHINCSKeyLen)
+	if err != nil {
+		t.Fatalf("keygen failed: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := VerifySignature(tt.message, tt.signature)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	sig, err := SignSPHINCS(priv, []byte("message"))
+	if err != nil {
+		t.Fatalf("sign failed: %v", err)
+	}
+	if len(sig) != simulatedSPHINCSSigLen {
+		t.Errorf("expected signature length %d, got %d", simulatedSPHINCSSigLen, len(sig))
 	}
 }
 
-func TestHashMessage(t *testing.T) {
-	tests := []struct {
-		name    string
-		message string
-		want    string
-	}{
-		{
-			name:    "valid message",
-			message: "Hello, World!",
-			want:    "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
-		},
-		{
-			name:    "empty message",
-			message: "",
-			want:    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		},
+func TestSignMLDSA_ProducesFixedLengthSignature(t *testing.T) {
+	priv, _, err := generateSimulatedKeyPair(simulatedMLDSAKeyLen)
+	if err != nil {
+		t.Fatalf("keygen failed: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hash := HashMessage(tt.message)
-			assert.Equal(t, tt.want, hash)
-		})
+	sig, err := SignMLDSA(priv, []byte("message"))
+	if err != nil {
+		t.Fatalf("sign failed: %v", err)
+	}
+	if len(sig) != simulatedMLDSASigLen {
+		t.Errorf("expected signature length %d, got %d", simulatedMLDSASigLen, len(sig))
 	}
 }
 
-func TestGenerateRandomBytes(t *testing.T) {
-	tests := []struct {
-		name    string
-		size    int
-		wantErr bool
-	}{
-		{
-			name:    "valid size",
-			size:    32,
-			wantErr: false,
-		},
-		{
-			name:    "invalid size",
-			size:    -1,
-			wantErr: true,
-		},
+func TestHybridSignature_MarshalUnmarshalRoundTrip(t *testing.T) {
+	hs := &HybridSignature{ClassicSig: []byte("classic-sig"), PQSig: []byte("pq-sig-bytes")}
+	data, err := hs.MarshalBinary()
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateRandomBytes(tt.size)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	var out HybridSignature
+	if err := out.UnmarshalBinary(data); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if string(out.ClassicSig) != string(hs.ClassicSig) || string(out.PQSig) != string(hs.PQSig) {
+		t.Error("round-tripped hybrid signature does not match original")
 	}
 }
 
-func TestGenerateRandomString(t *testing.T) {
-	tests := []struct {
-		name    string
-		size    int
-		wantErr bool
-	}{
-		{
-			name:    "valid size",
-			size:    32,
-			wantErr: false,
-		},
-		{
-			name:    "invalid size",
-			size:    -1,
-			wantErr: true,
-		},
-	}
+func TestHybridSign_ProducesUnmarshalableOutput(t *testing.T) {
+	classicPriv, _, _ := generateSimulatedKeyPair(simulatedClassicSigLen)
+	mldsaPriv, _, _ := generateSimulatedKeyPair(simulatedMLDSAKeyLen)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateRandomString(tt.size)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	out, err := HybridSign(classicPriv, mldsaPriv, []byte("message"))
+	if err != nil {
+		t.Fatalf("HybridSign failed: %v", err)
 	}
-}
-
-func TestSha256Hash(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    string
-	}{
-		{
-			name:    "valid input",
-			input:   "Hello, World!",
-			want:    "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
-		},
-		{
-			name:    "empty input",
-			input:   "",
-			want:    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hash := Sha256Hash(tt.input)
-			assert.Equal(t, tt.want, hash)
-		})
-	}
-}
-
-func TestHexEncode(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []byte
-		want    string
-	}{
-		{
-			name:    "valid input",
-			input:   []byte{1, 2, 3, 4, 5},
-			want:    "0102030405",
-		},
-		{
-			name:    "empty input",
-			input:   []byte{},
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			encoded := HexEncode(tt.input)
-			assert.Equal(t, tt.want, encoded)
-		})
-	}
-}
-
-func TestHexDecode(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    []byte
-		wantErr bool
-	}{
-		{
-			name:    "valid input",
-			input:   "0102030405",
-			want:    []byte{1, 2, 3, 4, 5},
-			wantErr: false,
-		},
-		{
-			name:    "invalid input",
-			input:   "abcdefabcdef",
-			want:    []byte{},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			decoded, err := HexDecode(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, decoded)
-			}
-		})
+	var hs HybridSignature
+	if err := hs.UnmarshalBinary(out); err != nil {
+		t.Fatalf("output of HybridSign did not unmarshal: %v", err)
 	}
 }
