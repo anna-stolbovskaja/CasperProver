@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -28,17 +29,39 @@ import (
 )
 
 type Server struct {
-	eng   *prover.ProofEngine
-	ver   *verifier.LocalVerifier
-	kyc   *kyc.DemoKYC
-	db    *store.PG
-	sub   *submitter.CasperSubmitter
-	inf   *inference.InferenceService
-	zk    *zkverifier.Groth16Verifier
+	eng    *prover.ProofEngine
+	ver    *verifier.LocalVerifier
+	kyc    *kyc.DemoKYC
+	db     *store.PG
+	sub    *submitter.CasperSubmitter
+	inf    *inference.InferenceService
+	zk     *zkverifier.Groth16Verifier
 	realZK *gnarkzk.Setup
-	port  int
-	log   *slog.Logger
-	start time.Time
+	port   int
+	log    *slog.Logger
+	start  time.Time
+	apiKey string
+
+	aggMu      sync.Mutex
+	aggBatches map[string]*aggBatch
+}
+
+// aggBatch is real (in-memory) bookkeeping for the /aggregation/* endpoints.
+// Previously these 4 handlers were pure stubs: create/add/finalize did not
+// store anything and get-batch unconditionally returned proof_count:0,
+// status:"open" for any batch_id, including ones that never existed. This
+// tracks actual per-batch state so the endpoints reflect reality. It is NOT
+// the real STARK aggregation math (internal/aggregator is still dead code,
+// unwired - that's a separate, larger task) - this is just an honest batch
+// registry instead of a hardcoded fake response.
+type aggBatch struct {
+	ID          string
+	MerkleRoot  string
+	MaxProofs   int
+	ProofHashes []string
+	Status      string // "open" | "finalized"
+	CreatedAt   int64
+	FinalizedAt int64
 }
 
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
@@ -66,10 +89,30 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		realZK = nil
 	}
 
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
+	} else {
+		slog.Info("API_KEY configured - write endpoints require X-API-Key header")
+	}
+
+	demoKYC := kyc.NewDemo(eng)
+	if db != nil {
+		entries, err := db.LoadKYC()
+		if err != nil {
+			slog.Warn("failed to load kyc whitelist from db", "err", err)
+		} else {
+			for _, e := range entries {
+				demoKYC.Restore(e.User, e.ProofID)
+			}
+			slog.Info("loaded kyc whitelist from postgres", "count", len(entries))
+		}
+	}
+
 	return &Server{
 		eng:    eng,
 		ver:    verifier.New(),
-		kyc:    kyc.NewDemo(eng),
+		kyc:    demoKYC,
 		db:     db,
 		sub:    sub,
 		inf:    inference.New(eng, db, sub),
@@ -78,6 +121,9 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		port:   port,
 		log:    slog.Default(),
 		start:  time.Now(),
+		apiKey: apiKey,
+
+		aggBatches: make(map[string]*aggBatch),
 	}
 }
 
@@ -123,7 +169,7 @@ func (s *Server) Start() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.logMiddleware(mux))),
+		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.authMiddleware(s.logMiddleware(mux)))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -166,6 +212,32 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 		// Limit POST body to 1MB
 		if r.Method == http.MethodPost {
 			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// authMiddleware requires a matching X-API-Key header on every mutating
+// request (anything other than GET/HEAD/OPTIONS) once API_KEY is configured.
+// Read-only endpoints (health, listing proofs, checking whitelist status,
+// etc.) stay public - this is a demo/hackathon API, not a multi-tenant
+// product, so a single shared secret is intentionally simple rather than
+// per-agent keys/JWTs. If API_KEY is unset, every request is allowed through
+// (documented in KNOWN_LIMITATIONS.md as the local-dev/demo default).
+func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.apiKey == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			next.ServeHTTP(w, r)
+			return
+		}
+		got := r.Header.Get("X-API-Key")
+		if got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
+			s.jsonError(w, "missing or invalid X-API-Key", http.StatusUnauthorized)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -477,11 +549,11 @@ func (s *Server) exportProof(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bundle := map[string]interface{}{
-		"version":  "1.0",
-		"exported": time.Now().Unix(),
-		"proof":    p,
-		"contract": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
-		"chain":    "casper-test",
+		"version":    "1.0",
+		"exported":   time.Now().Unix(),
+		"proof":      p,
+		"contract":   "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
+		"chain":      "casper-test",
 		"verify_url": "https://casperprover-api.onrender.com/verify",
 	}
 
@@ -668,17 +740,38 @@ func (s *Server) aggregationCreateBatch(w http.ResponseWriter, r *http.Request) 
 		MaxProofs  int    `json:"max_proofs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{
-		"batch_id": req.BatchID, "merkle_root": req.MerkleRoot,
-		"max_proofs": req.MaxProofs, "proof_count": 0, "status": "open",
-		"created_at": time.Now().Unix(),
+	if req.BatchID == "" {
+		s.jsonError(w, "batch_id is required", http.StatusBadRequest)
+		return
 	}
+	if req.MaxProofs <= 0 {
+		req.MaxProofs = 100
+	}
+
+	s.aggMu.Lock()
+	if _, exists := s.aggBatches[req.BatchID]; exists {
+		s.aggMu.Unlock()
+		s.jsonError(w, "batch_id already exists", http.StatusConflict)
+		return
+	}
+	b := &aggBatch{
+		ID: req.BatchID, MerkleRoot: req.MerkleRoot, MaxProofs: req.MaxProofs,
+		Status: "open", CreatedAt: time.Now().Unix(),
+	}
+	s.aggBatches[req.BatchID] = b
+	s.aggMu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"batch_id": b.ID, "merkle_root": b.MerkleRoot,
+		"max_proofs": b.MaxProofs, "proof_count": 0, "status": b.Status,
+		"created_at": b.CreatedAt,
+	})
+}
 
 func (s *Server) aggregationAddProof(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -687,30 +780,82 @@ func (s *Server) aggregationAddProof(w http.ResponseWriter, r *http.Request) {
 		LeafIndex int    `json:"leaf_index"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"batch_id": req.BatchID, "proof_hash": req.ProofHash, "leaf_index": req.LeafIndex, "added": true}
+
+	s.aggMu.Lock()
+	defer s.aggMu.Unlock()
+	b, ok := s.aggBatches[req.BatchID]
+	if !ok {
+		s.jsonError(w, "batch not found", http.StatusNotFound)
+		return
+	}
+	if b.Status != "open" {
+		s.jsonError(w, "batch is already finalized", http.StatusConflict)
+		return
+	}
+	if len(b.ProofHashes) >= b.MaxProofs {
+		s.jsonError(w, "batch is full", http.StatusConflict)
+		return
+	}
+	b.ProofHashes = append(b.ProofHashes, req.ProofHash)
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"batch_id": b.ID, "proof_hash": req.ProofHash, "leaf_index": req.LeafIndex,
+		"added": true, "proof_count": len(b.ProofHashes),
+	})
+}
 
 func (s *Server) aggregationFinalize(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		BatchID string `json:"batch_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"batch_id": req.BatchID, "status": "finalized", "finalized_at": time.Now().Unix()}
+
+	s.aggMu.Lock()
+	defer s.aggMu.Unlock()
+	b, ok := s.aggBatches[req.BatchID]
+	if !ok {
+		s.jsonError(w, "batch not found", http.StatusNotFound)
+		return
+	}
+	if b.Status == "finalized" {
+		s.jsonError(w, "batch already finalized", http.StatusConflict)
+		return
+	}
+	b.Status = "finalized"
+	b.FinalizedAt = time.Now().Unix()
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"batch_id": b.ID, "status": b.Status, "proof_count": len(b.ProofHashes),
+		"finalized_at": b.FinalizedAt,
+	})
+}
 
 func (s *Server) aggregationGetBatch(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	result := map[string]any{"batch_id": id, "status": "open", "proof_count": 0}
+
+	s.aggMu.Lock()
+	b, ok := s.aggBatches[id]
+	s.aggMu.Unlock()
+	if !ok {
+		s.jsonError(w, "batch not found", http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"batch_id": b.ID, "merkle_root": b.MerkleRoot, "status": b.Status,
+		"proof_count": len(b.ProofHashes), "max_proofs": b.MaxProofs,
+		"created_at": b.CreatedAt, "finalized_at": b.FinalizedAt,
+	})
+}
 
 // ---------------------------------------------------------------------------
 // ZK Verification handlers
@@ -916,13 +1061,15 @@ func (s *Server) zkChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 func (s *Server) zkGetChallenge(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	result := map[string]any{"challenge_id": id, "status": "open"}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 // ---------------------------------------------------------------------------
 // Post-quantum handlers
@@ -939,7 +1086,8 @@ func (s *Server) pqSignSPHINCS(w http.ResponseWriter, r *http.Request) {
 	sig := fmt.Sprintf("%x", sha256.Sum256([]byte("sphincs:"+req.Message)))
 	result := map[string]any{"signature": sig, "algorithm": "SPHINCS+", "level": "NIST-5"}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -953,7 +1101,8 @@ func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"valid": true, "algorithm": "SPHINCS+"}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -970,7 +1119,8 @@ func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 		"algorithm": "Ed25519+ML-DSA", "hybrid": true,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -984,4 +1134,5 @@ func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"valid": true, "classic_valid": true, "pq_valid": true, "algorithm": "Ed25519+ML-DSA"}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}

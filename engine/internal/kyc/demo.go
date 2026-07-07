@@ -47,3 +47,11 @@ func (d *DemoKYC) IsWhitelisted(user string) bool {
 	a, ok := d.whitelist[user]
 	return ok && a.Whitelisted
 }
+
+// Restore rehydrates a whitelist entry loaded from persistent storage,
+// bypassing the KYC proof re-check (the proof was already verified when the
+// grant originally happened; re-verifying on every restart would also
+// silently drop entries whose backing proof has since been pruned).
+func (d *DemoKYC) Restore(user, proofID string) {
+	d.whitelist[user] = &DeFiAccess{User: user, Whitelisted: true, ProofID: proofID}
+}
