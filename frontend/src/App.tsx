@@ -23,6 +23,7 @@ import LabContracts from './components/lab/Contracts'
 import AgentDemo from './components/lab/AgentDemo'
 import LabPlayground from './components/lab/Playground'
 import KYC from './components/lab/KYC'
+import ZKProofs from './components/lab/ZKProofs'
 
 function Landing() {
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="proofs" element={<Proofs />} />
             <Route path="models" element={<Models />} />
             <Route path="aggregation" element={<Aggregation />} />
+            <Route path="zk-proofs" element={<ZKProofs />} />
             <Route path="pq-crypto" element={<PQCrypto />} />
             <Route path="contracts" element={<LabContracts />} />
             <Route path="agent-demo" element={<AgentDemo />} />

@@ -8,6 +8,7 @@ const tabs = [
   { name: 'Proofs', path: 'proofs' },
   { name: 'Models', path: 'models' },
   { name: 'Aggregation', path: 'aggregation' },
+  { name: 'ZK Proofs', path: 'zk-proofs' },
   { name: 'PQ Crypto', path: 'pq-crypto' },
   { name: 'Contracts', path: 'contracts' },
   { name: 'Agent Demo', path: 'agent-demo' },

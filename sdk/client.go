@@ -360,3 +360,41 @@ func (c *Client) HybridVerify(ctx context.Context, message, signatureHex, classi
 	err := c.doRequest(ctx, http.MethodPost, "/pq/hybrid-verify", req, &out)
 	return out, err
 }
+
+// BatchProofs submits multiple proofs in a single batch. Maps to POST /proofs/batch.
+func (c *Client) BatchProofs(ctx context.Context, proofs []map[string]string, mode string) (map[string]any, error) {
+	var out map[string]any
+	req := map[string]any{"proofs": proofs, "mode": mode}
+	err := c.doRequest(ctx, http.MethodPost, "/proofs/batch", req, &out)
+	return out, err
+}
+
+// BatchVerifyZK verifies multiple ZK proofs in a single call. Maps to POST /zk/batch-verify.
+func (c *Client) BatchVerifyZK(ctx context.Context, proofs []map[string]any) (map[string]any, error) {
+	var out map[string]any
+	req := map[string]any{"proofs": proofs}
+	err := c.doRequest(ctx, http.MethodPost, "/zk/batch-verify", req, &out)
+	return out, err
+}
+
+// ChallengeZK opens a dispute challenge against a proof. Maps to POST /zk/challenge.
+func (c *Client) ChallengeZK(ctx context.Context, proofID, reason string) (map[string]any, error) {
+	var out map[string]any
+	req := map[string]string{"proof_id": proofID, "reason": reason}
+	err := c.doRequest(ctx, http.MethodPost, "/zk/challenge", req, &out)
+	return out, err
+}
+
+// GetChallengeZK fetches a challenge by its ID. Maps to GET /zk/challenge/{id}.
+func (c *Client) GetChallengeZK(ctx context.Context, id string) (map[string]any, error) {
+	var out map[string]any
+	err := c.doRequest(ctx, http.MethodGet, "/zk/challenge/"+id, nil, &out)
+	return out, err
+}
+
+// ValidateProofChain submits a proof chain for DAG validation. Maps to POST /proof-chain/validate.
+func (c *Client) ValidateProofChain(ctx context.Context, chain map[string]any) (map[string]any, error) {
+	var out map[string]any
+	err := c.doRequest(ctx, http.MethodPost, "/proof-chain/validate", chain, &out)
+	return out, err
+}

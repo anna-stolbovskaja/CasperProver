@@ -258,6 +258,8 @@ export const finalizeAggregationBatch = (data: FinalizeBatchRequest) =>
   fetcher<any>('/aggregation/finalize', { method: 'POST', body: JSON.stringify(data) });
 export const getAggregationBatchById = (id: string) =>
   fetcher<any>(`/aggregation/batch/${id}`);
+export const verifyAggregationBatch = (id: string) =>
+  fetcher<any>(`/aggregation/verify-batch/${id}`);
 
 // ZK
 export const verifyGroth16 = (data: ZKVerifyGroth16Request) =>
@@ -282,3 +284,19 @@ export const hybridSign = (data: PQHybridSignRequest) =>
   fetcher<any>('/pq/hybrid-sign', { method: 'POST', body: JSON.stringify(data) });
 export const hybridVerify = (data: PQHybridVerifyRequest) =>
   fetcher<any>('/pq/hybrid-verify', { method: 'POST', body: JSON.stringify(data) });
+
+// Phase 2: Proof Chain
+export interface ProofChainStep {
+  proof_id: string;
+  parent_ids: string[];
+  model_hash: string;
+  input_hash: string;
+  output_hash: string;
+  step_index: number;
+}
+export interface ValidateProofChainRequest {
+  id?: string;
+  steps: ProofChainStep[];
+}
+export const validateProofChain = (data: ValidateProofChainRequest) =>
+  fetcher<any>('/proof-chain/validate', { method: 'POST', body: JSON.stringify(data) });
