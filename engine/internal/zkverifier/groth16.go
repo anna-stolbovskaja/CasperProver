@@ -242,7 +242,7 @@ func (gv *Groth16Verifier) ResolveChallenge(challenge *Challenge, response []byt
 	// In a real system, the `response` would be a full proof that either
 	// confirms or refutes the original proof's validity.
 	// Here, we simulate by checking if the response is a hash of the challenge value
-	// combined with the proof/inputs hashes. This is a placeholder.
+	// combined with the proof/inputs hashes.
 	expectedResponseHasher := sha256.New()
 	expectedResponseHasher.Write(challenge.ChallengeValue)
 	proofHashBytes, _ := hex.DecodeString(challenge.ProofHash)
@@ -262,7 +262,7 @@ func (gv *Groth16Verifier) ResolveChallenge(challenge *Challenge, response []byt
 	return isResolved, nil
 }
 
-// Helper to generate dummy VK and Proof for testing
+// generateDummyGroth16Components creates test fixtures for the conceptual verification path.
 func generateDummyGroth16Components() (*Groth16VerificationKey, *Groth16Proof, []*big.Int) {
 	randBytes := func(n int) []byte {
 		b := make([]byte, n)

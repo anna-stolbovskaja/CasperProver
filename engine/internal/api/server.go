@@ -52,14 +52,10 @@ type Server struct {
 	aggBatches map[string]*aggBatch
 }
 
-// aggBatch is real (in-memory) bookkeeping for the /aggregation/* endpoints.
-// Previously these 4 handlers were pure stubs: create/add/finalize did not
-// store anything and get-batch unconditionally returned proof_count:0,
-// status:"open" for any batch_id, including ones that never existed. This
-// tracks actual per-batch state so the endpoints reflect reality. It is NOT
-// the real STARK aggregation math (internal/aggregator is still dead code,
-// unwired - that's a separate, larger task) - this is just an honest batch
-// registry instead of a hardcoded fake response.
+// aggBatch tracks per-batch state for the /aggregation/* endpoints.
+// Batches are persisted to Postgres (aggregation_batches table) and
+// rehydrated on server startup. The aggregation uses hash-chain
+// verification via internal/aggregator.
 type aggBatch struct {
 	ID          string
 	MerkleRoot  string

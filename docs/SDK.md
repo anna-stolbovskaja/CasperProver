@@ -95,3 +95,16 @@ CASPERPROVER_API_URL=http://localhost:9090 go run ./sdk/cmd/mcpserver
 | `validate_proof_chain` | DAG validation (Phase 2) | ✅ |
 
 All 32 tools map 1:1 to live API endpoints. No stubs.
+
+### Categories
+
+| Category | Tools | Count |
+|---|---|---|
+| Proofs | generate_proof, verify_proof, get_proof, list_proofs, revoke_proof, export_proof, batch_proofs | 7 |
+| Inference | inference_prove, inference_verify, register_model, get_model_info | 4 |
+| ZK | verify_groth16, groth16_real_prove, groth16_real_verify, zk_batch_verify, zk_challenge, zk_get_challenge | 6 |
+| Aggregation | create_batch, add_proof_to_batch, finalize_batch, get_batch, verify_batch | 5 |
+| PQ Crypto | pq_sign_sphincs, pq_verify_sphincs, pq_hybrid_sign, pq_hybrid_verify | 4 |
+| KYC | kyc_check, kyc_grant, kyc_whitelist | 3 |
+| Proof Chain | validate_proof_chain | 1 |
+| System | health_check, get_stats | 2 |

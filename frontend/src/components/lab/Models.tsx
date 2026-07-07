@@ -193,7 +193,7 @@ const Models: React.FC = () => {
         </div>
       </div>
 
-      {/* List Registered Models (placeholder) */}
+      {/* Recently Registered Models */}
       <div className="mt-8 bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
         <h3 className="text-xl font-semibold text-gray-100 mb-4">Recently Registered Models</h3>
         {registeredModels.length === 0 ? (

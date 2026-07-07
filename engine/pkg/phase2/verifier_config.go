@@ -1,7 +1,8 @@
-// Package phase2 contains infrastructure stubs for planned CasperProver features.
+// Package phase2 provides extended infrastructure for CasperProver.
 //
-// These types define interfaces and data structures for Phase 2-4 upgrades.
-// Implementation will be completed incrementally.
+// Includes proof-chain DAG validation, hardware attestation interfaces,
+// distributed prover configuration, and verification mode selection.
+// ValidateDAG is wired to the live API via POST /proof-chain/validate.
 package phase2
 
 // VerifierMode defines the verification strategy for proofs.

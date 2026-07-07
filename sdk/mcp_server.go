@@ -189,22 +189,6 @@ var mcpTools = []MCPTool{
 			"required": []string{"model_hash"},
 		},
 	},
-	{
-		Name:        "list_models",
-		Description: "List all registered models used in proof generation.",
-		InputSchema: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-		},
-	},
-	{
-		Name:        "get_merkle_root",
-		Description: "Get the current Merkle root of all proofs for on-chain verification.",
-		InputSchema: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-		},
-	},
 	// --- Proof Chain (Phase 2) -------------------------------------------
 	{
 		Name:        "validate_proof_chain",
@@ -462,89 +446,8 @@ var mcpTools = []MCPTool{
 			"required": []string{"model_name", "model_hash", "framework"},
 		},
 	},
-	{
-		Name:        "get_model_registry",
-		Description: "Query a model from the registry by name or hash, including all versions.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"model_id": map[string]interface{}{"type": "string", "description": "Model name or hash"},
-			},
-			"required": []string{"model_id"},
-		},
-	},
-	{
-		Name:        "deprecate_model",
-		Description: "Mark a model version as deprecated in the registry.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"model_id": map[string]interface{}{"type": "string"},
-				"version":  map[string]interface{}{"type": "string"},
-				"reason":   map[string]interface{}{"type": "string", "description": "Deprecation reason"},
-			},
-			"required": []string{"model_id", "version"},
-		},
-	},
-	// --- Complexity Analyzer tools ---
-	{
-		Name:        "estimate_complexity",
-		Description: "Estimate proof generation complexity for given model and input parameters.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"model_hash": map[string]interface{}{"type": "string", "description": "Model identifier"},
-				"input_size": map[string]interface{}{"type": "integer", "description": "Input size in bytes"},
-				"proof_type": map[string]interface{}{"type": "string", "enum": []string{"full", "compact", "aggregated"}},
-			},
-			"required": []string{"model_hash", "input_size"},
-		},
-	},
-	{
-		Name:        "get_complexity_report",
-		Description: "Get a detailed complexity breakdown for a completed proof.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"proof_id": map[string]interface{}{"type": "string"},
-			},
-			"required": []string{"proof_id"},
-		},
-	},
-	// --- Distributed Worker tools ---
-	{
-		Name:        "submit_batch_task",
-		Description: "Submit a batch of proofs for distributed generation across worker nodes.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"model_hash": map[string]interface{}{"type": "string"},
-				"inputs":     map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Array of input hashes"},
-				"priority":   map[string]interface{}{"type": "string", "enum": []string{"low", "normal", "high"}, "default": "normal"},
-			},
-			"required": []string{"model_hash", "inputs"},
-		},
-	},
-	{
-		Name:        "get_task_status",
-		Description: "Check the status and progress of a distributed batch task.",
-		InputSchema: map[string]interface{}{
-			"type": "object",
-			"properties": map[string]interface{}{
-				"task_id": map[string]interface{}{"type": "string"},
-			},
-			"required": []string{"task_id"},
-		},
-	},
-	{
-		Name:        "list_worker_nodes",
-		Description: "List all active worker nodes with their capacity and current load.",
-		InputSchema: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-		},
-	},
 }
+
 
 // Manifest returns the MCP tool manifest.
 func Manifest() MCPManifest {

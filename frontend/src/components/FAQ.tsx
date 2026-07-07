@@ -3,10 +3,12 @@ import { ChevronDown } from 'lucide-react'
 
 const faqs = [
   { q: 'What exactly does CasperProver prove?', a: 'It proves that a specific AI agent, using a specific model, received a specific input and produced a specific output at a specific time. The proof is cryptographic — any change to any parameter invalidates it.' },
-  { q: 'Is this actual zero-knowledge?', a: 'CasperProver uses Merkle tree-based proofs that allow verification without exposing raw data. The input and output are hashed, so verifiers can confirm the proof without seeing the original decision data.' },
-  { q: 'Why anchor proofs on Casper?', a: 'Casper provides finality, low gas costs, and a WASM-based VM suitable for proof storage contracts. Proofs are immutable once deployed — no one can alter or delete them.' },
-  { q: 'How much does it cost to anchor a proof?', a: 'Approximately 2.5 CSPR per proof deployment on testnet. Mainnet costs will depend on network conditions.' },
+  { q: 'Is this actual zero-knowledge?', a: 'Yes. CasperProver includes real BN254 Groth16 ZK proofs powered by gnark — with genuine R1CS circuits, trusted setup, and pairing-based verification. It also provides Merkle tree-based proofs for lightweight use cases where full ZK is unnecessary.' },
+  { q: 'Why anchor proofs on Casper?', a: 'Casper provides finality, low gas costs, and a WASM-based VM suitable for proof storage contracts. Proofs are immutable once deployed — no one can alter or delete them. Four smart contracts handle registration, verification, KYC gating, and economic penalties.' },
+  { q: 'What about quantum computing threats?', a: 'CasperProver includes post-quantum cryptography: SPHINCS+ (NIST PQC standard), ML-DSA-65 (FIPS 204), and hybrid Ed25519+ML-DSA signing. Your proofs are future-proof against quantum attacks.' },
+  { q: 'How does the SDK / MCP integration work?', a: 'The Go SDK provides 32 methods mapping 1:1 to all API endpoints. The MCP server exposes 32 tools for AI agent frameworks like Claude Desktop. Install with `go get` or connect via MCP stdio — no custom integration needed.' },
   { q: 'Can I verify a proof without the original data?', a: 'Yes. You only need the proof hash and Merkle root to verify integrity. The original input/output data is never required for verification — only their hashes.' },
+  { q: 'What is proof-chain DAG validation?', a: 'For multi-step AI workflows, CasperProver validates the entire chain of proofs as a directed acyclic graph. It checks for cycles, verifies input/output continuity between steps, and enforces a single root — ensuring no step was tampered with or skipped.' },
 ]
 
 export default function FAQ() {

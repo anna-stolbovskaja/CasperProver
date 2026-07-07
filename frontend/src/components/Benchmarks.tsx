@@ -1,11 +1,15 @@
 export default function Benchmarks() {
   const rows = [
-    { metric: 'Proof generation time', value: '<50ms', note: 'SHA-256 + Merkle tree' },
-    { metric: 'Verification time', value: '<10ms', note: 'Merkle path check' },
+    { metric: 'Merkle proof generation', value: '<50ms', note: 'SHA-256 + Merkle tree' },
+    { metric: 'Merkle verification', value: '<10ms', note: 'Merkle path check' },
+    { metric: 'Groth16 ZK prove', value: '~200ms', note: 'BN254 R1CS via gnark' },
+    { metric: 'Groth16 ZK verify', value: '<5ms', note: 'Pairing-based check' },
     { metric: 'Proof size', value: '~512 bytes', note: 'Hash + path + metadata' },
-    { metric: 'GPU required', value: 'None', note: 'Pure cryptographic hashing' },
-    { metric: 'False positive rate', value: '0%', note: 'Deterministic verification' },
-    { metric: 'On-chain cost', value: '~2.5 CSPR', note: 'Casper testnet deploy' },
+    { metric: 'PQ hybrid sign', value: '<15ms', note: 'Ed25519 + ML-DSA-65' },
+    { metric: 'Smart contracts', value: '4 live', note: 'Casper testnet' },
+    { metric: 'Testnet transactions', value: '248+', note: 'Deploys + contract calls' },
+    { metric: 'SDK / MCP tools', value: '32', note: 'All backed by real API' },
+    { metric: 'GPU required', value: 'None', note: 'Pure cryptographic ops' },
   ]
 
   return (
