@@ -1,10 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,6 +21,10 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/submitter"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier/gnarkzk"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
 )
 
 type Server struct {
@@ -27,6 +34,8 @@ type Server struct {
 	db    *store.PG
 	sub   *submitter.CasperSubmitter
 	inf   *inference.InferenceService
+	zk    *zkverifier.Groth16Verifier
+	realZK *gnarkzk.Setup
 	port  int
 	log   *slog.Logger
 	start time.Time
@@ -51,16 +60,24 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		slog.Warn("no deployer key configured, anchored mode uses computed hashes")
 	}
 
+	realZK, err := gnarkzk.NewSetup()
+	if err != nil {
+		slog.Warn("real Groth16 (gnark) setup failed, /zk/groth16-real/* will return 503", "error", err)
+		realZK = nil
+	}
+
 	return &Server{
-		eng:   eng,
-		ver:   verifier.New(),
-		kyc:   kyc.NewDemo(eng),
-		db:    db,
-		sub:   sub,
-		inf:   inference.New(eng, db, sub),
-		port:  port,
-		log:   slog.Default(),
-		start: time.Now(),
+		eng:    eng,
+		ver:    verifier.New(),
+		kyc:    kyc.NewDemo(eng),
+		db:     db,
+		sub:    sub,
+		inf:    inference.New(eng, db, sub),
+		zk:     zkverifier.NewGroth16Verifier(),
+		realZK: realZK,
+		port:   port,
+		log:    slog.Default(),
+		start:  time.Now(),
 	}
 }
 
@@ -93,6 +110,8 @@ func (s *Server) Start() error {
 	// ZK Verification routes
 	mux.HandleFunc("POST /zk/verify-groth16", s.zkVerifyGroth16)
 	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)
+	mux.HandleFunc("POST /zk/groth16-real/prove", s.zkGroth16RealProve)
+	mux.HandleFunc("POST /zk/groth16-real/verify", s.zkGroth16RealVerify)
 	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 	// Post-quantum routes
@@ -697,19 +716,69 @@ func (s *Server) aggregationGetBatch(w http.ResponseWriter, r *http.Request) {
 // ZK Verification handlers
 // ---------------------------------------------------------------------------
 
+// zkVerifyGroth16 runs the CONCEPTUAL Groth16 simulation (see
+// internal/zkverifier/groth16.go's package doc - hash-based, not real BN254
+// pairing math). It used to unconditionally return valid:true for any
+// input; it now actually derives proof/VK components from the request and
+// runs them through the simulator, so identical inputs verify identically
+// and tampering with the proof/public inputs changes the result. For a REAL
+// Groth16 verification (actual BN254 pairing checks via gnark), see
+// /zk/groth16-real/verify below.
 func (s *Server) zkVerifyGroth16(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Proof      string `json:"proof"`
+		Proof        string   `json:"proof"`
 		PublicInputs []string `json:"public_inputs"`
-		VkHash     string `json:"vk_hash"`
+		VkHash       string   `json:"vk_hash"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"valid": true, "vk_hash": req.VkHash, "verified_at": time.Now().Unix()}
+	valid, err := s.conceptualGroth16Verify(req.Proof, req.VkHash, req.PublicInputs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+	result := map[string]any{
+		"valid":       valid,
+		"vk_hash":     req.VkHash,
+		"verified_at": time.Now().Unix(),
+		"note":        "conceptual simulation (hash-based), not real BN254 pairing math - see /zk/groth16-real/verify",
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+// conceptualGroth16Verify derives deterministic proof/VK components from the
+// given strings and runs zkverifier.Groth16Verifier.VerifyGroth16 against
+// them - real computation over real input, still within the package's own
+// documented "conceptual simulation" scope (see groth16.go).
+func (s *Server) conceptualGroth16Verify(proofHex, vkHashHex string, publicInputs []string) (bool, error) {
+	proofBytes := sha256.Sum256([]byte(proofHex))
+	vk := &zkverifier.Groth16VerificationKey{
+		Alpha1: proofBytes[:16], Beta2: proofBytes[:], Gamma2: proofBytes[:], Delta2: proofBytes[:],
+		IC: [][]byte{proofBytes[:16]},
+	}
+	vkBytes := sha256.Sum256([]byte(vkHashHex))
+	proof := &zkverifier.Groth16Proof{A: vkBytes[:16], B: vkBytes[:], C: vkBytes[:16]}
+
+	inputs := make([]*big.Int, 0, len(publicInputs))
+	for _, pi := range publicInputs {
+		h := sha256.Sum256([]byte(pi))
+		inputs = append(inputs, new(big.Int).SetBytes(h[:]))
+	}
+	if len(inputs) == 0 {
+		inputs = []*big.Int{big.NewInt(0)}
+	}
+
+	valid, err := s.zk.VerifyGroth16(vk, proof, inputs)
+	if err != nil {
+		// A verification failure inside the simulator is a normal false
+		// result for this endpoint's callers, not an HTTP error.
+		return false, nil
+	}
+	return valid, nil
+}
 
 func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -723,11 +792,113 @@ func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	results := make([]map[string]any, len(req.Proofs))
-	for i := range req.Proofs {
-		results[i] = map[string]any{"index": i, "valid": true}
+	allValid := true
+	for i, p := range req.Proofs {
+		valid, err := s.conceptualGroth16Verify(p.Proof, "", p.PublicInputs)
+		if err != nil {
+			valid = false
+		}
+		results[i] = map[string]any{"index": i, "valid": valid}
+		if !valid {
+			allValid = false
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"results": results, "all_valid": true})}
+	_ = json.NewEncoder(w).Encode(map[string]any{"results": results, "all_valid": allValid})
+}
+
+// ---------------------------------------------------------------------------
+// REAL Groth16 (gnark, BN254 pairing-based) handlers
+//
+// Proves/verifies knowledge of a preimage x such that MiMC(x) == a public
+// hash commitment, without revealing x - see
+// internal/zkverifier/gnarkzk/circuit.go for the full scope/limitations
+// disclaimer. This is genuinely different from zkVerifyGroth16 above: real
+// R1CS compilation, real (session-local, non-production) trusted setup,
+// real BN254 pairing checks that reject tampered proofs/public inputs.
+// ---------------------------------------------------------------------------
+
+func (s *Server) zkGroth16RealProve(w http.ResponseWriter, r *http.Request) {
+	if s.realZK == nil {
+		http.Error(w, `{"error":"real Groth16 setup unavailable on this instance"}`, http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		Preimage string `json:"preimage"` // decimal-string big.Int
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Preimage == "" {
+		http.Error(w, `{"error":"invalid request: expected {\"preimage\": \"<decimal integer>\"}"}`, http.StatusBadRequest)
+		return
+	}
+	preimage, ok := new(big.Int).SetString(req.Preimage, 10)
+	if !ok {
+		http.Error(w, `{"error":"preimage must be a base-10 integer string"}`, http.StatusBadRequest)
+		return
+	}
+
+	hash := gnarkzk.ComputeMiMCHash(preimage)
+	proof, err := s.realZK.Prove(preimage, hash)
+	if err != nil {
+		s.log.Error("real groth16 prove failed", "error", err)
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	var proofBuf bytes.Buffer
+	if _, err := proof.WriteTo(&proofBuf); err != nil {
+		http.Error(w, `{"error":"failed to serialize proof"}`, http.StatusInternalServerError)
+		return
+	}
+
+	result := map[string]any{
+		"hash":       hash.String(),
+		"proof_hex":  hex.EncodeToString(proofBuf.Bytes()),
+		"curve":      "BN254",
+		"circuit":    "mimc_preimage_knowledge",
+		"created_at": time.Now().Unix(),
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func (s *Server) zkGroth16RealVerify(w http.ResponseWriter, r *http.Request) {
+	if s.realZK == nil {
+		http.Error(w, `{"error":"real Groth16 setup unavailable on this instance"}`, http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		Hash     string `json:"hash"`      // decimal-string big.Int, from /prove's response
+		ProofHex string `json:"proof_hex"` // hex, from /prove's response
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		return
+	}
+	hash, ok := new(big.Int).SetString(req.Hash, 10)
+	if !ok {
+		http.Error(w, `{"error":"hash must be a base-10 integer string"}`, http.StatusBadRequest)
+		return
+	}
+	proofBytes, err := hex.DecodeString(req.ProofHex)
+	if err != nil {
+		http.Error(w, `{"error":"proof_hex must be valid hex"}`, http.StatusBadRequest)
+		return
+	}
+	proof := groth16.NewProof(ecc.BN254)
+	if _, err := proof.ReadFrom(bytes.NewReader(proofBytes)); err != nil {
+		http.Error(w, `{"error":"failed to deserialize proof"}`, http.StatusBadRequest)
+		return
+	}
+
+	valid, err := s.realZK.Verify(proof, hash)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+		return
+	}
+	result := map[string]any{"valid": valid, "curve": "BN254", "circuit": "mimc_preimage_knowledge", "verified_at": time.Now().Unix()}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}
 
 func (s *Server) zkChallenge(w http.ResponseWriter, r *http.Request) {
 	var req struct {
