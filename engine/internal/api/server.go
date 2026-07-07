@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -233,7 +234,10 @@ var rl = &rateLimiter{clients: make(map[string]*rlEntry)}
 
 func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
 		now := time.Now()
 		rl.mu.Lock()
 		entry, ok := rl.clients[ip]
@@ -244,7 +248,7 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 			entry.count++
 			if entry.count > 60 {
 				rl.mu.Unlock()
-				http.Error(w, `{"error":"too many requests"}`, http.StatusTooManyRequests)
+				s.jsonError(w, "too many requests", http.StatusTooManyRequests)
 				return
 			}
 			rl.mu.Unlock()
@@ -697,7 +701,7 @@ func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 		PubKey  string `json:"public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	if req.Agent == "" {
@@ -710,7 +714,7 @@ func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 		[]byte(req.Input), []byte(req.Output), []byte(req.ModelID), req.UseCase, req.PubKey)
 	if err != nil {
 		s.log.Error("inference proof generation failed", "error", err)
-		http.Error(w, `{"error":"proof generation failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "proof generation failed", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -722,13 +726,13 @@ func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
 		ProofID string `json:"proof_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	valid, err := s.inf.VerifyInferenceProof(r.Context(), req.ProofID)
 	if err != nil {
 		s.log.Warn("inference proof verification error", "proof_id", req.ProofID, "error", err)
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusNotFound)
+		s.jsonError(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	result := map[string]any{"proof_id": req.ProofID, "valid": valid, "verified_at": time.Now().Unix()}
@@ -744,13 +748,13 @@ func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) 
 		Metadata         map[string]string `json:"metadata"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	entry, err := s.inf.RegisterModel(r.Context(), req.ModelID, req.ModelHash, req.VerifierContract, req.Metadata)
 	if err != nil {
 		s.log.Error("model registration failed", "model_id", req.ModelID, "error", err)
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -762,7 +766,7 @@ func (s *Server) inferenceGetModel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	entry, err := s.inf.GetModelInfo(r.Context(), id)
 	if err != nil {
-		http.Error(w, `{"error":"model not found"}`, http.StatusNotFound)
+		s.jsonError(w, "model not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -991,12 +995,12 @@ func (s *Server) zkVerifyGroth16(w http.ResponseWriter, r *http.Request) {
 		VkHash       string   `json:"vk_hash"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	valid, err := s.conceptualGroth16Verify(req.Proof, req.VkHash, req.PublicInputs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	result := map[string]any{
@@ -1048,7 +1052,7 @@ func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 		} `json:"proofs"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	results := make([]map[string]any, len(req.Proofs))
@@ -1080,19 +1084,19 @@ func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) zkGroth16RealProve(w http.ResponseWriter, r *http.Request) {
 	if s.realZK == nil {
-		http.Error(w, `{"error":"real Groth16 setup unavailable on this instance"}`, http.StatusServiceUnavailable)
+		s.jsonError(w, "real Groth16 setup unavailable on this instance", http.StatusServiceUnavailable)
 		return
 	}
 	var req struct {
 		Preimage string `json:"preimage"` // decimal-string big.Int
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Preimage == "" {
-		http.Error(w, `{"error":"invalid request: expected {\"preimage\": \"<decimal integer>\"}"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request: expected {preimage: <decimal integer>}", http.StatusBadRequest)
 		return
 	}
 	preimage, ok := new(big.Int).SetString(req.Preimage, 10)
 	if !ok {
-		http.Error(w, `{"error":"preimage must be a base-10 integer string"}`, http.StatusBadRequest)
+		s.jsonError(w, "preimage must be a base-10 integer string", http.StatusBadRequest)
 		return
 	}
 
@@ -1100,13 +1104,13 @@ func (s *Server) zkGroth16RealProve(w http.ResponseWriter, r *http.Request) {
 	proof, err := s.realZK.Prove(preimage, hash)
 	if err != nil {
 		s.log.Error("real groth16 prove failed", "error", err)
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+		s.jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	var proofBuf bytes.Buffer
 	if _, err := proof.WriteTo(&proofBuf); err != nil {
-		http.Error(w, `{"error":"failed to serialize proof"}`, http.StatusInternalServerError)
+		s.jsonError(w, "failed to serialize proof", http.StatusInternalServerError)
 		return
 	}
 
@@ -1123,7 +1127,7 @@ func (s *Server) zkGroth16RealProve(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) zkGroth16RealVerify(w http.ResponseWriter, r *http.Request) {
 	if s.realZK == nil {
-		http.Error(w, `{"error":"real Groth16 setup unavailable on this instance"}`, http.StatusServiceUnavailable)
+		s.jsonError(w, "real Groth16 setup unavailable on this instance", http.StatusServiceUnavailable)
 		return
 	}
 	var req struct {
@@ -1131,28 +1135,28 @@ func (s *Server) zkGroth16RealVerify(w http.ResponseWriter, r *http.Request) {
 		ProofHex string `json:"proof_hex"` // hex, from /prove's response
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	hash, ok := new(big.Int).SetString(req.Hash, 10)
 	if !ok {
-		http.Error(w, `{"error":"hash must be a base-10 integer string"}`, http.StatusBadRequest)
+		s.jsonError(w, "hash must be a base-10 integer string", http.StatusBadRequest)
 		return
 	}
 	proofBytes, err := hex.DecodeString(req.ProofHex)
 	if err != nil {
-		http.Error(w, `{"error":"proof_hex must be valid hex"}`, http.StatusBadRequest)
+		s.jsonError(w, "proof_hex must be valid hex", http.StatusBadRequest)
 		return
 	}
 	proof := groth16.NewProof(ecc.BN254)
 	if _, err := proof.ReadFrom(bytes.NewReader(proofBytes)); err != nil {
-		http.Error(w, `{"error":"failed to deserialize proof"}`, http.StatusBadRequest)
+		s.jsonError(w, "failed to deserialize proof", http.StatusBadRequest)
 		return
 	}
 
 	valid, err := s.realZK.Verify(proof, hash)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+		s.jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	result := map[string]any{"valid": valid, "curve": "BN254", "circuit": "mimc_preimage_knowledge", "verified_at": time.Now().Unix()}
@@ -1166,7 +1170,7 @@ func (s *Server) zkChallenge(w http.ResponseWriter, r *http.Request) {
 		Reason  string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	id := fmt.Sprintf("chal-%x", sha256.Sum256([]byte(req.ProofID+req.Reason)))[:16]
@@ -1200,17 +1204,17 @@ func (s *Server) pqSignSPHINCS(w http.ResponseWriter, r *http.Request) {
 		Message string `json:"message"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	priv, pub, err := pqcrypto.GenerateLamportKeyPair()
 	if err != nil {
-		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "key generation failed", http.StatusInternalServerError)
 		return
 	}
 	sig, err := pqcrypto.SignSPHINCS(priv, []byte(req.Message))
 	if err != nil {
-		http.Error(w, `{"error":"signing failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "signing failed", http.StatusInternalServerError)
 		return
 	}
 	result := map[string]any{
@@ -1230,23 +1234,23 @@ func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 		PublicKey string `json:"public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	sigBytes, err1 := hex.DecodeString(req.Signature)
 	pubBytes, err2 := hex.DecodeString(req.PublicKey)
 	if err1 != nil || err2 != nil {
-		http.Error(w, `{"error":"signature and public_key must be hex-encoded"}`, http.StatusBadRequest)
+		s.jsonError(w, "signature and public_key must be hex-encoded", http.StatusBadRequest)
 		return
 	}
 	pub, err := pqcrypto.LamportPublicKeyFromBytes(pubBytes)
 	if err != nil {
-		http.Error(w, `{"error":"invalid public_key length"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid public_key length", http.StatusBadRequest)
 		return
 	}
 	valid, err := pqcrypto.VerifySPHINCS(pub, []byte(req.Message), sigBytes)
 	if err != nil {
-		http.Error(w, `{"error":"invalid signature length"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid signature length", http.StatusBadRequest)
 		return
 	}
 	result := map[string]any{"valid": valid, "algorithm": "Lamport-OTS"}
@@ -1262,22 +1266,22 @@ func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 		Message string `json:"message"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	classicPriv, classicPub, err := pqcrypto.GenerateEd25519KeyPair()
 	if err != nil {
-		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "key generation failed", http.StatusInternalServerError)
 		return
 	}
 	pqPriv, pqPub, err := pqcrypto.GenerateMLDSAKeyPair()
 	if err != nil {
-		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "key generation failed", http.StatusInternalServerError)
 		return
 	}
 	sig, err := pqcrypto.HybridSign(classicPriv, pqPriv, []byte(req.Message))
 	if err != nil {
-		http.Error(w, `{"error":"signing failed"}`, http.StatusInternalServerError)
+		s.jsonError(w, "signing failed", http.StatusInternalServerError)
 		return
 	}
 	pqPubBytes, _ := pqPub.MarshalBinary()
@@ -1300,24 +1304,24 @@ func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 		PqPublicKey      string `json:"pq_public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
 		return
 	}
 	sigBytes, e1 := hex.DecodeString(req.Signature)
 	classicPubBytes, e2 := hex.DecodeString(req.ClassicPublicKey)
 	pqPubBytes, e3 := hex.DecodeString(req.PqPublicKey)
 	if e1 != nil || e2 != nil || e3 != nil {
-		http.Error(w, `{"error":"signature and public keys must be hex-encoded"}`, http.StatusBadRequest)
+		s.jsonError(w, "signature and public keys must be hex-encoded", http.StatusBadRequest)
 		return
 	}
 	var pqPub mldsa65.PublicKey
 	if err := pqPub.UnmarshalBinary(pqPubBytes); err != nil {
-		http.Error(w, `{"error":"invalid pq_public_key"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid pq_public_key", http.StatusBadRequest)
 		return
 	}
 	valid, classicValid, pqValid, err := pqcrypto.HybridVerify(ed25519.PublicKey(classicPubBytes), &pqPub, []byte(req.Message), sigBytes)
 	if err != nil {
-		http.Error(w, `{"error":"invalid signature format"}`, http.StatusBadRequest)
+		s.jsonError(w, "invalid signature format", http.StatusBadRequest)
 		return
 	}
 	result := map[string]any{
