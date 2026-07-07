@@ -5,9 +5,9 @@
 ## Smart Contracts
 
 - **`grant_access` (defi-mock) is admin-gated in the deployed source** — verified in `contracts/defi-mock/src/main.rs`: the caller must equal `get_admin()` or the call reverts with `ERR_UNAUTHORIZED`. A previous version of this doc claimed there was no access control here; that was stale/incorrect.
-- **String-based key matching** — Dictionary keys use `AccountHash::to_string()` which may differ from client-supplied strings. Raw byte comparison would be more reliable.
-- **No input length validation** — String parameters (proof IDs, hashes) have no maximum length check. Very large inputs could increase gas costs.
-- **`defi-mock` does not prevent duplicate whitelisting** — Calling `grant_access` twice overwrites the previous entry without error.
+- **Fixed 2026-07-07: `is_whitelisted` now takes a typed `AccountHash` (`CLType::ByteArray(32)`), not a free-form `String`.** Previously a caller passed an arbitrary string that was compared directly against the dictionary key (`AccountHash::to_string()` = lowercase hex, no prefix) - any client that didn't happen to format it identically got a silent "not whitelisted" instead of a clear error. All three entry points (`grant_access`, `revoke_access`, `is_whitelisted`) now take the same typed value, so this class of client-formatting bug can't happen. (Note: this changes the on-chain entry-point signature; nothing in `engine/`, `frontend/`, or `sdk/` calls `is_whitelisted` today, so no live caller is affected, but the deployed contract at the address in `README.md` still has the old signature until it's redeployed - source and testnet are in sync for every *other* entry point, just not this one yet.)
+- **Fixed 2026-07-07: `defi-mock` now prevents duplicate whitelisting** — `grant_access` reverts with a new `ERR_ALREADY_WHITELISTED` (13) if the user already has an active (non-revoked) entry, instead of silently overwriting the previous proof_id/timestamp. Re-granting after a revocation still requires going through `revoke_access` first, so history stays explicit. Same redeploy caveat as above applies.
+- **No input length validation on the engine/API side** — contract-side proof IDs are capped at 128 chars (`validate_proof_id` in `defi-mock`), but the Go API layer (`engine/internal/api/server.go`) does not itself cap request body/string sizes before forwarding.
 
 ## Engine
 
