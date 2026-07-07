@@ -230,11 +230,9 @@ const AgentPlayground: React.FC = () => {
       if (!success) { setIsDemoRunning(false); return; }
       await new Promise((r) => setTimeout(r, 800));
     }
-    setIsDemoRunning(false);
-
     // After pipeline completes, anchor proof on-chain if wallet connected
     if (isWalletConnected && clickRef && publicKey && proofHashRef.current) {
-      toast.info('Pipeline done — anchoring proof on-chain via your wallet…');
+      toast.info('Pipeline done — sign to anchor proof on-chain…');
       try {
         const txResult = await submitProofOnChain(clickRef, {
           proofHash: proofHashRef.current,
@@ -244,18 +242,20 @@ const AgentPlayground: React.FC = () => {
           senderPublicKeyHex: publicKey,
         });
         if (txResult.ok) {
-          toast.success(`On-chain anchored! Tx: ${txResult.transactionHash.substring(0, 16)}…`);
+          toast.success(`Pipeline completed & anchored on-chain! Tx: ${txResult.transactionHash.substring(0, 16)}…`);
         } else if ('cancelled' in txResult && txResult.cancelled) {
-          toast.info('On-chain anchoring cancelled by user.');
+          toast.success('Pipeline completed (on-chain anchoring skipped).');
         } else {
-          toast.error(`On-chain failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+          toast.success(`Pipeline completed (on-chain failed: ${'error' in txResult ? txResult.error : 'unknown'}).`);
         }
       } catch (err: any) {
-        toast.error(`On-chain error: ${err.message}`);
+        toast.success(`Pipeline completed (on-chain error: ${err.message}).`);
       }
+    } else {
+      toast.success('Full pipeline completed!');
     }
 
-    toast.success('Full pipeline completed!');
+    setIsDemoRunning(false);
   }, [steps, runStep, resetDemo, isWalletConnected, clickRef, publicKey]);
 
   const statusBorder = (s: PipelineStep['status']) => {

@@ -231,16 +231,15 @@ const Proofs: React.FC = () => {
     try {
       const res = await createProof(createForm);
       if (res.success && res.data) {
-        toast.success('Proof created!');
         setIsCreateModalOpen(false);
         const resetAgent = isWalletConnected && publicKey ? publicKey : '';
         setCreateForm({ agent: resetAgent, input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
         fetchAllProofs();
 
-        // If wallet connected, offer to anchor on-chain
+        // If wallet connected, sign on-chain FIRST, then show final toast
         if (isWalletConnected && clickRef && publicKey && res.data.proof_hash) {
           const proofData = res.data;
-          toast.info(`Wallet connected — anchoring proof ${proofData.id} on-chain…`);
+          toast.info(`Proof ${proofData.id} saved — sign to anchor on-chain…`);
           setAnchoringProofId(proofData.id);
           try {
             const txResult = await submitProofOnChain(clickRef, {
@@ -251,17 +250,19 @@ const Proofs: React.FC = () => {
               senderPublicKeyHex: publicKey,
             });
             if (txResult.ok) {
-              toast.success(`On-chain tx: ${txResult.transactionHash.substring(0, 16)}…`);
+              toast.success(`Proof ${proofData.id} created & anchored on-chain! Tx: ${txResult.transactionHash.substring(0, 16)}…`);
             } else if ('cancelled' in txResult && txResult.cancelled) {
-              toast.info('On-chain anchoring cancelled by user.');
+              toast.success(`Proof ${proofData.id} created (on-chain anchoring skipped).`);
             } else {
-              toast.error(`On-chain anchoring failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+              toast.success(`Proof ${proofData.id} created (on-chain failed: ${'error' in txResult ? txResult.error : 'unknown'}).`);
             }
           } catch (txErr: any) {
-            toast.error(`On-chain error: ${txErr.message}`);
+            toast.success(`Proof ${proofData.id} created (on-chain error: ${txErr.message}).`);
           } finally {
             setAnchoringProofId(null);
           }
+        } else {
+          toast.success('Proof created!');
         }
       } else {
         toast.error(res.error || 'Failed to create proof');
@@ -381,7 +382,7 @@ const Proofs: React.FC = () => {
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-red-400 cursor-pointer hover:text-red-300" onClick={() => openDetailModal(proof)}>
                       {proof.id}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{proof.agent}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300 max-w-[160px] truncate" title={proof.agent}>{proof.agent}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">{proof.use_case}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-400" title={proof.merkle_root}>
                       {truncHash(proof.merkle_root)}
