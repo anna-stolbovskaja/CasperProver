@@ -285,6 +285,14 @@ export const hybridSign = (data: PQHybridSignRequest) =>
 export const hybridVerify = (data: PQHybridVerifyRequest) =>
   fetcher<any>('/pq/hybrid-verify', { method: 'POST', body: JSON.stringify(data) });
 
+// Batch proofs
+export interface BatchProofsRequest {
+  proofs: { agent: string; model_hash: string; input_data: string; use_case?: string }[];
+  mode?: string;
+}
+export const batchProofs = (data: BatchProofsRequest) =>
+  fetcher<any>('/proofs/batch', { method: 'POST', body: JSON.stringify(data) });
+
 // Phase 2: Proof Chain
 export interface ProofChainStep {
   proof_id: string;

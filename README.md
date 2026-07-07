@@ -96,7 +96,7 @@ For stronger guarantees, the same proof can be:
 | **KYC Gating** | Proof-based DeFi access control with cross-contract verification | ✅ Live |
 | **SDK (Go)** | 32 methods, 1:1 API mapping | ✅ Live |
 | **MCP Server** | 32 tools for AI agent frameworks | ✅ Live |
-| **Wallet Connect** | Casper Wallet integration with demo fallback | ✅ Live |
+| **Wallet Connect** | CSPR.click SDK — Casper Wallet, Ledger, MetaMask Snap, Google SSO | ✅ Live |
 | **Interactive Lab** | 10-tab proof explorer with real API calls | ✅ Live |
 
 ---
@@ -107,7 +107,7 @@ For stronger guarantees, the same proof can be:
 graph TB
     subgraph "Frontend (Vite + TypeScript)"
         UI[10 Interactive Tabs]
-        WC[Wallet Connect]
+        WC[CSPR.click Wallet]
     end
 
     subgraph "Proof Engine (Go)"
