@@ -66,7 +66,8 @@ const Overview: React.FC = () => {
           <span className={`text-lg font-medium ${statusColor}`}>{health.status.toUpperCase()}</span>
           {React.createElement(statusIcon, { size: 20, className: statusColor })}
         </div>
-        <p className="text-gray-400 mb-2">Version: <span className="font-mono text-gray-300">{health.version}</span></p>
+        <p className="text-gray-400 mb-1">Version: <span className="font-mono text-gray-300">{health.version}</span></p>
+        <p className="text-gray-400 mb-2">Chain: <span className="font-mono text-gray-300">{health.chain}</span></p>
         <h4 className="text-md font-medium text-gray-300 mt-4 mb-2 flex items-center gap-2">
           <HardHat size={20} className="text-red-500" />
           Connected Contracts
@@ -74,8 +75,16 @@ const Overview: React.FC = () => {
         <ul className="space-y-1 text-gray-400">
           {Object.entries(health.contracts).map(([name, address]) => (
             <li key={name} className="flex justify-between items-center">
-              <span className="capitalize">{name.replace(/-/g, ' ')}:</span>
-              <span className="font-mono text-sm text-gray-300 break-all ml-2">{address}</span>
+              <span className="capitalize">{name.replace(/_/g, ' ')}:</span>
+              <a
+                href={`https://testnet.cspr.live/contract/${address}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sm text-red-400 hover:text-red-300 break-all ml-2 truncate max-w-[320px]"
+                title={String(address)}
+              >
+                {String(address).slice(0, 12)}...{String(address).slice(-8)}
+              </a>
             </li>
           ))}
         </ul>
@@ -84,27 +93,39 @@ const Overview: React.FC = () => {
   };
 
   const renderUseCaseDistribution = () => {
-    // This data is not from API, so we'll use a mock for demonstration.
-    const useCases = [
-      { name: 'AI Box Verification', value: 45, color: 'bg-red-500' },
-      { name: 'Data Integrity', value: 25, color: 'bg-purple-500' },
-      { name: 'Identity Proofs', value: 15, color: 'bg-blue-500' },
-      { name: 'Financial Transactions', value: 10, color: 'bg-green-500' },
-      { name: 'Other', value: 5, color: 'bg-gray-500' },
-    ];
+    const colors = ['bg-red-500', 'bg-purple-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-pink-500'];
+    const useCases = stats?.use_cases;
+    if (!useCases || Object.keys(useCases).length === 0) {
+      return (
+        <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
+          <h3 className="text-xl font-semibold text-gray-200 mb-4">Use Case Distribution</h3>
+          <p className="text-gray-400">No use case data available yet.</p>
+        </div>
+      );
+    }
+
+    const total = Object.values(useCases).reduce((s, v) => s + v, 0);
+    const entries = Object.entries(useCases)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count], i) => ({
+        name: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        count,
+        pct: total > 0 ? Math.round((count / total) * 100) : 0,
+        color: colors[i % colors.length],
+      }));
 
     return (
       <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
         <h3 className="text-xl font-semibold text-gray-200 mb-4">Use Case Distribution</h3>
         <div className="space-y-3">
-          {useCases.map((uc) => (
+          {entries.map((uc) => (
             <div key={uc.name}>
               <div className="flex justify-between text-gray-300 text-sm mb-1">
                 <span>{uc.name}</span>
-                <span>{uc.value}%</span>
+                <span>{uc.count} ({uc.pct}%)</span>
               </div>
               <div className="w-full bg-[#222235] rounded-full h-2.5">
-                <div className={`${uc.color} h-2.5 rounded-full`} style={{ width: `${uc.value}%` }}></div>
+                <div className={`${uc.color} h-2.5 rounded-full`} style={{ width: `${uc.pct}%` }}></div>
               </div>
             </div>
           ))}
@@ -134,10 +155,10 @@ const Overview: React.FC = () => {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {renderCard('Total Proofs', stats?.totalProofs || 0, Activity, 'text-red-500')}
-        {renderCard('Valid Proofs', stats?.validProofs || 0, CheckCircle, 'text-green-500')}
-        {renderCard('Revoked Proofs', stats?.revokedProofs || 0, XCircle, 'text-yellow-500')}
-        {renderCard('Unique Agents', stats?.uniqueAgents || 0, Users, 'text-blue-500')}
+        {renderCard('Total Proofs', stats?.total_proofs ?? 0, Activity, 'text-red-500')}
+        {renderCard('Valid Proofs', stats?.valid_proofs ?? 0, CheckCircle, 'text-green-500')}
+        {renderCard('Revoked Proofs', stats?.revoked_proofs ?? 0, XCircle, 'text-yellow-500')}
+        {renderCard('Unique Agents', stats?.unique_agents ?? 0, Users, 'text-blue-500')}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -153,11 +174,17 @@ const Overview: React.FC = () => {
         <p className="text-gray-300">
           Average Proof Generation Time:{' '}
           <span className="font-bold text-red-400">
-            {stats?.averageGenerationTimeMs ? `${stats.averageGenerationTimeMs.toFixed(2)} ms` : 'N/A'}
+            {stats?.avg_generation_ms ? `${stats.avg_generation_ms.toFixed(2)} ms` : 'N/A'}
+          </span>
+        </p>
+        <p className="text-gray-300 mt-2">
+          Max Merkle Depth:{' '}
+          <span className="font-bold text-red-400">
+            {stats?.max_merkle_depth ?? 'N/A'}
           </span>
         </p>
         <p className="text-gray-400 text-sm mt-2">
-          This metric indicates the average time taken by the prover engine to generate a ZK proof.
+          Average time to generate a cryptographic proof across all registered proofs.
         </p>
       </div>
     </div>

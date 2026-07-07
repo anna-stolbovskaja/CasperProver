@@ -35,10 +35,11 @@ Agent computes f(x) = y with model M
   → Verifier Gate checks any proof in milliseconds
 ```
 
-**Three contracts deployed on Casper testnet:**
+**Four contracts deployed on Casper testnet:**
 - **Proof Registry** — stores Merkle roots, proof metadata, verification status
 - **Verifier Gate** — checks inclusion proofs, manages downstream access
-- **DeFi Mock** — sample vault gated by verifier-gate (live KYC-gated DeFi demo)
+- **DeFi Mock** — vault gated by verifier-gate (live KYC-gated DeFi demo)
+- **Stake Slashing** — real CSPR economic penalty for revoked proofs (20% slash + permissionless bounty)
 
 ---
 
@@ -46,12 +47,13 @@ Agent computes f(x) = y with model M
 
 | Artifact | Link |
 |---|---|
-| Lab (72 proofs) | https://casperprover.xyz/lab |
+| Lab (72+ proofs) | https://casperprover.xyz/lab |
 | API | https://casperprover-api.onrender.com |
 | GitHub | https://github.com/anna-stolbovskaja/CasperProver |
-| Proof Registry contract | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
-| Verifier Gate contract | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
-| DeFi Mock contract | [fe0c45f6...0b39ef](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) |
+| Proof Registry | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
+| Verifier Gate | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
+| DeFi Mock | [fe0c45f6...0b39ef](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) |
+| Stake Slashing | [cf70e1fe...d9bd1](https://testnet.cspr.live/contract/cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1) |
 
 ---
 
@@ -65,34 +67,48 @@ Agent computes f(x) = y with model M
 | Layer | Technology | Why |
 |---|---|---|
 | Smart contracts | Rust / Casper 2.x | Native Casper contract model, deterministic execution |
-| Proof engine | Go 1.22 | Fast Merkle tree construction, low latency |
+| Proof engine | Go 1.22 | Fast Merkle tree construction, low latency (~99ms avg) |
 | API | Go HTTP | Lightweight, same language as engine |
 | Frontend | Vite + TypeScript + Tailwind | Fast lab, zero framework lock-in |
-| SDK | Go + Python + MCP adapter | Meets agents where they live |
+| SDK | Go + MCP adapter | Meets agents where they live |
+| ZK Backend | gnark (BN254 Groth16) | Real pairing-based zk-SNARK verification |
+| PQ Crypto | circl (ML-DSA-65) + Ed25519 + Lamport | Post-quantum readiness |
 
 ---
 
-## Unique Angle
+## Key Features
 
-**AI accountability, not just blockchain storage.** CasperProver is not a generic data registry. It is specifically designed so AI frameworks (LangChain, Claude via MCP, any REST client) can register proof commitments at inference time. The MCP server (`sdk/mcp_server.go`) means any AI agent using Model Context Protocol can call CasperProver as a native tool — submit a proof without custom integration.
+### Real Cryptography (not stubs)
+- **Groth16 zk-SNARK** — actual R1CS circuit, actual trusted setup, actual BN254 pairing checks via gnark. Proves knowledge of a MiMC preimage without revealing it. Rejects tampered proofs.
+- **Post-Quantum Signatures** — real Ed25519 + ML-DSA-65 (FIPS 204) hybrid signing. Lamport one-time signatures for quantum-resistant fallback. All wired to live API endpoints.
+- **STARK Aggregation** — batch N proofs into a single verifiable aggregate with merkle-based STARKPack.
 
-**Trustless verification** — the verifier-gate contract means a downstream DeFi protocol can gate access based on proof validity without trusting the agent operator. The KYC demo shows this end-to-end: agent proves KYC eligibility → on-chain gate checks proof → vault unlocks.
+### Economic Security (Stake & Slash)
+An agent stakes CSPR before submitting proofs. If a proof is revoked, anyone can permissionlessly call `report_and_slash` — 20% of the stake goes to the reporter as a bounty. Each proof can only be slashed once (tombstoned). This creates real economic skin-in-the-game for honest agent behavior. Verified with real CSPR transfers on testnet.
+
+### KYC-Gated DeFi Demo
+End-to-end flow: agent proves KYC eligibility → proof anchored on-chain → verifier gate checks inclusion → DeFi vault access granted — all without exposing PII. Admin-gated access control with typed AccountHash (no string-formatting bugs).
+
+### MCP Integration
+SDK includes an MCP (Model Context Protocol) server — any AI agent using MCP can call CasperProver as a native tool. Submit proofs, verify them, check KYC status, all through standard tool calls.
 
 ---
 
-## Four Proof Types
+## Proof Types
 
-| Type | What it proves |
-|---|---|
-| `merkle-inclusion` | A value was part of a computation |
-| `kyc-eligibility` | Wallet passed KYC (no PII revealed) |
-| `balance-range` | Balance was in a range (no exact value) |
-| `transaction-membership` | A tx was processed by a specific agent |
+| Type | What it proves | Use case |
+|---|---|---|
+| `merkle-inclusion` | A value was part of a computation | General AI output audit |
+| `kyc-eligibility` | Wallet passed KYC (no PII revealed) | DeFi access control |
+| `balance-range` | Balance was in a range (no exact value) | Creditworthiness without exposure |
+| `transaction-membership` | A tx was processed by a specific agent | Compliance, dispute resolution |
+| `state-transition` | State change was valid | On-chain state verification |
+| `merkle-exclusion` | A value was NOT part of a set | Blacklist/sanctions screening |
 
 ---
 
 ## Team
 
-**anna-stolbovskaja** — Solo builder focused on verifiable compute infrastructure. Architected the Merkle proof registry, wrote all three Casper smart contracts (Proof Registry, Verifier Gate, DeFi Mock), built the Go proof engine with SHA-256 Merkle trees, developed the REST API, created the Vite lab for live proof inspection, and shipped SDK clients in Go and Python plus an MCP adapter for AI frameworks. Background in cryptographic systems and blockchain infrastructure; track is Agentic Infrastructure / Verifiable Compute.
+**anna-stolbovskaja** — Solo builder focused on verifiable compute infrastructure. Architected the Merkle proof registry, wrote all four Casper smart contracts (Proof Registry, Verifier Gate, DeFi Mock, Stake Slashing), built the Go proof engine with real Groth16 and post-quantum cryptography, developed the REST API, created the Vite lab for live proof inspection, and shipped SDK clients plus an MCP adapter for AI frameworks.
 
 GitHub: [github.com/anna-stolbovskaja](https://github.com/anna-stolbovskaja)

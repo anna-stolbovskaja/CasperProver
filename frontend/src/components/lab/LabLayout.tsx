@@ -18,10 +18,8 @@ const tabs = [
 const LabLayout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0b0b10] text-gray-100 font-sans">
-      <header className="py-4 px-6 border-b border-[#222235] flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-red-500">CasperProver Lab</h1>
-
-      </header>
+      {/* Lab header removed — the main Navbar already shows the CasperProver brand;
+           the duplicate "CasperProver Lab" h1 was overlapping the top-left logo. */}
 
       <div className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between border-b border-[#222235] mb-6 overflow-x-auto">
