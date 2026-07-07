@@ -1,5 +1,5 @@
 
-const BASE_URL = '/api';
+const BASE_URL = '/prover-api';
 
 // --- Utility Types ---
 export type ApiResponse<T> = {

@@ -25,8 +25,9 @@ export default function Footer() {
             <h4 className="text-gray-300 font-semibold mb-3 text-sm">Developers</h4>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><a href="https://github.com/anna-stolbovskaja/CasperProver" target="_blank" rel="noreferrer" className="hover:text-gray-300 transition-colors">GitHub</a></li>
-              <li><a href="#sdk" className="hover:text-gray-300 transition-colors">Go SDK</a></li>
-              <li><a href="#sdk" className="hover:text-gray-300 transition-colors">MCP Server</a></li>
+              <li><a href="/docs/api" className="hover:text-gray-300 transition-colors">API Reference</a></li>
+              <li><a href="/docs/sdk" className="hover:text-gray-300 transition-colors">Go SDK</a></li>
+              <li><a href="/docs/mcp" className="hover:text-gray-300 transition-colors">MCP Server</a></li>
               <li><a href="#faq" className="hover:text-gray-300 transition-colors">FAQ</a></li>
             </ul>
           </div>
@@ -36,11 +37,11 @@ export default function Footer() {
               <img src="/images/casper-logo.png" alt="Casper" className="h-5 w-auto" />
               <span className="text-sm text-gray-400">Casper Network</span>
             </div>
-            <p className="text-xs text-gray-600">2 smart contracts on Casper testnet. Proof storage and verification registry.</p>
+            <p className="text-xs text-gray-600">7 smart contracts (4 deployed on Casper testnet). Proof storage, verification, staking, and DeFi registry.</p>
           </div>
         </div>
         <div className="border-t border-gray-800/50 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-gray-600">&copy; 2026 CasperProver. MIT License.</p>
+          <p className="text-xs text-gray-600">&copy; 2026 CasperProver. MPL-2.0 License.</p>
           <p className="text-xs text-gray-600">Casper Agentic Buildathon 2026</p>
         </div>
       </div>
