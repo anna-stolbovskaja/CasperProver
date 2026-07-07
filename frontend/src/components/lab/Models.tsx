@@ -39,10 +39,10 @@ const Modal: React.FC<{
 const Models: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [newModelData, setNewModelData] = useState<RegisterModelRequest>({
-    model_id: '',
-    model_hash: '',
-    verifier_contract: '',
-    metadata: {},
+    model_id: `gpt-4o-${Date.now().toString(36)}`,
+    model_hash: Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
+    verifier_contract: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+    metadata: { type: 'llm', params: '175B' },
   });
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -127,20 +127,6 @@ const Models: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Register Box Form (or button to open modal) */}
-        <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
-          <h3 className="text-xl font-semibold text-gray-100 mb-4">Register AI Box</h3>
-          <p className="text-gray-400 mb-4">
-            Register a new AI model with its unique hash and the associated verifier contract on Casper.
-          </p>
-          <button
-            onClick={() => setIsRegisterModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
-          >
-            <PlusCircle size={20} />
-            Open Registration Form
-          </button>
-        </div>
 
         {/* View Box Details */}
         <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
@@ -225,14 +211,14 @@ const Models: React.FC = () => {
                 {registeredModels.map((model) => (
                   <tr key={model.model_id} className="hover:bg-[#1a1a2a]/50 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.model_id.substring(0, 8)}...{model.model_id.substring(model.model_id.length - 8)}
+                      {model?.model_id?.substring(0, 8)}...{model?.model_id?.substring(model.model_id.length - 8)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{model.model_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.model_hash.substring(0, 8)}...
+                      {model?.model_hash?.substring(0, 8)}...
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.verifier_contract.substring(0, 8)}...
+                      {model?.verifier_contract?.substring(0, 8)}...
                     </td>
                   </tr>
                 ))}

@@ -40,7 +40,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/proofs/{id}',
     description: 'Retrieve details for a specific proof by ID.',
     apiCall: (params) => api.getProofById(params.id),
-    params: [{ name: 'id', type: 'string', optional: false, default: 'example-proof-id' }],
+    params: [{ name: 'id', type: 'string', optional: false, default: 'P-5' }],
   },
   {
     name: 'POST /proofs',
@@ -48,14 +48,11 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/proofs',
     description: 'Create a new ZK proof.',
     exampleBody: JSON.stringify({
-      agentId: 'agent-123',
-      inputHash: '0xabc123def456',
-      outputHash: '0x789ghi012jkl',
-      proofData: JSON.stringify({
-        a: ['0x1', '0x2'],
-        b: [['0x3', '0x4'], ['0x5', '0x6']],
-        c: ['0x7', '0x8'],
-      }),
+      agent: 'agent-alpha',
+      input: 'loan_application_42',
+      output: 'approved_with_conditions',
+      model: 'gpt-4o',
+      use_case: 'kyc-eligibility',
     }, null, 2),
     apiCall: api.createProof,
   },
@@ -65,7 +62,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/verify',
     description: 'Verify an existing ZK proof.',
     exampleBody: JSON.stringify({
-      proofId: 'example-proof-id',
+      proof_id: 'P-5',
     }, null, 2),
     apiCall: api.verifyProof,
   },
@@ -75,7 +72,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/proofs/{id}/revoke',
     description: 'Revoke a specific ZK proof.',
     apiCall: (params) => api.revokeProof(params.id),
-    params: [{ name: 'id', type: 'string', optional: false, default: 'example-proof-id' }],
+    params: [{ name: 'id', type: 'string', optional: false, default: 'P-5' }],
   },
   {
     name: 'GET /stats',
@@ -89,7 +86,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     method: 'POST',
     path: '/kyc/check',
     description: 'Check KYC status for a user.',
-    exampleBody: JSON.stringify({ userId: 'user-abc' }, null, 2),
+    exampleBody: JSON.stringify({ user_id: 'alice-agent-01' }, null, 2),
     apiCall: api.checkKycStatus,
   },
   {
@@ -97,7 +94,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     method: 'POST',
     path: '/kyc/grant',
     description: 'Grant KYC access to a user.',
-    exampleBody: JSON.stringify({ userId: 'user-xyz', reason: 'Manual verification' }, null, 2),
+    exampleBody: JSON.stringify({ user_id: 'alice-agent-01', reason: 'Manual verification after document submission' }, null, 2),
     apiCall: api.grantKycAccess,
   },
   {
@@ -106,7 +103,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/kyc/whitelist/{user}',
     description: 'View KYC whitelist for a specific user (or all if "all").',
     apiCall: (params) => api.getKycWhitelist(params.user),
-    params: [{ name: 'user', type: 'string', optional: false, default: 'user-abc' }],
+    params: [{ name: 'user', type: 'string', optional: false, default: 'alice-agent-01' }],
   },
   {
     name: 'POST /inference/register-model',
@@ -114,10 +111,10 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/inference/register-model',
     description: 'Register a new AI model.',
     exampleBody: JSON.stringify({
-      modelName: 'FraudDetectionV1',
-      modelHash: '0xmodelhash123',
-      verifierContract: '0xverifiercontract456',
-      description: 'AI model for detecting financial fraud.',
+      model_id: 'fraud-detection-v1',
+      model_hash: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+      verifier_contract: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+      metadata: {type: 'llm', params: '175B'},
     }, null, 2),
     apiCall: api.registerModel,
   },
@@ -127,7 +124,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/inference/model/{id}',
     description: 'Get details of a registered AI model.',
     apiCall: (params) => api.getModelById(params.id),
-    params: [{ name: 'id', type: 'string', optional: false, default: 'example-model-id' }],
+    params: [{ name: 'id', type: 'string', optional: false, default: 'fraud-detection-v1' }],
   },
   {
     name: 'POST /inference/prove',
@@ -135,9 +132,9 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/inference/prove',
     description: 'Run inference and generate a proof for an AI model.',
     exampleBody: JSON.stringify({
-      modelId: 'example-model-id',
-      inputData: '{"transactionAmount": 1000, "userHistory": "high-risk"}',
-      agentId: 'agent-456',
+      model_id: 'fraud-detection-v1',
+      input: '{"amount": 1000, "risk": "high"}',
+      agent: 'agent-alpha', output: '{"decision": "approved"}', use_case: 'kyc-eligibility',
     }, null, 2),
     apiCall: api.inferenceProve,
   },
@@ -147,10 +144,10 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/inference/verify',
     description: 'Verify an AI inference proof.',
     exampleBody: JSON.stringify({
-      modelId: 'example-model-id',
-      proofId: 'example-proof-id',
-      inputData: '{"transactionAmount": 1000, "userHistory": "high-risk"}',
-      outputHash: '0xoutputhash789',
+      model_id: 'fraud-detection-v1',
+      proof_id: 'P-5',
+      input: '{"amount": 1000, "risk": "high"}',
+      
     }, null, 2),
     apiCall: api.inferenceVerify,
   },
@@ -160,8 +157,8 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/aggregation/create-batch',
     description: 'Create a new batch for proof aggregation.',
     exampleBody: JSON.stringify({
-      batchName: 'MonthlyFraudProofs',
-      description: 'Aggregation of all fraud detection proofs for the month.',
+      batch_id: 'batch-demo-50584',
+      max_proofs: 50,
     }, null, 2),
     apiCall: api.createAggregationBatch,
   },
@@ -171,8 +168,8 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/aggregation/add-proof',
     description: 'Add a proof to an existing aggregation batch.',
     exampleBody: JSON.stringify({
-      batchId: 'example-batch-id',
-      proofId: 'example-proof-id',
+      batch_id: 'batch-demo',
+      proof_id: 'P-5',
     }, null, 2),
     apiCall: api.addProofToAggregationBatch,
   },
@@ -182,7 +179,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/aggregation/finalize',
     description: 'Finalize an aggregation batch, generating a Merkle root and final proof.',
     exampleBody: JSON.stringify({
-      batchId: 'example-batch-id',
+      batch_id: 'batch-demo',
     }, null, 2),
     apiCall: api.finalizeAggregationBatch,
   },
@@ -192,7 +189,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     path: '/aggregation/batch/{id}',
     description: 'Get details of an aggregation batch.',
     apiCall: (params) => api.getAggregationBatchById(params.id),
-    params: [{ name: 'id', type: 'string', optional: false, default: 'example-batch-id' }],
+    params: [{ name: 'id', type: 'string', optional: false, default: 'batch-demo' }],
   },
   {
     name: 'POST /zk/verify-groth16',
@@ -201,7 +198,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     description: 'Verify a Groth16 ZK proof.',
     exampleBody: JSON.stringify({
       proof: '{"pi_a": ["0x...", "0x..."], "pi_b": [["0x...", "0x..."], ["0x...", "0x..."]], "pi_c": ["0x...", "0x..."]}',
-      publicSignals: ['0xsignal1', '0xsignal2'],
+      public_signals: ['0xsignal1', '0xsignal2'],
     }, null, 2),
     apiCall: api.verifyGroth16,
   },
@@ -222,7 +219,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     description: 'Create a new ZK challenge.',
     exampleBody: JSON.stringify({
       challengerId: 'challenger-1',
-      proofId: 'example-proof-id',
+      proof_id: 'P-5',
       challengeData: '{"challengeType": "recompute", "params": {"nonce": 123}}',
     }, null, 2),
     apiCall: api.challengeZK,
@@ -254,7 +251,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     exampleBody: JSON.stringify({
       message: 'This is a test message for SPHINCS+ signing.',
       signature: '0x...',
-      publicKey: '0x...',
+      public_key: '0x...',
     }, null, 2),
     apiCall: api.verifySphincs,
   },
@@ -277,8 +274,8 @@ const playgroundEndpoints: EndpointConfig[] = [
     description: 'Verify a hybrid signature.',
     exampleBody: JSON.stringify({
       message: 'This is a test message for hybrid signing.',
-      classicalSignature: '0x...',
-      pqSignature: '0x...',
+      classical_signature: '0x...',
+      pq_signature: '0x...',
       classicalPublicKey: '0x...',
       pqPublicKey: '0x...',
     }, null, 2),
@@ -305,7 +302,7 @@ const playgroundEndpoints: EndpointConfig[] = [
     method: 'GET',
     path: '/aggregation/verify-batch/{id}',
     description: 'Verify a finalized aggregation batch.',
-    params: [{ name: 'id', type: 'string', optional: false, default: 'example-batch-id' }],
+    params: [{ name: 'id', type: 'string', optional: false, default: 'batch-demo' }],
     apiCall: (params: any) => api.verifyAggregationBatch(params.id),
   },
   {

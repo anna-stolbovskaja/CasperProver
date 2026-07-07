@@ -247,7 +247,7 @@ const AgentDemo: React.FC = () => {
       )}
 
       {/* Step cards */}
-      <div className="relative flex flex-col items-center space-y-6 lg:space-y-0 lg:flex-row lg:justify-between lg:space-x-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
             <div className={`relative flex flex-col items-center p-5 rounded-lg border transition-all duration-500
@@ -255,7 +255,7 @@ const AgentDemo: React.FC = () => {
               ${step.status === 'error' ? 'bg-red-900/20 border-red-600' : ''}
               ${step.status === 'loading' ? 'bg-blue-900/20 border-blue-500 animate-pulse' : ''}
               ${step.status === 'idle' ? 'bg-[#1a1a2a] border-[#222235]' : ''}
-              w-full lg:w-1/6 min-h-[220px]`}>
+              w-full min-h-[220px]`}>
               <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white text-lg font-bold mb-3">
                 {step.id}
               </div>
@@ -279,13 +279,7 @@ const AgentDemo: React.FC = () => {
                 </div>
               )}
             </div>
-            {index < steps.length - 1 && (
-              <div className="hidden lg:flex items-center">
-                <ArrowRight size={24} className={`text-gray-600 ${
-                  index < currentStepIndex && steps[index].status === 'success' ? 'text-green-500' : ''
-                }`} />
-              </div>
-            )}
+            {/* Arrow removed — grid layout handles flow */}
           </React.Fragment>
         ))}
       </div>
