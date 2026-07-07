@@ -2,193 +2,269 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-// This package provides conceptual implementations for Post-Quantum Cryptography (PQC)
-// signature schemes and a hybrid signature mode.
+// This package provides real signature primitives for the "post-quantum
+// proof signing" roadmap item:
 //
-// IMPORTANT DISCLAIMER:
-// The implementations provided here for SPHINCS+ and ML-DSA (Dilithium) are
-// *conceptual simulations* using standard Go cryptographic primitives (sha256, rand).
-// They are designed to demonstrate the API and data flow for these algorithms,
-// but DO NOT provide the actual security guarantees of FIPS 205 (SPHINCS+) or
-// FIPS 204 (ML-DSA/Dilithium).
+//   - Classic component: real Ed25519 (Go stdlib crypto/ed25519).
+//   - Post-quantum component (ML-DSA): real ML-DSA-65 (FIPS 204, NIST
+//     security category 3) via github.com/cloudflare/circl, an audited,
+//     widely-used PQC library. Sign/Verify here call straight into circl -
+//     there is no simulation left in this path.
+//   - Post-quantum component (hash-based, "SPHINCS+ slot"): a genuine
+//     Lamport one-time signature (Lamport 1979) - the classic hash-based
+//     OTS construction that SPHINCS+'s WOTS+ builds on. It is real,
+//     self-consistent crypto (sign then verify actually works, and tampering
+//     with the message or signature is detected), but it is NOT SPHINCS+:
+//     it is single-use per key pair (signing two messages with the same key
+//     leaks private key material) and has no hypertree/FORS construction.
+//     circl v1.6.1 does not ship a Go SLH-DSA/SPHINCS+ implementation, so
+//     this is what stands in for that slot until a maintained one is added
+//     as a dependency. Do not reuse a Lamport key pair across signatures.
 //
-// Real-world Post-Quantum Cryptography requires dedicated, audited libraries
-// that implement the complex mathematical structures of these algorithms.
-// This code should NOT be used in production for PQC security.
-
-const (
-	// Simulated key and signature lengths for conceptual demonstration.
-	// Actual lengths vary significantly based on security parameters.
-	simulatedSPHINCSKeyLen   = 64  // 32-byte public, 32-byte private (conceptual)
-	simulatedSPHINCSSigLen   = 256 // Conceptual signature length
-	simulatedMLDSAKeyLen     = 64  // 32-byte public, 32-byte private (conceptual)
-	simulatedMLDSASigLen     = 192 // Conceptual signature length
-	simulatedClassicSigLen   = 64  // e.g., ECDSA P-256 signature length (R || S)
-	simulatedHybridSigHeader = 4   // To indicate signature type/version
-)
+// Prior versions of this file used a made-up scheme (public key = SHA-256
+// of the private key, "signature" = SHA-256(part of the signing key ||
+// message hash)) where Verify hashed the *public* key instead of the
+// private key. Since the public key is not a prefix of the private key,
+// Verify(pub, msg, Sign(priv, msg)) never returned true for two independently
+// generated keys - the scheme could not actually verify a signature it had
+// just produced. Every code path calling both Sign and Verify with real,
+// distinct key pairs was untested; this file replaces that scheme.
 
 var (
-	errInvalidKeyLength = errors.New("invalid key length for simulated PQC algorithm")
+	errInvalidKeyLength = errors.New("invalid key length")
 	errInvalidSignature = errors.New("invalid signature format or length")
 )
 
-// generateSimulatedKeyPair generates a conceptual public/private key pair.
-// In a real PQC implementation, this would involve complex key generation.
-func generateSimulatedKeyPair(keyLen int) ([]byte, []byte, error) {
-	privateKey := make([]byte, keyLen)
-	publicKey := make([]byte, keyLen) // For simplicity, public key is same length as private key conceptually
-	if _, err := io.ReadFull(rand.Reader, privateKey); err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
-	}
-	// For public key, we'll just hash the private key conceptually
-	h := sha256.Sum256(privateKey)
-	// copy() already truncates/pads to len(publicKey) automatically; slicing
-	// h[:keyLen] directly panics whenever keyLen > len(h) (32), which happens
-	// for every key length used by this package except simulatedClassicSigLen.
-	copy(publicKey, h[:])
-	return privateKey, publicKey, nil
+// ---------------------------------------------------------------------------
+// Classic component: Ed25519 (real, stdlib)
+// ---------------------------------------------------------------------------
+
+// GenerateEd25519KeyPair generates a real Ed25519 key pair.
+func GenerateEd25519KeyPair() (priv ed25519.PrivateKey, pub ed25519.PublicKey, err error) {
+	pub, priv, err = ed25519.GenerateKey(rand.Reader)
+	return priv, pub, err
 }
 
-// SignSPHINCS simulates signing a message using the SPHINCS+ signature scheme.
-// In a real SPHINCS+ implementation, this involves stateful hash-based signatures.
-func SignSPHINCS(privateKey []byte, message []byte) ([]byte, error) {
-	if len(privateKey) != simulatedSPHINCSKeyLen {
+// SignClassic signs message with a real Ed25519 private key.
+func SignClassic(privateKey ed25519.PrivateKey, message []byte) ([]byte, error) {
+	if len(privateKey) != ed25519.PrivateKeySize {
 		return nil, errInvalidKeyLength
 	}
-	slog.Default().Debug("simulating SPHINCS+ signing")
-
-	// Conceptual signing: hash the message and combine with a "random" component derived from private key
-	msgHash := sha256.Sum256(message)
-	
-	// Simulate a "signature" by hashing the message hash with a part of the private key
-	hasher := sha256.New()
-	hasher.Write(privateKey[:simulatedSPHINCSKeyLen/2]) // Use part of private key
-	hasher.Write(msgHash[:])
-	simulatedSig := hasher.Sum(nil)
-
-	// Pad to simulated signature length
-	paddedSig := make([]byte, simulatedSPHINCSSigLen)
-	copy(paddedSig, simulatedSig)
-	
-	return paddedSig, nil
+	return ed25519.Sign(privateKey, message), nil
 }
 
-// VerifySPHINCS simulates verifying a SPHINCS+ signature.
-// In a real SPHINCS+ implementation, this involves complex tree traversal and hash verification.
-func VerifySPHINCS(publicKey []byte, message []byte, signature []byte) (bool, error) {
-	if len(publicKey) != simulatedSPHINCSKeyLen {
+// VerifyClassic verifies a real Ed25519 signature.
+func VerifyClassic(publicKey ed25519.PublicKey, message, signature []byte) (bool, error) {
+	if len(publicKey) != ed25519.PublicKeySize {
 		return false, errInvalidKeyLength
 	}
-	if len(signature) != simulatedSPHINCSSigLen {
+	if len(signature) != ed25519.SignatureSize {
 		return false, errInvalidSignature
 	}
-	slog.Default().Debug("simulating SPHINCS+ verification")
-
-	msgHash := sha256.Sum256(message)
-
-	// Reconstruct the conceptual "signature" using the public key and message hash
-	// This is a highly simplified inverse of the signing process for demonstration.
-	hasher := sha256.New()
-	// For verification, we need to derive the "private key part" from the public key.
-	// This is a simplification; real SPHINCS+ public keys are more complex.
-	// Here, we'll assume the public key itself contains enough info to derive the signing context.
-	hasher.Write(publicKey[:simulatedSPHINCSKeyLen/2]) // Use part of public key conceptually
-	hasher.Write(msgHash[:])
-	reconstructedSig := hasher.Sum(nil)
-
-	// Compare the reconstructed signature with the provided one (truncated to actual hash length)
-	return bytes.HasPrefix(signature, reconstructedSig), nil
+	return ed25519.Verify(publicKey, message, signature), nil
 }
 
-// SignMLDSA simulates signing a message using the ML-DSA (Dilithium) signature scheme.
-// In a real ML-DSA implementation, this involves lattice-based cryptography.
-func SignMLDSA(privateKey []byte, message []byte) ([]byte, error) {
-	if len(privateKey) != simulatedMLDSAKeyLen {
+// ---------------------------------------------------------------------------
+// Post-quantum component: ML-DSA-65 (real, FIPS 204, via circl)
+// ---------------------------------------------------------------------------
+
+// GenerateMLDSAKeyPair generates a real ML-DSA-65 key pair.
+func GenerateMLDSAKeyPair() (priv *mldsa65.PrivateKey, pub *mldsa65.PublicKey, err error) {
+	pub, priv, err = mldsa65.GenerateKey(rand.Reader)
+	return priv, pub, err
+}
+
+// SignMLDSA signs message with a real ML-DSA-65 private key.
+func SignMLDSA(privateKey *mldsa65.PrivateKey, message []byte) ([]byte, error) {
+	if privateKey == nil {
 		return nil, errInvalidKeyLength
 	}
-	slog.Default().Debug("simulating ML-DSA signing")
-
-	// Conceptual signing: hash the message and combine with a "random" component derived from private key
-	msgHash := sha256.Sum256(message)
-	
-	// Simulate a "signature" by hashing the message hash with a part of the private key
-	hasher := sha256.New()
-	hasher.Write(privateKey[:simulatedMLDSAKeyLen/2]) // Use part of private key
-	hasher.Write(msgHash[:])
-	simulatedSig := hasher.Sum(nil)
-
-	// Pad to simulated signature length
-	paddedSig := make([]byte, simulatedMLDSASigLen)
-	copy(paddedSig, simulatedSig)
-
-	return paddedSig, nil
+	sig := make([]byte, mldsa65.SignatureSize)
+	if err := mldsa65.SignTo(privateKey, message, nil, false, sig); err != nil {
+		return nil, fmt.Errorf("mldsa65 sign: %w", err)
+	}
+	return sig, nil
 }
 
-// VerifyMLDSA simulates verifying an ML-DSA (Dilithium) signature.
-// In a real ML-DSA implementation, this involves complex lattice operations.
-func VerifyMLDSA(publicKey []byte, message []byte, signature []byte) (bool, error) {
-	if len(publicKey) != simulatedMLDSAKeyLen {
+// VerifyMLDSA verifies a real ML-DSA-65 signature.
+func VerifyMLDSA(publicKey *mldsa65.PublicKey, message, signature []byte) (bool, error) {
+	if publicKey == nil {
 		return false, errInvalidKeyLength
 	}
-	if len(signature) != simulatedMLDSASigLen {
+	if len(signature) != mldsa65.SignatureSize {
 		return false, errInvalidSignature
 	}
-	slog.Default().Debug("simulating ML-DSA verification")
-
-	msgHash := sha256.Sum256(message)
-
-	// Reconstruct the conceptual "signature" using the public key and message hash
-	hasher := sha256.New()
-	hasher.Write(publicKey[:simulatedMLDSAKeyLen/2]) // Use part of public key conceptually
-	hasher.Write(msgHash[:])
-	reconstructedSig := hasher.Sum(nil)
-
-	// Compare the reconstructed signature with the provided one (truncated to actual hash length)
-	return bytes.HasPrefix(signature, reconstructedSig), nil
+	return mldsa65.Verify(publicKey, message, nil, signature), nil
 }
 
-// HybridSignature combines a classic signature and a PQC signature.
-// The format is [header || classic_sig || pq_sig].
+// ---------------------------------------------------------------------------
+// Hash-based one-time signature ("SPHINCS+ slot"): real Lamport OTS
+// ---------------------------------------------------------------------------
+//
+// This is a genuine Lamport one-time signature over a SHA-256 digest of the
+// message: the private key is 256 pairs of random 32-byte preimages (one
+// pair per digest bit), the public key is the SHA-256 hash of every
+// preimage, and the signature reveals one preimage per bit of the digest
+// (chosen by the bit's value). Verification recomputes each revealed
+// preimage's hash and checks it against the corresponding public key entry.
+// This is real, working crypto - not a simulation - but it is a one-time
+// scheme: signing a second message with the same key pair leaks half of
+// each pair and breaks security. Callers must generate a fresh key pair
+// per signature.
+
+const lamportDigestBits = sha256.Size * 8 // 256
+
+// LamportPrivateKey holds 256 pairs of 32-byte preimages.
+type LamportPrivateKey [lamportDigestBits][2][sha256.Size]byte
+
+// LamportPublicKey holds SHA-256(preimage) for each entry of the private key.
+type LamportPublicKey [lamportDigestBits][2][sha256.Size]byte
+
+const lamportKeySize = lamportDigestBits * 2 * sha256.Size // 16384 bytes
+
+// Bytes flattens the private key into a byte slice for transport/storage.
+func (priv *LamportPrivateKey) Bytes() []byte {
+	out := make([]byte, 0, lamportKeySize)
+	for i := 0; i < lamportDigestBits; i++ {
+		out = append(out, priv[i][0][:]...)
+		out = append(out, priv[i][1][:]...)
+	}
+	return out
+}
+
+// LamportPrivateKeyFromBytes reconstructs a private key produced by Bytes().
+func LamportPrivateKeyFromBytes(b []byte) (*LamportPrivateKey, error) {
+	if len(b) != lamportKeySize {
+		return nil, errInvalidKeyLength
+	}
+	var priv LamportPrivateKey
+	for i := 0; i < lamportDigestBits; i++ {
+		copy(priv[i][0][:], b[i*2*sha256.Size:i*2*sha256.Size+sha256.Size])
+		copy(priv[i][1][:], b[i*2*sha256.Size+sha256.Size:i*2*sha256.Size+2*sha256.Size])
+	}
+	return &priv, nil
+}
+
+// Bytes flattens the public key into a byte slice for transport/storage.
+func (pub *LamportPublicKey) Bytes() []byte {
+	out := make([]byte, 0, lamportKeySize)
+	for i := 0; i < lamportDigestBits; i++ {
+		out = append(out, pub[i][0][:]...)
+		out = append(out, pub[i][1][:]...)
+	}
+	return out
+}
+
+// LamportPublicKeyFromBytes reconstructs a public key produced by Bytes().
+func LamportPublicKeyFromBytes(b []byte) (*LamportPublicKey, error) {
+	if len(b) != lamportKeySize {
+		return nil, errInvalidKeyLength
+	}
+	var pub LamportPublicKey
+	for i := 0; i < lamportDigestBits; i++ {
+		copy(pub[i][0][:], b[i*2*sha256.Size:i*2*sha256.Size+sha256.Size])
+		copy(pub[i][1][:], b[i*2*sha256.Size+sha256.Size:i*2*sha256.Size+2*sha256.Size])
+	}
+	return &pub, nil
+}
+
+// GenerateLamportKeyPair generates a fresh, single-use Lamport OTS key pair.
+func GenerateLamportKeyPair() (*LamportPrivateKey, *LamportPublicKey, error) {
+	var priv LamportPrivateKey
+	var pub LamportPublicKey
+	for i := 0; i < lamportDigestBits; i++ {
+		for b := 0; b < 2; b++ {
+			if _, err := io.ReadFull(rand.Reader, priv[i][b][:]); err != nil {
+				return nil, nil, fmt.Errorf("failed to generate lamport key material: %w", err)
+			}
+			pub[i][b] = sha256.Sum256(priv[i][b][:])
+		}
+	}
+	return &priv, &pub, nil
+}
+
+// SignSPHINCS produces a real Lamport one-time signature over message.
+// The returned signature is 256*32 = 8192 bytes. See package doc for why
+// this stands in for SPHINCS+ rather than being a real SPHINCS+ signature.
+func SignSPHINCS(privateKey *LamportPrivateKey, message []byte) ([]byte, error) {
+	if privateKey == nil {
+		return nil, errInvalidKeyLength
+	}
+	digest := sha256.Sum256(message)
+	sig := make([]byte, 0, lamportDigestBits*sha256.Size)
+	for i := 0; i < lamportDigestBits; i++ {
+		bit := (digest[i/8] >> (7 - uint(i%8))) & 1
+		sig = append(sig, privateKey[i][bit][:]...)
+	}
+	slog.Default().Debug("signed with lamport OTS (SPHINCS+ slot)", "sig_len", len(sig))
+	return sig, nil
+}
+
+// VerifySPHINCS verifies a real Lamport one-time signature over message.
+func VerifySPHINCS(publicKey *LamportPublicKey, message, signature []byte) (bool, error) {
+	if publicKey == nil {
+		return false, errInvalidKeyLength
+	}
+	if len(signature) != lamportDigestBits*sha256.Size {
+		return false, errInvalidSignature
+	}
+	digest := sha256.Sum256(message)
+	for i := 0; i < lamportDigestBits; i++ {
+		bit := (digest[i/8] >> (7 - uint(i%8))) & 1
+		preimage := signature[i*sha256.Size : (i+1)*sha256.Size]
+		h := sha256.Sum256(preimage)
+		if !bytes.Equal(h[:], publicKey[i][bit][:]) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// ---------------------------------------------------------------------------
+// Hybrid signature: real Ed25519 + real ML-DSA-65
+// ---------------------------------------------------------------------------
+
+// HybridSignature combines a classic and a post-quantum signature. Both
+// must independently verify for the hybrid signature to be considered valid.
 type HybridSignature struct {
 	ClassicSig []byte
 	PQSig      []byte
 }
 
-// MarshalBinary encodes the HybridSignature into a byte slice.
+// MarshalBinary encodes the HybridSignature as [1-byte version][2-byte
+// classic len][classic sig][2-byte pq len][pq sig].
 func (hs *HybridSignature) MarshalBinary() ([]byte, error) {
+	if len(hs.ClassicSig) > 0xFFFF || len(hs.PQSig) > 0xFFFF {
+		return nil, errInvalidSignature
+	}
 	var buf bytes.Buffer
-	// Header (e.g., 0x01 for current version)
 	buf.WriteByte(0x01)
-	// Length of classic sig (2 bytes)
 	buf.WriteByte(byte(len(hs.ClassicSig) >> 8))
 	buf.WriteByte(byte(len(hs.ClassicSig)))
 	buf.Write(hs.ClassicSig)
-	// Length of PQ sig (2 bytes)
 	buf.WriteByte(byte(len(hs.PQSig) >> 8))
 	buf.WriteByte(byte(len(hs.PQSig)))
 	buf.Write(hs.PQSig)
 	return buf.Bytes(), nil
 }
 
-// UnmarshalBinary decodes a byte slice into a HybridSignature.
+// UnmarshalBinary decodes a byte slice produced by MarshalBinary.
 func (hs *HybridSignature) UnmarshalBinary(data []byte) error {
-	if len(data) < simulatedHybridSigHeader+4 { // 1 byte header + 2*2 bytes for lengths
+	if len(data) < 5 {
 		return errInvalidSignature
 	}
-	
-	// Read header
-	_ = data[0] // For now, just consume, could check version
-	data = data[1:]
-
-	// Read classic sig length
+	data = data[1:] // version byte
 	classicLen := int(data[0])<<8 | int(data[1])
 	data = data[2:]
 	if len(data) < classicLen {
@@ -197,130 +273,50 @@ func (hs *HybridSignature) UnmarshalBinary(data []byte) error {
 	hs.ClassicSig = data[:classicLen]
 	data = data[classicLen:]
 
-	// Read PQ sig length
+	if len(data) < 2 {
+		return errInvalidSignature
+	}
 	pqLen := int(data[0])<<8 | int(data[1])
 	data = data[2:]
 	if len(data) < pqLen {
 		return errInvalidSignature
 	}
 	hs.PQSig = data[:pqLen]
-	
 	return nil
 }
 
-
-// SignClassic simulates a classic signature (e.g., ECDSA).
-// For demonstration, it's a simple hash of the message.
-func SignClassic(privateKey []byte, message []byte) ([]byte, error) {
-	slog.Default().Debug("simulating classic signing")
-	// In a real scenario, this would be e.g., ecdsa.Sign
-	h := sha256.Sum256(message)
-	// Simulate a signature by hashing the message and a part of the private key
-	hasher := sha256.New()
-	hasher.Write(privateKey[:simulatedClassicSigLen/2]) // Use part of private key
-	hasher.Write(h[:])
-	simulatedSig := hasher.Sum(nil)
-	
-	paddedSig := make([]byte, simulatedClassicSigLen)
-	copy(paddedSig, simulatedSig)
-	return paddedSig, nil
-}
-
-// VerifyClassic simulates classic signature verification.
-func VerifyClassic(publicKey []byte, message []byte, signature []byte) (bool, error) {
-	slog.Default().Debug("simulating classic verification")
-	if len(signature) != simulatedClassicSigLen {
-		return false, errInvalidSignature
-	}
-	// In a real scenario, this would be e.g., ecdsa.Verify
-	h := sha256.Sum256(message)
-	// Reconstruct the conceptual "signature"
-	hasher := sha256.New()
-	hasher.Write(publicKey[:simulatedClassicSigLen/2]) // Use part of public key conceptually
-	hasher.Write(h[:])
-	reconstructedSig := hasher.Sum(nil)
-	return bytes.HasPrefix(signature, reconstructedSig), nil
-}
-
-
-// HybridSign generates a hybrid signature by combining a classic signature
-// (e.g., ECDSA) and a Post-Quantum signature (e.g., SPHINCS+ or ML-DSA).
-// For this simulation, we use ML-DSA as the PQ component.
-func HybridSign(classicPrivKey, pqPrivKey []byte, message []byte) ([]byte, error) {
-	slog.Default().Info("generating hybrid signature")
-
-	classicSig, err := SignClassic(classicPrivKey, message)
+// HybridSign produces a hybrid signature: real Ed25519 + real ML-DSA-65.
+func HybridSign(classicPriv ed25519.PrivateKey, pqPriv *mldsa65.PrivateKey, message []byte) ([]byte, error) {
+	classicSig, err := SignClassic(classicPriv, message)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate classic signature: %w", err)
+		return nil, fmt.Errorf("classic signature failed: %w", err)
 	}
-
-	pqSig, err := SignMLDSA(pqPrivKey, message) // Using ML-DSA as the PQ component
+	pqSig, err := SignMLDSA(pqPriv, message)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate PQ signature: %w", err)
+		return nil, fmt.Errorf("pq signature failed: %w", err)
 	}
-
-	hybridSig := &HybridSignature{
-		ClassicSig: classicSig,
-		PQSig:      pqSig,
-	}
-
-	return hybridSig.MarshalBinary()
+	hs := &HybridSignature{ClassicSig: classicSig, PQSig: pqSig}
+	return hs.MarshalBinary()
 }
 
-// HybridVerify verifies a hybrid signature using both classic and PQC public keys.
-// Both signatures must be valid for the hybrid signature to be considered valid.
-func HybridVerify(classicPubKey, pqPubKey []byte, message []byte, hybridSigBytes []byte) (bool, error) {
-	slog.Default().Info("verifying hybrid signature")
-
-	hybridSig := &HybridSignature{}
-	if err := hybridSig.UnmarshalBinary(hybridSigBytes); err != nil {
-		return false, fmt.Errorf("failed to unmarshal hybrid signature: %w", err)
+// HybridVerify verifies a hybrid signature and reports both the overall
+// result and each component's individual validity. The overall signature is
+// valid only if both components are valid.
+func HybridVerify(classicPub ed25519.PublicKey, pqPub *mldsa65.PublicKey, message, hybridSigBytes []byte) (valid, classicValid, pqValid bool, err error) {
+	hs := &HybridSignature{}
+	if err := hs.UnmarshalBinary(hybridSigBytes); err != nil {
+		return false, false, false, fmt.Errorf("failed to unmarshal hybrid signature: %w", err)
 	}
 
-	classicValid, err := VerifyClassic(classicPubKey, message, hybridSig.ClassicSig)
+	classicValid, err = VerifyClassic(classicPub, message, hs.ClassicSig)
 	if err != nil {
-		return false, fmt.Errorf("classic signature verification failed: %w", err)
-	}
-	if !classicValid {
-		slog.Default().Warn("classic signature component is invalid")
-		return false, nil
+		return false, false, false, fmt.Errorf("classic signature verification failed: %w", err)
 	}
 
-	pqValid, err := VerifyMLDSA(pqPubKey, message, hybridSig.PQSig) // Using ML-DSA for PQ verification
+	pqValid, err = VerifyMLDSA(pqPub, message, hs.PQSig)
 	if err != nil {
-		return false, fmt.Errorf("PQ signature verification failed: %w", err)
-	}
-	if !pqValid {
-		slog.Default().Warn("PQ signature component is invalid")
-		return false, nil
+		return false, classicValid, false, fmt.Errorf("pq signature verification failed: %w", err)
 	}
 
-	slog.Default().Info("hybrid signature verified successfully")
-	return true, nil
+	return classicValid && pqValid, classicValid, pqValid, nil
 }
-
-// Example usage (for internal testing/demonstration)
-/*
-func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
-
-	// Simulate SPHINCS+
-	sphincsPriv, sphincsPub, _ := generateSimulatedKeyPair(simulatedSPHINCSKeyLen)
-	message := []byte("hello world")
-	sphincsSig, _ := SignSPHINCS(sphincsPriv, message)
-	sphincsValid, _ := VerifySPHINCS(sphincsPub, message, sphincsSig)
-	fmt.Printf("SPHINCS+ Valid: %t\n", sphincsValid)
-
-	// Simulate ML-DSA
-	mldsaPriv, mldsaPub, _ := generateSimulatedKeyPair(simulatedMLDSAKeyLen)
-	mldsaSig, _ := SignMLDSA(mldsaPriv, message)
-	mldsaValid, _ := VerifyMLDSA(mldsaPub, message, mldsaSig)
-	fmt.Printf("ML-DSA Valid: %t\n", mldsaValid)
-
-	// Simulate Hybrid
-	classicPriv, classicPub, _ := generateSimulatedKeyPair(simulatedClassicSigLen)
-	hybridSigBytes, _ := HybridSign(classicPriv, mldsaPriv, message)
-	hybridValid, _ := HybridVerify(classicPub, mldsaPub, message, hybridSigBytes)
-	fmt.Printf("Hybrid Valid: %t\n", hybridValid)
-}
-*/
