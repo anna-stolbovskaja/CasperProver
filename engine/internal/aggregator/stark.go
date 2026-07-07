@@ -117,11 +117,9 @@ func (sa *STARKAggregator) CreateSTARKPack(proofs [][]byte, metadata map[string]
 	sa.log.Info("creating STARKPack", "proof_count", len(proofs))
 
 	var individualHashes []string
-	var rawIndividualHashes [][]byte // For aggregation
 	for i, proof := range proofs {
 		h := sha256.Sum256(proof)
 		individualHashes = append(individualHashes, hex.EncodeToString(h[:]))
-		rawIndividualHashes = append(rawIndividualHashes, h[:])
 		sa.log.Debug("hashed individual proof for pack", "index", i, "hash", hex.EncodeToString(h[:]))
 	}
 

@@ -572,7 +572,9 @@ func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 		"status":     "generated",
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(proof)
+	if err := json.NewEncoder(w).Encode(proof); err != nil {
+		slog.Error("failed to encode inference proof response", "error", err)
+	}
 }
 
 func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
@@ -586,7 +588,9 @@ func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"proof_id": req.ProofID, "valid": true, "verified_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		slog.Error("failed to encode inference verify response", "error", err)
+	}
 }
 
 func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) {
@@ -603,7 +607,9 @@ func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) 
 	result := map[string]any{"model_id": id, "name": req.Name, "version": req.Version, "registered_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		slog.Error("failed to encode register-model response", "error", err)
+	}
 }
 
 func (s *Server) inferenceGetModel(w http.ResponseWriter, r *http.Request) {

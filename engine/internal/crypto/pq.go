@@ -38,7 +38,6 @@ const (
 var (
 	errInvalidKeyLength = errors.New("invalid key length for simulated PQC algorithm")
 	errInvalidSignature = errors.New("invalid signature format or length")
-	errVerificationFailed = errors.New("signature verification failed")
 )
 
 // generateSimulatedKeyPair generates a conceptual public/private key pair.

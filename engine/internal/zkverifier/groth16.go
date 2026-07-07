@@ -29,8 +29,6 @@ import (
 
 var (
 	errInvalidProofFormat = errors.New("invalid Groth16 proof format")
-	errInvalidVKFormat    = errors.New("invalid Groth16 verification key format")
-	errInvalidInputs      = errors.New("invalid public inputs count or format")
 	errVerificationFailed = errors.New("Groth16 proof verification failed")
 	errChallengeExpired   = errors.New("challenge has expired")
 	errInvalidChallenge   = errors.New("invalid challenge or response")

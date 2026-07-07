@@ -366,7 +366,9 @@ func (p *Pool) GetStats() map[string]interface{} {
 	var genCount int
 	for _, w := range p.workers {
 		if w.getStatus() != Offline {
-			stats["workers_online"] = stats["workers_online"].(int) + 1
+			if n, ok := stats["workers_online"].(int); ok {
+				stats["workers_online"] = n + 1
+			}
 		}
 		w.mu.RLock()
 		if w.AvgGenMs > 0 {
@@ -378,11 +380,17 @@ func (p *Pool) GetStats() map[string]interface{} {
 	for _, t := range p.tasks {
 		switch t.Status {
 		case "pending":
-			stats["tasks_pending"] = stats["tasks_pending"].(int) + 1
+			if n, ok := stats["tasks_pending"].(int); ok {
+				stats["tasks_pending"] = n + 1
+			}
 		case "completed":
-			stats["tasks_completed"] = stats["tasks_completed"].(int) + 1
+			if n, ok := stats["tasks_completed"].(int); ok {
+				stats["tasks_completed"] = n + 1
+			}
 		case "failed":
-			stats["tasks_failed"] = stats["tasks_failed"].(int) + 1
+			if n, ok := stats["tasks_failed"].(int); ok {
+				stats["tasks_failed"] = n + 1
+			}
 		}
 	}
 	if genCount > 0 {
