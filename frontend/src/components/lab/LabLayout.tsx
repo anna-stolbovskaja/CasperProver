@@ -25,7 +25,6 @@ const tabs = [
   { name: 'ZK Proofs', path: 'zk-proofs' },
   { name: 'PQ Crypto', path: 'pq-crypto' },
   { name: 'Contracts', path: 'contracts' },
-  { name: 'Proof Pipeline', path: 'agent-demo' },
   { name: 'Playground', path: 'playground' },
   { name: 'KYC', path: 'kyc' },
 ];
@@ -78,8 +77,7 @@ const DemoModeInfo: React.FC<{ onClose: () => void }> = ({ onClose }) => (
               ['Contracts', '4 smart contracts deployed on Casper testnet with verified deploy hashes'],
               ['Aggregation', 'Live batch operations via proof_aggregation engine (session-scoped)'],
               ['KYC', 'Privacy-preserving KYC verification through zero-knowledge proofs'],
-              ['Proof Pipeline', 'End-to-end live demonstration of the full proof lifecycle via API'],
-              ['Playground', 'Direct API access — every call hits the live backend'],
+              ['Playground', 'API Playground (32 endpoints) + Agent Playground (full pipeline demo)'],
             ].map(([section, desc]) => (
               <div key={section} className="flex gap-2">
                 <span className="text-green-400 text-xs font-mono w-28 shrink-0">{section}</span>
