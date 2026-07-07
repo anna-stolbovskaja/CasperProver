@@ -572,9 +572,7 @@ func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 		"status":     "generated",
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(proof); err != nil {
-		slog.Error("failed to encode inference proof response", "error", err)
-	}
+	_ = json.NewEncoder(w).Encode(proof)
 }
 
 func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
@@ -588,9 +586,7 @@ func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"proof_id": req.ProofID, "valid": true, "verified_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		slog.Error("failed to encode inference verify response", "error", err)
-	}
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) {
@@ -607,17 +603,14 @@ func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) 
 	result := map[string]any{"model_id": id, "name": req.Name, "version": req.Version, "registered_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		slog.Error("failed to encode register-model response", "error", err)
-	}
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *Server) inferenceGetModel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	result := map[string]any{"model_id": id, "status": "active"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 // ---------------------------------------------------------------------------
 // Aggregation handlers
@@ -640,8 +633,7 @@ func (s *Server) aggregationCreateBatch(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) aggregationAddProof(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -655,8 +647,7 @@ func (s *Server) aggregationAddProof(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"batch_id": req.BatchID, "proof_hash": req.ProofHash, "leaf_index": req.LeafIndex, "added": true}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) aggregationFinalize(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -668,15 +659,13 @@ func (s *Server) aggregationFinalize(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"batch_id": req.BatchID, "status": "finalized", "finalized_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) aggregationGetBatch(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	result := map[string]any{"batch_id": id, "status": "open", "proof_count": 0}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 // ---------------------------------------------------------------------------
 // ZK Verification handlers
@@ -694,8 +683,7 @@ func (s *Server) zkVerifyGroth16(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"valid": true, "vk_hash": req.VkHash, "verified_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -713,8 +701,7 @@ func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 		results[i] = map[string]any{"index": i, "valid": true}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"results": results, "all_valid": true})
-}
+	_ = json.NewEncoder(w).Encode(map[string]any{"results": results, "all_valid": true})}
 
 func (s *Server) zkChallenge(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -732,15 +719,13 @@ func (s *Server) zkChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) zkGetChallenge(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	result := map[string]any{"challenge_id": id, "status": "open"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 // ---------------------------------------------------------------------------
 // Post-quantum handlers
@@ -757,8 +742,7 @@ func (s *Server) pqSignSPHINCS(w http.ResponseWriter, r *http.Request) {
 	sig := fmt.Sprintf("%x", sha256.Sum256([]byte("sphincs:"+req.Message)))
 	result := map[string]any{"signature": sig, "algorithm": "SPHINCS+", "level": "NIST-5"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -772,8 +756,7 @@ func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"valid": true, "algorithm": "SPHINCS+"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -790,8 +773,7 @@ func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 		"algorithm": "Ed25519+ML-DSA", "hybrid": true,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
 
 func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -805,5 +787,4 @@ func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	result := map[string]any{"valid": true, "classic_valid": true, "pq_valid": true, "algorithm": "Ed25519+ML-DSA"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
+	_ = json.NewEncoder(w).Encode(result)}
