@@ -35,7 +35,6 @@
 - Real Groth16 circuit for full model-inference verification (current: MiMC preimage)
 - Production trusted setup ceremony (current: per-start generation)
 - Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts
-- Casper Wallet integration for direct on-chain interaction from UI
 - Demo/Real data toggle in lab
 
 ### Medium-term

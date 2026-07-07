@@ -6,7 +6,7 @@
 graph TB
     subgraph "Frontend (Vite + TypeScript)"
         UI[10 Interactive Tabs]
-        WC[Wallet Connect]
+        WC[CSPR.click Wallet]
     end
 
     subgraph "Proof Engine (Go)"

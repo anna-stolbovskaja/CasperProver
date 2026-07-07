@@ -316,6 +316,35 @@ const playgroundEndpoints: EndpointConfig[] = [
     params: [{ name: 'id', type: 'string', optional: false, default: 'P-1' }],
     apiCall: (params: any) => api.exportProof(params.id),
   },
+  {
+    name: 'POST /proofs/batch',
+    method: 'POST',
+    path: '/proofs/batch',
+    description: 'Submit multiple proofs in a single request. Returns an array of created proofs.',
+    exampleBody: JSON.stringify({
+      proofs: [
+        { agent: 'agent-1', model_hash: 'sha256:abc123', input_data: '{"x": 1}', use_case: 'inference' },
+        { agent: 'agent-1', model_hash: 'sha256:abc123', input_data: '{"x": 2}', use_case: 'inference' },
+      ],
+      mode: 'parallel',
+    }, null, 2),
+    apiCall: (body: any) => api.batchProofs(body),
+  },
+  {
+    name: 'POST /proof-chain/validate',
+    method: 'POST',
+    path: '/proof-chain/validate',
+    description: 'Validate a proof-chain DAG — checks for cycles, input/output continuity, single root, and parent existence.',
+    exampleBody: JSON.stringify({
+      id: 'chain-demo',
+      steps: [
+        { proof_id: 'step-0', parent_ids: [], model_hash: 'sha256:model-a', input_hash: 'aaa111', output_hash: 'bbb222', step_index: 0 },
+        { proof_id: 'step-1', parent_ids: ['step-0'], model_hash: 'sha256:model-b', input_hash: 'bbb222', output_hash: 'ccc333', step_index: 1 },
+        { proof_id: 'step-2', parent_ids: ['step-1'], model_hash: 'sha256:model-c', input_hash: 'ccc333', output_hash: 'ddd444', step_index: 2 },
+      ],
+    }, null, 2),
+    apiCall: (body: any) => api.validateProofChain(body),
+  },
 ];
 
 const Playground: React.FC = () => {
