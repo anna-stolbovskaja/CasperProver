@@ -6,6 +6,7 @@ const CONTRACTS = {
   'Proof Registry': '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
   'Verifier Gate': 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
   'DeFi Mock': 'fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef',
+  'Stake Slashing': 'cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1',
 };
 
 const EXPLORER_BASE_URL = 'https://testnet.cspr.live/contract/';
