@@ -326,8 +326,12 @@ func TestPoolConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 			workerID := fmt.Sprintf("worker%d", id)
 			p.RegisterWorker(workerID, fmt.Sprintf("127.0.0.1:%d", 8080+id), 10)
-			p.Heartbeat(workerID)
-			p.DeregisterWorker(workerID)
+			if err := p.Heartbeat(workerID); err != nil {
+				t.Errorf("Heartbeat failed for %s: %v", workerID, err)
+			}
+			if err := p.DeregisterWorker(workerID); err != nil {
+				t.Errorf("DeregisterWorker failed for %s: %v", workerID, err)
+			}
 		}(i)
 	}
 

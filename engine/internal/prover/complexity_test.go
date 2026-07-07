@@ -83,7 +83,7 @@ func TestEstimateGas(t *testing.T) {
 			TreeDepth:   2,
 			MerkleOps:   5,
 			EstGasCSPR:  21000 + 68*300 + 2000*5,
-			EstTimeMs:  50 + 10*(300/1024),
+			EstTimeMs:  50 /* 300/1024 == 0, no extra per-KB time at this size */,
 			Class:       TRIVIAL,
 		}
 		gas := EstimateGas(metrics)
@@ -305,7 +305,7 @@ func TestGasEstimation(t *testing.T) {
 		expectedGas  int64
 		expectedTime int64
 	}{
-		{"trivial gas", 100, 100, 100, 21000 + 68*300 + 2000*5, 50 + 10*(300/1024)},
+		{"trivial gas", 100, 100, 100, 21000 + 68*300 + 2000*5, 50 /* 300/1024 == 0, no extra per-KB time at this size */},
 		{"low gas", 1025, 100, 100, 21000 + 68*1225 + 2000*5, 50 + 10*(1225/1024)},
 		{"medium gas", 65537, 100, 100, 21000 + 68*65737 + 2000*5, 50 + 10*(65737/1024)}, // total = 65537+100+100 = 65737
 	}
