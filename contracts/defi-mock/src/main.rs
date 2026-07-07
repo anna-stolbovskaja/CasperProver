@@ -18,6 +18,7 @@ use casper_types::{EntryPointPayment,
 const ERR_KYC_FAILED: u16 = 10;
 const ERR_UNAUTHORIZED: u16 = 11;
 const ERR_INPUT_TOO_LONG: u16 = 12;
+const ERR_ALREADY_WHITELISTED: u16 = 13;
 
 const VERIFIER_HASH: &str = "verifier_hash";
 const WHITELIST_DICT: &str = "whitelist";
@@ -75,15 +76,29 @@ pub extern "C" fn grant_access() {
     let pid: String = runtime::get_named_arg("proof_id");
     validate_proof_id(&pid);
 
+    let wl = dict(WHITELIST_DICT);
+    let key = user.to_string();
+
+    // Refuse to silently overwrite an existing, still-active entry. A caller
+    // who wants to re-whitelist after a revocation must go through
+    // revoke_access first, so the on-chain history stays explicit instead of
+    // a grant_access call quietly clobbering a prior grant/proof_id/timestamp.
+    let existing: Option<(String, String, u64)> =
+        storage::dictionary_get(wl, &key).unwrap_or_revert();
+    if let Some((_, _, ts)) = existing {
+        if ts > 0 {
+            runtime::revert(ApiError::User(ERR_ALREADY_WHITELISTED));
+        }
+    }
+
     let valid = call_is_valid(&pid);
     if !valid {
         runtime::revert(ApiError::User(ERR_KYC_FAILED));
     }
 
-    let wl = dict(WHITELIST_DICT);
     let ts: u64 = runtime::get_blocktime().into();
-    let entry = (user.to_string(), pid, ts);
-    storage::dictionary_put(wl, &user.to_string(), entry);
+    let entry = (key.clone(), pid, ts);
+    storage::dictionary_put(wl, &key, entry);
 }
 
 /// Revoke DeFi access for a user. Admin only.
@@ -103,15 +118,22 @@ pub extern "C" fn revoke_access() {
 }
 
 /// Check if a user is whitelisted. Public read-only.
+///
+/// Takes a typed `AccountHash` (fixed 32-byte value, enforced by the CLType
+/// at the entry-point boundary) rather than a free-form `String`. The
+/// previous version accepted an arbitrary caller-supplied string and looked
+/// it up directly against the dictionary key, which only worked if the
+/// caller happened to format it identically to `AccountHash::to_string()`
+/// (lowercase hex, no prefix) - any other casing/prefix/encoding silently
+/// returned "not whitelisted" instead of failing loudly. Deriving the lookup
+/// key from the same typed value used by grant_access/revoke_access removes
+/// that whole class of client-side formatting bugs.
 #[unsafe(no_mangle)]
 pub extern "C" fn is_whitelisted() {
-    let user: String = runtime::get_named_arg("user");
-    if user.len() > MAX_PROOF_ID_LEN {
-        runtime::revert(ApiError::User(ERR_INPUT_TOO_LONG));
-    }
+    let user: AccountHash = runtime::get_named_arg("user");
     let wl = dict(WHITELIST_DICT);
     let entry: Option<(String, String, u64)> =
-        storage::dictionary_get(wl, &user).unwrap_or_revert();
+        storage::dictionary_get(wl, &user.to_string()).unwrap_or_revert();
     // Check entry exists AND is not a revoked tombstone (timestamp > 0)
     let whitelisted = match entry {
         Some((_, _, ts)) => ts > 0,
@@ -162,7 +184,7 @@ pub extern "C" fn call() {
     ));
     ep.add_entry_point(EntityEntryPoint::new(
         "is_whitelisted",
-        vec![Parameter::new("user", CLType::String)],
+        vec![Parameter::new("user", CLType::ByteArray(32))],
         CLType::Bool,
         EntryPointAccess::Public,
         EntryPointType::Called,
