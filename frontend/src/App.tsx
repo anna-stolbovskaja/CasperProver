@@ -7,6 +7,7 @@ import Features from './components/Features'
 import HowItWorks from './components/HowItWorks'
 import Benchmarks from './components/Benchmarks'
 import SDKSection from './components/SDKSection'
+import UseCases from './components/UseCases'
 import FAQ from './components/FAQ'
 import CtaFooter from './components/CtaFooter'
 import Footer from './components/Footer'
@@ -44,6 +45,7 @@ function Landing() {
       <Features />
       <HowItWorks />
       <Benchmarks />
+      <UseCases />
       <SDKSection />
       <FAQ />
       <CtaFooter />

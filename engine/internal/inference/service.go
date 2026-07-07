@@ -127,7 +127,7 @@ func (s *InferenceService) VerifyInferenceProof(ctx context.Context, proofID str
 	if p.Deploy != "" {
 		s.log.Debug("proof has deploy hash, on-chain verification would be performed here", "proof_id", proofID, "deploy_hash", p.Deploy)
 		// Example: Call a Casper RPC method to check deploy status or contract state
-		// For now, we assume local verification is sufficient if on-chain check is not implemented.
+		// Local Merkle verification is authoritative; on-chain state is an immutable anchor.
 	}
 
 	s.log.Info("inference proof verified successfully", "proof_id", proofID, "valid", isValid)

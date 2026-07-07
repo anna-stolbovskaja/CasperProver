@@ -4,61 +4,43 @@
 
 ---
 
-## Shipped (Hackathon)
+## ✅ Shipped
 
-- [x] 4 contracts on Casper testnet (proof-registry, verifier-gate, defi-mock, stake-slashing)
-- [x] Go API server with PostgreSQL persistence
-- [x] Merkle tree builder (SHA-256, configurable depth)
-- [x] Proof registration and on-chain verification
-- [x] KYC whitelisting via Merkle inclusion (survives server restart)
+- [x] 4 smart contracts on Casper testnet (proof-registry, verifier-gate, defi-mock, stake-slashing)
+- [x] 3 additional contracts written (proof-of-inference, model-registry, proof-aggregation)
+- [x] Go API server — 32 endpoints, PostgreSQL persistence, rate limiting
+- [x] Merkle tree builder (SHA-256, configurable depth, <50ms)
+- [x] Real BN254 Groth16 ZK proofs via gnark (R1CS circuit, trusted setup, pairing verification)
+- [x] Post-quantum signing: SPHINCS+ (NIST PQC), hybrid Ed25519 + ML-DSA-65 (FIPS 204)
+- [x] Hash-chain batch aggregation with Postgres persistence
+- [x] Proof-chain DAG validation (cycle detection, input continuity, single root)
+- [x] KYC whitelisting via Merkle inclusion (cross-contract, persistent)
 - [x] DeFi vault gated by verifier-gate (admin-only `grant_access`, typed `AccountHash`)
-- [x] React lab at casperprover.xyz with 9 interactive tabs
-- [x] SDK (Go client + MCP server, 27/27 tools wired 1:1 to real API)
+- [x] Stake-slashing — real CSPR economic penalty (20% slash, permissionless bounty)
+- [x] Go SDK — 32 methods, 1:1 API mapping
+- [x] MCP server — 32 tools with full InputSchema definitions
+- [x] React lab at casperprover.xyz — 10 interactive tabs, all calling real API
+- [x] Casper Wallet integration with demo fallback
 - [x] 83+ tests (62 Go + 21 Rust)
-- [x] CI via GitHub Actions (engine test/vet/lint + SDK test/lint + contracts build/test)
-- [x] API-key auth for mutating endpoints
-- [x] Rate limiting (60 req/min per IP) + 1MB body limit
-- [x] 200+ successful testnet transactions
+- [x] CI via GitHub Actions
+- [x] API-key auth, rate limiting (60 req/min), input validation
+- [x] 248+ testnet transactions
 
-## Phase 2 — Core Upgrades (completed items checked)
+## 🔜 Next
 
-- [x] Post-quantum proof signing — real Ed25519 + ML-DSA-65 (FIPS 204) + Lamport OTS, wired to `/pq/*` endpoints
-- [x] STARK aggregation — hash-based STARKPack simulation, wired to `/aggregation/*` with real batch registry
-- [x] Groth16 zk-SNARK verifier — real BN254 pairing via `gnark`/`gnark-crypto` at `/zk/groth16-real/*` (MiMC preimage circuit)
-- [x] Stake-slashing contract — real CSPR economic penalty for revoked proofs (20% slash, permissionless bounty)
-- [x] SDK rewrite — Go client 1:1 mapped to real API routes, separate module with CI
-- [x] MCP server — real entry point at `sdk/cmd/mcpserver`, all 27 tools wired
-- [x] KYC whitelist persistence — rehydrates from Postgres on restart
-- [x] Aggregation batch registry — real in-memory state (create/add/finalize/verify)
-- [x] `defi-mock` hardening — typed `AccountHash`, duplicate whitelist prevention, admin gate
-- [ ] Proof-of-Inference contract — model_hash + input_hash + output_hash on-chain
-- [ ] Model hash commitment — SHA-256(architecture + weights + hyperparams) before inference
-- [ ] ModelRegistry contract — on-chain model binding to prevent model-swap attacks
-- [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof
-- [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
-- [x] MCP server expansion — all 27 tools wired (inference, aggregation, ZK, PQ crypto)
-- [x] Aggregation batch persistence — rehydrates from Postgres on restart
-- [x] Proof chain (DAG) validation — `POST /proof-chain/validate` with cycle detection, input continuity
+- [ ] Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts
+- [ ] Full model-inference ZK circuit (beyond MiMC preimage)
+- [ ] Production trusted setup ceremony
+- [ ] STARK recursive aggregation (pending mature Go STARK library)
 - [ ] Demo/Real data toggle in lab
 
-## Phase 3 — Advanced
+## 🔮 Future
 
-- [ ] Multi-model proof chains — DAG of proofs with topological validation
-- [ ] Full on-chain ZK-SNARK verifier (Groth16/PLONK in Wasm contract)
-- [ ] Hardware attestation support (TPM 2.0, Intel SGX, AMD SEV, ARM TrustZone)
-- [ ] Distributed prover workers with MPC threshold proving
-- [ ] Trusted setup ceremony manager
-- [ ] EVM compatibility layer (Solidity verifier contract)
-- [ ] Property-based testing (Go rapid) with proof system invariants
-- [ ] ZK circuit constraint testing + fuzz testing
-- [ ] Gas benchmarking suite
-
-## Phase 4 — Mainnet & Standard
-
-- [ ] Security audit
-- [ ] Mainnet deployment
-- [ ] Proof-of-Inference standard proposal (CEP-style)
-- [ ] ZK circuit design whitepaper
-- [ ] Integration with model registries (HuggingFace, Replicate)
+- [ ] Multi-chain anchoring (EVM, Solana, Cosmos)
+- [ ] Hardware attestation (TPM 2.0, Intel SGX, AMD SEV)
+- [ ] Distributed prover network with MPC threshold
+- [ ] Proof marketplace for verified computation
+- [ ] Mainnet deployment with gas optimization
+- [ ] Formal verification (TLA+ specification)
 - [ ] Cross-chain proof bridging
-- [ ] Formal verification (TLA+ specification for proof system)
+- [ ] Integration with model registries (HuggingFace, Replicate)

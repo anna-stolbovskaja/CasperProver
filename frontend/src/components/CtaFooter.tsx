@@ -84,7 +84,7 @@ export default function CtaFooter() {
 
             {/* Contract badges */}
             <div className="flex flex-wrap gap-2 mt-6">
-              {['proof-registry', 'verifier-gate', 'defi-mock'].map(c => (
+              {['proof-registry', 'verifier-gate', 'defi-mock', 'stake-slashing'].map(c => (
                 <span key={c} className="px-2 py-1 rounded bg-cp-card border border-cp-border text-[10px] font-mono text-gray-500">
                   {c}
                 </span>

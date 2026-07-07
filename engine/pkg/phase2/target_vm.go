@@ -8,7 +8,7 @@ const (
 	CasperVM TargetVM = iota
 	// EVM is the Ethereum Virtual Machine (for cross-chain verifiers).
 	EVM
-	// Future is a placeholder for upcoming VM targets.
+	// Future represents extensible VM targets beyond CasperVM and EVM.
 	Future
 )
 

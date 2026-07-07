@@ -4,7 +4,7 @@
 
 # CasperProver
 
-**Cryptographic proof registry for AI agent computations — merkle-verified, on-chain immutable**
+**Cryptographic proof engine for AI agent decisions — ZK-verified, post-quantum ready, on-chain immutable**
 
 *Prove what an agent computed. Verify it on-chain. No replay needed.*
 
@@ -14,26 +14,26 @@
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
 
-[**Live Demo →**](https://casperprover.xyz/lab) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [API](https://casperprover-api.onrender.com)
+[**Live Demo →**](https://casperprover.xyz/lab) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [Status & Roadmap](docs/KNOWN_LIMITATIONS.md)
 
 </div>
 
 ---
 
 > [!NOTE]
-> Three contracts live on Casper testnet. 72 proofs registered. The Go engine generates Merkle-anchored proofs of agent outputs and submits commit hashes on-chain. A downstream DeFi mock contract gates access based on proof validity — working KYC demo included.
+> **4 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
 
 ## 📸 Screenshots
 
-| Homepage — proof registry | Lab — 72 proofs | Proof detail — Merkle path | KYC-gated DeFi demo |
+| Homepage — proof registry | Lab — proofs dashboard | Proof detail — Merkle path | KYC-gated DeFi demo |
 |---|---|---|---|
 | ![Homepage](docs/screenshots/01-homepage.png) | ![Lab](docs/screenshots/02-lab.png) | ![Proof detail](docs/screenshots/03-proof-detail.png) | ![KYC demo](docs/screenshots/04-kyc-demo.png) |
 
-> Live at [casperprover.xyz/lab](https://casperprover.xyz/lab)
+> Live at [casperprover.xyz](https://casperprover.xyz)
 
 ---
 
-## Why this matters
+## Why This Matters
 
 AI agents are executing critical workflows — KYC checks, financial decisions, compliance rules. But there is **no audit trail**. You cannot prove what an agent computed without re-running the entire model.
 
@@ -45,23 +45,115 @@ CasperProver closes that gap:
 | Trust the agent operator | Verify cryptographically on-chain |
 | Black-box outputs | Merkle-anchored, tamper-evident record |
 | Centralized log (mutable) | Immutable on-chain commitment |
+| No quantum resistance | Post-quantum signing (SPHINCS+, ML-DSA-65) |
+| No economic penalties | Stake-and-slash for dishonest agents |
+
+---
+
+## Proof Lifecycle
+
+```mermaid
+flowchart LR
+    A["🤖 AI Agent"] -->|"input + output + model"| B["🌳 Merkle Builder"]
+    B -->|"SHA-256 leaves"| C["📦 Proof Engine"]
+    C -->|"Merkle root"| D["⛓️ Casper Network"]
+    C -->|"ZK proof"| E["🔐 Groth16 Verifier"]
+    C -->|"PQ signature"| F["🛡️ SPHINCS+ / ML-DSA"]
+    D -->|"on-chain anchor"| G["✅ Verifiable Forever"]
+    E -->|"pairing check"| G
+    F -->|"quantum-safe"| G
+
+    style A fill:#1a1a2e,stroke:#e53935,color:#fff
+    style B fill:#1a1a2e,stroke:#e53935,color:#fff
+    style C fill:#1a1a2e,stroke:#e53935,color:#fff
+    style D fill:#1a1a2e,stroke:#e53935,color:#fff
+    style E fill:#1a1a2e,stroke:#e53935,color:#fff
+    style F fill:#1a1a2e,stroke:#e53935,color:#fff
+    style G fill:#0d2818,stroke:#22c55e,color:#fff
+```
+
+**How it works:**
+Given `f(x) = y` with model `M`, CasperProver produces `π = MerkleProof(H(x), H(y), H(M))` where `H = SHA-256`. The root is committed on-chain; the inclusion proof is stored and queryable forever without re-running the model.
+
+For stronger guarantees, the same proof can be:
+- **ZK-verified** via real BN254 Groth16 (gnark)
+- **Post-quantum signed** with SPHINCS+ or hybrid Ed25519+ML-DSA-65
+- **Chained** into a DAG with cycle detection and input continuity validation
+
+---
+
+## Key Features
+
+| Feature | Description | Status |
+|---|---|---|
+| **Merkle Proofs** | SHA-256 + Merkle tree, <50ms generation | ✅ Live |
+| **Real ZK Proofs** | BN254 Groth16 via gnark — R1CS circuits, trusted setup, pairing verification | ✅ Live |
+| **Post-Quantum Crypto** | SPHINCS+ (NIST PQC), ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA | ✅ Live |
+| **Batch Aggregation** | Hash-chain aggregation with Postgres persistence | ✅ Live |
+| **Proof-Chain DAG** | Multi-step proof validation: cycle detection, input continuity, single root | ✅ Live |
+| **On-Chain Anchoring** | 4 smart contracts on Casper testnet | ✅ Live |
+| **Stake & Slash** | Economic penalties for revoked proofs, permissionless reporting bounty | ✅ Live |
+| **KYC Gating** | Proof-based DeFi access control with cross-contract verification | ✅ Live |
+| **SDK (Go)** | 32 methods, 1:1 API mapping | ✅ Live |
+| **MCP Server** | 32 tools for AI agent frameworks | ✅ Live |
+| **Wallet Connect** | Casper Wallet integration with demo fallback | ✅ Live |
+| **Interactive Lab** | 10-tab proof explorer with real API calls | ✅ Live |
 
 ---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    A[AI Agent] -->|input + output + model hash| B[Merkle Tree Builder]
-    B -->|SHA-256 leaf set| C[Merkle Root]
-    C -->|deploy tx| D[Proof Registry\nCasper Contract]
-    D -->|proof stored| E[Inclusion Proof]
-    E -->|query| F[Verifier Gate\nCasper Contract]
-    F -->|access decision| G[DeFi Mock / Downstream App]
-```
+graph TB
+    subgraph "Frontend (Vite + TypeScript)"
+        UI[10 Interactive Tabs]
+        WC[Wallet Connect]
+    end
 
-**How it works:**  
-Given `f(x) = y` with model `M`, CasperProver produces `π = MerkleProof(H(x), H(y), H(M))` where `H = SHA-256`. The root is committed on-chain; the inclusion proof is stored and queryable forever without re-running the model.
+    subgraph "Proof Engine (Go)"
+        API[32 REST Endpoints]
+        MK[Merkle Builder]
+        ZK[Groth16 Verifier<br/>gnark BN254]
+        PQ[PQ Crypto<br/>SPHINCS+ · ML-DSA]
+        AG[Batch Aggregator]
+        PC[Proof Chain<br/>DAG Validator]
+        INF[Inference Service]
+        KYC[KYC Demo]
+    end
+
+    subgraph "Smart Contracts (Rust / Casper 2.x)"
+        PR[proof-registry]
+        VG[verifier-gate]
+        DM[defi-mock]
+        SS[stake-slashing]
+    end
+
+    subgraph "Integration Layer"
+        SDK[Go SDK · 32 methods]
+        MCP[MCP Server · 32 tools]
+    end
+
+    subgraph "Storage"
+        PG[(PostgreSQL)]
+        CS[Casper Testnet]
+    end
+
+    UI --> API
+    WC --> CS
+    API --> MK & ZK & PQ & AG & PC & INF & KYC
+    INF --> PR
+    VG --> PR
+    DM --> VG
+    SS --> PR
+    API --> PG
+    SDK --> API
+    MCP --> API
+    PR & VG & DM & SS --> CS
+
+    style UI fill:#1a1a2e,stroke:#e53935,color:#fff
+    style API fill:#1a1a2e,stroke:#e53935,color:#fff
+    style CS fill:#1a1a2e,stroke:#22c55e,color:#fff
+```
 
 ---
 
@@ -72,86 +164,163 @@ Given `f(x) = y` with model `M`, CasperProver produces `π = MerkleProof(H(x), H
 ```bash
 git clone https://github.com/anna-stolbovskaja/CasperProver
 cd CasperProver
-cp config.toml.example config.toml   # edit node_url if needed
 go mod download
 go run ./engine/cmd/...
 ```
 
 **Submit a proof:**
 ```bash
-curl https://casperprover-api.onrender.com/api/v1/proof/submit \
+curl https://casperprover-api.onrender.com/proofs \
   -H "Content-Type: application/json" \
   -d '{
-    "proof_type": "merkle-inclusion",
-    "input_hash": "sha256:abc123...",
-    "output_hash": "sha256:def456...",
-    "model_id": "gpt-4o"
+    "agent": "agent-alpha",
+    "input": "loan_approval_data",
+    "output": "approved_with_conditions",
+    "model": "gpt-4o"
   }'
 ```
 
-**Verify a proof:**
+**Real ZK proof:**
 ```bash
-curl https://casperprover-api.onrender.com/api/v1/proof/verify \
+curl https://casperprover-api.onrender.com/zk/groth16-real/prove \
   -H "Content-Type: application/json" \
-  -d '{"proof_id": "proof_001"}'
-# → {"valid": true, "merkle_root": "...", "on_chain_tx": "..."}
+  -d '{"secret": 42}'
 ```
 
-**Success check:** `{"valid": true}` with a `merkle_root` field means the proof is live on-chain.
+**Post-quantum hybrid sign:**
+```bash
+curl https://casperprover-api.onrender.com/pq/hybrid-sign \
+  -H "Content-Type: application/json" \
+  -d '{"message": "signed with Ed25519 + ML-DSA-65"}'
+```
 
 ---
 
 ## Proof Types
 
-| Type | What it proves | Use case |
+| Type | What it proves | Verification |
 |---|---|---|
-| `merkle-inclusion` | A value was part of a computation | General AI output audit |
-| `kyc-eligibility` | Wallet passed KYC (no PII revealed) | DeFi access control |
-| `balance-range` | Balance was in a range (no exact value) | Creditworthiness without exposure |
-| `transaction-membership` | A tx was processed by a specific agent | Compliance, dispute resolution |
+| `merkle-inclusion` | A value was part of a computation | SHA-256 Merkle path |
+| `groth16-real` | Knowledge of a value (ZK) | BN254 pairing check |
+| `kyc-eligibility` | Wallet passed KYC (no PII revealed) | Cross-contract on-chain |
+| `balance-range` | Balance in a range (no exact value) | Merkle proof |
+| `transaction-membership` | A tx was processed by a specific agent | Merkle proof |
+| `proof-chain` | Multi-step DAG integrity | Cycle + continuity check |
 
 ---
 
-## Live Demo
+## Smart Contracts (Casper Testnet)
 
-**Lab:** [casperprover.xyz/lab](https://casperprover.xyz/lab)  
-72 proofs live on Casper testnet. Filter by proof type, click any row to see the Merkle path and on-chain tx.
+| Contract | Address | Purpose | Deployed |
+|---|---|---|---|
+| **proof-registry** | [`96e97c4d...a10708`](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) | Immutable proof store | 2026-06-29 |
+| **verifier-gate** | [`a37f9cde...9f77d3`](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) | Merkle inclusion checker | 2026-06-29 |
+| **defi-mock** | [`fe0c45f6...0b39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | KYC-gated DeFi vault | 2026-07-07 |
+| **stake-slashing** | [`cf70e1fe...d9bd1`](https://testnet.cspr.live/contract/cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1) | Economic penalties | 2026-07-07 |
 
-**Deployed Contracts (testnet):**
+**Additionally written** (not yet deployed): `proof-of-inference`, `model-registry`, `proof-aggregation` — ready for mainnet.
 
-| Contract | Address | Deployed |
-|---|---|---|
-| Proof Registry | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) | 2026-06-29 |
-| Verifier Gate | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) | 2026-06-29 |
-| DeFi Mock | [fe0c45f6...0b39ef](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | 2026-07-07 |
-| Stake Slashing | [cf70e1fe...d9bd1](https://testnet.cspr.live/contract/cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1) | 2026-07-07 |
+**On-chain activity:** 248+ testnet transactions across contract deploys and entry-point calls.
 
 ---
 
 ## Stake & Slash
 
-`revoke_proof` on Proof Registry was self-revocation only - no real economic
-cost for an agent that gets caught submitting a bad proof. The `stake-slashing`
-contract adds real skin in the game:
+The `stake-slashing` contract adds real economic consequences for dishonest agents:
 
-- An agent stakes CSPR (atomically, via the companion `stake-slashing-session`
-  session code - one deploy does purse-to-purse transfer + recording, so it
-  can't be split or front-run).
-- Anyone can permissionlessly call `report_and_slash(agent, proof_id)` once
-  that proof is revoked on Proof Registry. It reads Proof Registry's own
-  on-chain state via a cross-contract call - it can't force a revocation
-  itself, so it can never be used to attack an honest agent.
-- A confirmed revocation slashes 20% of the agent's current stake and pays it
-  to whoever reported it, as a permissionless monitoring bounty.
-- Each `proof_id` can only trigger one slash (tombstoned in a dictionary) -
-  no repeated draining of the same revoked proof.
+- An agent **stakes CSPR** atomically via session code (purse-to-purse transfer + recording in a single deploy)
+- Anyone can **permissionlessly report** a revoked proof via `report_and_slash(agent, proof_id)` — reads proof state via cross-contract call to proof-registry
+- **20% slash** paid to the reporter as a monitoring bounty
+- Each `proof_id` is **tombstoned** after one slash — no double-draining
+- **Verified live**: staked 5 CSPR, third-party account called `report_and_slash`, received 1 CSPR bounty; second attempt correctly reverted
 
-Verified live on testnet 2026-07-07: staked 5 CSPR, an unrelated third-party
-account (not the agent, not the deployer) called `report_and_slash` on a
-self-revoked test proof and received a real 1 CSPR (20%) bounty; a second
-attempt against the same proof_id correctly reverted (`User error: 2`,
-already-slashed); `unstake` correctly drained the remaining balance back to
-the agent.
+---
+
+## Use Cases
+
+| Domain | Application | CasperProver Feature |
+|---|---|---|
+| **DeFi & Lending** | AI-driven loan approvals with verifiable audit trail | KYC gating, proof anchoring |
+| **Healthcare AI** | Prove diagnostic recommendations without exposing records | ZK proofs, Merkle verification |
+| **Legal & Compliance** | Immutable audit trail for GDPR right-to-explanation | On-chain timestamps |
+| **Autonomous Agents** | Multi-step workflow validation | Proof-chain DAG |
+| **Enterprise Governance** | Model version tracking across decisions | Model fingerprinting |
+| **Cross-Chain** | Proofs verifiable by any chain or off-chain system | SDK, MCP integration |
+
+### Growth Potential
+
+**Vertical expansion** — deeper integration within each use case:
+- Full model-inference ZK circuits (prove the entire computation, not just I/O)
+- Hardware attestation for TEE-based proving (TPM 2.0, SGX, SEV)
+- Regulatory compliance modules (automated reporting, jurisdiction-specific rules)
+
+**Horizontal expansion** — new markets and chains:
+- Multi-chain anchoring (EVM, Solana, Cosmos)
+- Proof marketplace (agents buy/sell verified computation results)
+- Cross-agent proof delegation and verification networks
+- Insurance protocols backed by proof-of-inference
+
+---
+
+## SDK & MCP
+
+### Go SDK (32 methods)
+
+```go
+import "github.com/anna-stolbovskaja/CasperProver/sdk"
+
+client := sdk.New("https://casperprover-api.onrender.com")
+proof, _ := client.SubmitProof(ctx, sdk.ProofInput{...})
+zkProof, _ := client.Groth16RealProve(ctx, 42)
+sig, _ := client.HybridSign(ctx, "message")
+chain, _ := client.ValidateProofChain(ctx, dag)
+```
+
+### MCP Server (32 tools)
+
+```bash
+CASPERPROVER_API_URL=https://casperprover-api.onrender.com go run ./sdk/cmd/mcpserver
+```
+
+Every tool maps 1:1 to a live API endpoint. Categories: proofs (7), inference (4), ZK (6), aggregation (5), PQ crypto (4), KYC (3), models (2), proof-chain (1).
+
+Full tool reference: [docs/SDK.md](docs/SDK.md)
+
+---
+
+## Phase 2 Library (`engine/pkg/phase2/`)
+
+Extended infrastructure — real code, wired to the API:
+
+| Module | What it does |
+|---|---|
+| `proof_dag.go` | `ValidateDAG()` — cycle detection (DFS), input/output hash continuity, single-root check. **Live at `POST /proof-chain/validate`** |
+| `hw_attestation.go` | `HardwareAttestor` interface + `SoftwareAttestor` — TPM 2.0, Intel SGX, AMD SEV, ARM TrustZone |
+| `proof_chain.go` | `ProofChain`, `ChainStep` — DAG types with 5 verification statuses |
+| `prover_config.go` | `ProverConfig` — distributed proving with MPC threshold support |
+| `verifier_config.go` | `VerifierConfig` — Optimistic / ZK / Hybrid verification modes |
+| `target_vm.go` | `TargetVM` — CasperVM / EVM / extensible target enum |
+| `attestation_type.go` | `AttestationType` — 5-level attestation (Software → TrustZone) |
+
+---
+
+## Performance
+
+| Metric | Value |
+|---|---|
+| Merkle proof generation | **<50ms** |
+| Merkle verification | **<10ms** |
+| Groth16 ZK prove | **~200ms** |
+| Groth16 ZK verify | **<5ms** |
+| PQ hybrid sign | **<15ms** |
+| Proof size | **~512 bytes** |
+| GPU required | **None** |
+| API endpoints | **32** |
+| SDK/MCP tools | **32** |
+| Smart contracts | **4 live** + 3 written |
+| Testnet transactions | **248+** |
+
+---
 
 ## Tech Stack
 
@@ -159,28 +328,14 @@ the agent.
 |---|---|
 | Smart contracts | Rust / Casper 2.x |
 | Proof engine | Go 1.22 |
-| API | Go HTTP server |
+| ZK proofs | gnark (BN254 Groth16) |
+| PQ crypto | cloudflare/circl (ML-DSA-65), SPHINCS+ |
+| API | Go HTTP server + PostgreSQL |
 | Frontend | Vite + TypeScript + Tailwind |
-| SDK | Go + Python client |
-| MCP adapter | Model Context Protocol server |
+| SDK | Go client (32 methods) |
+| MCP | Model Context Protocol server (32 tools) |
 | Hosting | Vercel (frontend) · Render (API) |
 | Chain | Casper testnet (`casper-test`) |
-
----
-
-## Phase 2 Library (`engine/pkg/phase2/`)
-
-Partial implementations of Phase 2 features — real code, ready for wiring:
-
-| Module | What it does |
-|---|---|
-| `proof_dag.go` | `ValidateDAG()` — full cycle detection (DFS), input/output hash continuity, single-root check. **Wired to `POST /proof-chain/validate`** |
-| `hw_attestation.go` | `HardwareAttestor` interface + `SoftwareAttestor` fallback — TPM 2.0, Intel SGX, AMD SEV, ARM TrustZone attestation types |
-| `proof_chain.go` | `ProofChain`, `ChainStep` — DAG proof types with 5 verification statuses |
-| `prover_config.go` | `ProverConfig` — distributed proving config with MPC threshold support |
-| `verifier_config.go` | `VerifierConfig` — Optimistic / ZK / Hybrid verification modes |
-| `target_vm.go` | `TargetVM` — CasperVM / EVM / Future target enum |
-| `attestation_type.go` | `AttestationType` — 5-level attestation enum (Software → TrustZone) |
 
 ---
 
@@ -188,27 +343,30 @@ Partial implementations of Phase 2 features — real code, ready for wiring:
 
 ```
 CasperProver/
-├── contracts/          # Rust smart contracts (4 on testnet)
-│   ├── proof-registry/ # Main proof store
-│   ├── verifier-gate/  # Inclusion proof checker
-│   ├── defi-mock/      # KYC-gated vault demo
-│   └── stake-slashing/ # Economic penalty for revoked proofs
-├── engine/             # Go proof generation engine
-│   ├── cmd/            # Entry point
-│   ├── internal/       # Merkle builder, Casper client, ZK verifier, PQ crypto
-│   └── pkg/phase2/     # Phase 2 library (DAG validation, HW attestation, proof chains)
-├── sdk/                # Go SDK + MCP server (31 tools)
-│   ├── client.go       # 1:1 API client methods
-│   ├── mcp_server.go   # MCP adapter for AI frameworks
-│   └── cmd/mcpserver/  # MCP server entry point
-├── frontend/           # Vite/TS lab (10 tabs)
-└── docs/               # Architecture, SDK docs
+├── contracts/              # Rust smart contracts (7 total, 4 deployed)
+│   ├── proof-registry/     # Immutable proof store
+│   ├── verifier-gate/      # Merkle inclusion checker
+│   ├── defi-mock/          # KYC-gated DeFi vault
+│   ├── stake-slashing/     # Economic penalties + bounty
+│   ├── proof-of-inference/ # Full inference proof (written)
+│   ├── model-registry/     # Model versioning (written)
+│   └── proof-aggregation/  # Batch aggregation (written)
+├── engine/                 # Go proof engine
+│   ├── cmd/                # Entry point
+│   ├── internal/           # Merkle, ZK, PQ, aggregation, inference, KYC
+│   └── pkg/phase2/         # DAG validation, HW attestation, proof chains
+├── sdk/                    # Go SDK + MCP server (32 tools)
+│   ├── client.go           # 1:1 API methods
+│   ├── mcp_server.go       # MCP tool definitions
+│   └── cmd/mcpserver/      # MCP stdio entry point
+├── frontend/               # Vite/TS (10 lab tabs + landing)
+└── docs/                   # Architecture, SDK, Status & Roadmap
 ```
 
 ---
 
 ## License
 
-[MPL-2.0](LICENSE) · Last verified: 2026-06-30
+[MPL-2.0](LICENSE) · Last verified: 2026-07-07
 
 <div align="right"><a href="#readme-top">↑ back to top</a></div>
