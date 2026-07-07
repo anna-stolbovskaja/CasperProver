@@ -5,8 +5,8 @@ import {
   registerModel,
   getModelById,
   RegisterModelRequest,
-  RegisterModelResponse,
-  ModelDetails,
+  
+  
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 
@@ -39,20 +39,20 @@ const Modal: React.FC<{
 const Models: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [newModelData, setNewModelData] = useState<RegisterModelRequest>({
-    modelName: '',
-    modelHash: '',
-    verifierContract: '',
-    description: '',
+    model_id: '',
+    model_hash: '',
+    verifier_contract: '',
+    metadata: {},
   });
   const [isRegistering, setIsRegistering] = useState(false);
 
   const [searchModelId, setSearchModelId] = useState('');
-  const [foundModel, setFoundModel] = useState<ModelDetails | null>(null);
+  const [foundModel, setFoundModel] = useState<any | null>(null);
   const [isSearchingModel, setIsSearchingModel] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   // For "List registered models" - since API doesn't have a direct list, we'll simulate or show registered models after creation
-  const [registeredModels, setRegisteredModels] = useState<ModelDetails[]>([]);
+  const [registeredModels, setRegisteredModels] = useState<any[]>([]);
 
   const handleRegisterModelChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -66,14 +66,14 @@ const Models: React.FC = () => {
     try {
       const res = await registerModel(newModelData);
       if (res.success && res.data) {
-        toast.success(`Model "${newModelData.modelName}" registered successfully! ID: ${res.data.modelId}`);
+        toast.success(`Model "${newModelData.model_id}" registered successfully! ID: ${res.data.model_id}`);
         // Add to local list for display (assuming we can fetch it back)
-        const fetchedModelRes = await getModelById(res.data.modelId);
+        const fetchedModelRes = await getModelById(res.data.model_id);
         if (fetchedModelRes.success && fetchedModelRes.data) {
           setRegisteredModels((prev) => [...prev, fetchedModelRes.data!]);
         }
         setIsRegisterModalOpen(false);
-        setNewModelData({ modelName: '', modelHash: '', verifierContract: '', description: '' });
+        setNewModelData({ model_id: '', model_hash: '', verifier_contract: '', metadata: {} });
       } else {
         toast.error(res.error || 'Failed to register model');
       }
@@ -182,12 +182,12 @@ const Models: React.FC = () => {
           {foundModel && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
               <h4 className="text-lg font-semibold text-red-400">Box Found:</h4>
-              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundModel.modelId}</span></p>
-              <p><span className="font-medium text-gray-300">Name:</span> {foundModel.modelName}</p>
-              <p><span className="font-medium text-gray-300">Hash:</span> <span className="font-mono break-all">{foundModel.modelHash}</span></p>
-              <p><span className="font-medium text-gray-300">Verifier Contract:</span> <span className="font-mono break-all">{foundModel.verifierContract}</span></p>
-              {foundModel.description && <p><span className="font-medium text-gray-300">Description:</span> {foundModel.description}</p>}
-              <p><span className="font-medium text-gray-300">Registered At:</span> {new Date(foundModel.registeredAt).toLocaleString()}</p>
+              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundModel.model_id}</span></p>
+              <p><span className="font-medium text-gray-300">Name:</span> {foundModel.model_id}</p>
+              <p><span className="font-medium text-gray-300">Hash:</span> <span className="font-mono break-all">{foundModel.model_hash}</span></p>
+              <p><span className="font-medium text-gray-300">Verifier Contract:</span> <span className="font-mono break-all">{foundModel.verifier_contract}</span></p>
+              {foundModel?.description && <p><span className="font-medium text-gray-300">Description:</span> {foundModel?.description}</p>}
+              <p><span className="font-medium text-gray-300">Registered At:</span> {new Date(foundModel.registered_at).toLocaleString()}</p>
             </div>
           )}
         </div>
@@ -223,16 +223,16 @@ const Models: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#222235]">
                 {registeredModels.map((model) => (
-                  <tr key={model.modelId} className="hover:bg-[#1a1a2a]/50 transition-colors duration-150">
+                  <tr key={model.model_id} className="hover:bg-[#1a1a2a]/50 transition-colors duration-150">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.modelId.substring(0, 8)}...{model.modelId.substring(model.modelId.length - 8)}
+                      {model.model_id.substring(0, 8)}...{model.model_id.substring(model.model_id.length - 8)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{model.modelName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{model.model_id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.modelHash.substring(0, 8)}...
+                      {model.model_hash.substring(0, 8)}...
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                      {model.verifierContract.substring(0, 8)}...
+                      {model.verifier_contract.substring(0, 8)}...
                     </td>
                   </tr>
                 ))}
@@ -251,42 +251,42 @@ const Models: React.FC = () => {
       >
         <form onSubmit={handleRegisterModelSubmit} className="space-y-4">
           <div>
-            <label htmlFor="modelName" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="model_id" className="block text-sm font-medium text-gray-300 mb-1">
               Box Name
             </label>
             <input
               type="text"
-              id="modelName"
-              name="modelName"
-              value={newModelData.modelName}
+              id="model_id"
+              name="model_id"
+              value={newModelData.model_id}
               onChange={handleRegisterModelChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
               required
             />
           </div>
           <div>
-            <label htmlFor="modelHash" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="model_hash" className="block text-sm font-medium text-gray-300 mb-1">
               Box Hash (e.g., IPFS CID, cryptographic hash)
             </label>
             <input
               type="text"
-              id="modelHash"
-              name="modelHash"
-              value={newModelData.modelHash}
+              id="model_hash"
+              name="model_hash"
+              value={newModelData.model_hash}
               onChange={handleRegisterModelChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
               required
             />
           </div>
           <div>
-            <label htmlFor="verifierContract" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="verifier_contract" className="block text-sm font-medium text-gray-300 mb-1">
               Verifier Contract Address (on Casper)
             </label>
             <input
               type="text"
-              id="verifierContract"
-              name="verifierContract"
-              value={newModelData.verifierContract}
+              id="verifier_contract"
+              name="verifier_contract"
+              value={newModelData.verifier_contract}
               onChange={handleRegisterModelChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
               required
@@ -297,10 +297,10 @@ const Models: React.FC = () => {
               Description (Optional)
             </label>
             <textarea
-              id="description"
-              name="description"
+              id="metadata"
+              name="metadata"
               rows={3}
-              value={newModelData.description}
+              value={JSON.stringify(newModelData.metadata || {})}
               onChange={handleRegisterModelChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
             ></textarea>

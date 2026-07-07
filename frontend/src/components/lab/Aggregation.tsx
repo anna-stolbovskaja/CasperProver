@@ -9,7 +9,7 @@ import {
   CreateBatchRequest,
   AddProofToBatchRequest,
   FinalizeBatchRequest,
-  BatchDetails,
+  
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 
@@ -42,13 +42,13 @@ const Modal: React.FC<{
 const Aggregation: React.FC = () => {
   // Create Batch State
   const [isCreateBatchModalOpen, setIsCreateBatchModalOpen] = useState(false);
-  const [newBatchData, setNewBatchData] = useState<CreateBatchRequest>({ batchName: '', description: '' });
+  const [newBatchData, setNewBatchData] = useState<CreateBatchRequest>({ batch_id: '', max_proofs: 100 });
   const [isCreatingBatch, setIsCreatingBatch] = useState(false);
   const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
 
   // Add Proof State
   const [isAddProofModalOpen, setIsAddProofModalOpen] = useState(false);
-  const [addProofData, setAddProofData] = useState<AddProofToBatchRequest>({ batchId: '', proofId: '' });
+  const [addProofData, setAddProofData] = useState<AddProofToBatchRequest>({ batch_id: '', proof_hash: '' });
   const [isAddingProof, setIsAddingProof] = useState(false);
 
   // Finalize Batch State
@@ -58,7 +58,7 @@ const Aggregation: React.FC = () => {
 
   // View Batch State
   const [searchBatchId, setSearchBatchId] = useState('');
-  const [foundBatch, setFoundBatch] = useState<BatchDetails | null>(null);
+  const [foundBatch, setFoundBatch] = useState<any | null>(null);
   const [isSearchingBatch, setIsSearchingBatch] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -73,12 +73,12 @@ const Aggregation: React.FC = () => {
     try {
       const res = await createAggregationBatch(newBatchData);
       if (res.success && res.data) {
-        toast.success(`Batch "${newBatchData.batchName}" created successfully! ID: ${res.data.batchId}`);
-        setCreatedBatchId(res.data.batchId);
+        toast.success(`Batch "${newBatchData.batch_id}" created successfully! ID: ${res.data.batch_id}`);
+        setCreatedBatchId(res.data.batch_id);
         setIsCreateBatchModalOpen(false);
-        setNewBatchData({ batchName: '', description: '' });
-        setAddProofData((prev) => ({ ...prev, batchId: res.data!.batchId })); // Pre-fill for add proof
-        setFinalizeBatchId(res.data!.batchId); // Pre-fill for finalize
+        setNewBatchData({ batch_id: '', max_proofs: 100 });
+        setAddProofData((prev) => ({ ...prev, batch_id: res.data!.batch_id })); // Pre-fill for add proof
+        setFinalizeBatchId(res.data!.batch_id); // Pre-fill for finalize
       } else {
         toast.error(res.error || 'Failed to create batch');
       }
@@ -101,11 +101,11 @@ const Aggregation: React.FC = () => {
     try {
       const res = await addProofToAggregationBatch(addProofData);
       if (res.success) {
-        toast.success(`Proof ${addProofData.proofId.substring(0, 8)}... added to batch ${addProofData.batchId.substring(0, 8)}...`);
+        toast.success(`Proof ${addProofData.proof_hash.substring(0, 8)}... added to batch ${addProofData.batch_id.substring(0, 8)}...`);
         setIsAddProofModalOpen(false);
-        setAddProofData((prev) => ({ ...prev, proofId: '' })); // Clear proofId only
+        setAddProofData((prev) => ({ ...prev, proof_hash: '' })); // Clear proofId only
         // Optionally refresh batch details if currently viewing
-        if (foundBatch?.batchId === addProofData.batchId) {
+        if (foundBatch?.batch_id === addProofData.batch_id) {
           handleSearchBatch({ preventDefault: () => {} } as React.FormEvent);
         }
       } else {
@@ -127,13 +127,13 @@ const Aggregation: React.FC = () => {
     e.preventDefault();
     setIsFinalizing(true);
     try {
-      const res = await finalizeAggregationBatch({ batchId: finalizeBatchId });
+      const res = await finalizeAggregationBatch({ batch_id: finalizeBatchId });
       if (res.success) {
-        toast.success(`Batch ${finalizeBatchId.substring(0, 8)}... finalized successfully! Merkle Root: ${res.data?.merkleRoot?.substring(0, 8)}...`);
+        toast.success(`Batch ${finalizeBatchId.substring(0, 8)}... finalized successfully! Merkle Root: ${res.data?.merkle_root?.substring(0, 8)}...`);
         setIsFinalizeModalOpen(false);
         setFinalizeBatchId('');
         // Optionally refresh batch details if currently viewing
-        if (foundBatch?.batchId === finalizeBatchId) {
+        if (foundBatch?.batch_id === finalizeBatchId) {
           handleSearchBatch({ preventDefault: () => {} } as React.FormEvent);
         }
       } else {
@@ -180,12 +180,12 @@ const Aggregation: React.FC = () => {
   };
 
   // Merkle Tree Visualization (simplified text representation)
-  const renderMerkleTree = (proofIds: string[], merkleRoot?: string) => {
-    if (!proofIds || proofIds.length === 0) {
+  const renderMerkleTree = (proof_hashes: string[], merkle_root?: string) => {
+    if (!proof_hashes || proof_hashes.length === 0) {
       return <p className="text-gray-500">No proofs in this batch to visualize.</p>;
     }
 
-    const nodes = proofIds.map((id, index) => (
+    const nodes = proof_hashes.map((id, index) => (
       <div key={index} className="flex items-center text-sm">
         <span className="text-red-500 mr-2">Leaf {index + 1}:</span>
         <span className="font-mono break-all">{id.substring(0, 16)}...</span>
@@ -197,19 +197,19 @@ const Aggregation: React.FC = () => {
         <h4 className="text-lg font-medium text-gray-300 mb-3">Merkle Tree Visualization (Simplified)</h4>
         <div className="space-y-2">
           {nodes}
-          {proofIds.length > 1 && (
+          {proof_hashes.length > 1 && (
             <div className="flex items-center text-sm">
               <span className="text-red-500 mr-2">Intermediate Nodes:</span>
               <span className="text-gray-400">... (hashes of pairs)</span>
             </div>
           )}
-          {merkleRoot && (
+          {merkle_root && (
             <div className="flex items-center text-sm">
               <span className="text-red-500 mr-2">Merkle Root:</span>
-              <span className="font-mono break-all">{merkleRoot}</span>
+              <span className="font-mono break-all">{merkle_root}</span>
             </div>
           )}
-          {!merkleRoot && <p className="text-gray-500 text-sm">Batch not finalized, Merkle Root not available.</p>}
+          {!merkle_root && <p className="text-gray-500 text-sm">Batch not finalized, Merkle Root not available.</p>}
         </div>
       </div>
     );
@@ -308,17 +308,17 @@ const Aggregation: React.FC = () => {
           {foundBatch && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
               <h4 className="text-lg font-semibold text-red-400">Batch Details:</h4>
-              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundBatch.batchId}</span></p>
-              <p><span className="font-medium text-gray-300">Name:</span> {foundBatch.batchName}</p>
-              {foundBatch.description && <p><span className="font-medium text-gray-300">Description:</span> {foundBatch.description}</p>}
+              <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundBatch.batch_id}</span></p>
+              <p><span className="font-medium text-gray-300">Name:</span> {foundBatch.batch_id}</p>
+              {foundBatch?.max_proofs && <p><span className="font-medium text-gray-300">Description:</span> {foundBatch?.max_proofs}</p>}
               <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{foundBatch.status.toUpperCase()}</span></p>
-              <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proofIds.length}</p>
-              {foundBatch.merkleRoot && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkleRoot}</span></p>}
+              <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proof_hashs.length}</p>
+              {foundBatch.merkle_root && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkle_root}</span></p>}
               {foundBatch.finalProof && <p><span className="font-medium text-gray-300">Final Proof:</span> <span className="font-mono break-all">{foundBatch.finalProof.substring(0, 60)}...</span></p>}
               <p><span className="font-medium text-gray-300">Created At:</span> {new Date(foundBatch.createdAt).toLocaleString()}</p>
               {foundBatch.finalizedAt && <p><span className="font-medium text-gray-300">Finalized At:</span> {new Date(foundBatch.finalizedAt).toLocaleString()}</p>}
 
-              {renderMerkleTree(foundBatch.proofIds, foundBatch.merkleRoot)}
+              {renderMerkleTree(foundBatch.proof_hashs, foundBatch.merkle_root)}
             </div>
           )}
         </div>
@@ -332,14 +332,14 @@ const Aggregation: React.FC = () => {
       >
         <form onSubmit={handleCreateBatchSubmit} className="space-y-4">
           <div>
-            <label htmlFor="batchName" className="block text-sm font-medium text-gray-300 mb-1">
+            <label htmlFor="batch_id" className="block text-sm font-medium text-gray-300 mb-1">
               Batch Name
             </label>
             <input
               type="text"
-              id="batchName"
-              name="batchName"
-              value={newBatchData.batchName}
+              id="batch_id"
+              name="batch_id"
+              value={newBatchData.batch_id}
               onChange={handleCreateBatchChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
               required
@@ -353,7 +353,7 @@ const Aggregation: React.FC = () => {
               id="description"
               name="description"
               rows={3}
-              value={newBatchData.description}
+              value={newBatchData?.max_proofs}
               onChange={handleCreateBatchChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
             ></textarea>
@@ -384,7 +384,7 @@ const Aggregation: React.FC = () => {
               type="text"
               id="addProofBatchId"
               name="batchId"
-              value={addProofData.batchId}
+              value={addProofData.batch_id}
               onChange={handleAddProofChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
               placeholder="Enter existing Batch ID"
@@ -399,7 +399,7 @@ const Aggregation: React.FC = () => {
               type="text"
               id="addProofProofId"
               name="proofId"
-              value={addProofData.proofId}
+              value={addProofData.proof_hash}
               onChange={handleAddProofChange}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
               placeholder="Enter Proof ID to add"

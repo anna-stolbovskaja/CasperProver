@@ -15,21 +15,14 @@ import {
 import {
   registerModel,
   inferenceProve,
-  verifyProof,
+  inferenceVerify,
   createAggregationBatch,
   addProofToAggregationBatch,
   finalizeAggregationBatch,
-  RegisterModelRequest,
-  InferenceProveRequest,
-  VerifyProofRequest,
-  CreateBatchRequest,
-  AddProofToBatchRequest,
-  FinalizeBatchRequest,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 
-// Helper to generate a simple UUID-like string
-const generateId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
+const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
 
 interface Step {
   id: number;
@@ -47,99 +40,88 @@ const AgentDemo: React.FC = () => {
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
-  // Data generated during the demo
   const [modelId, setModelIdState] = useState('');
   const [proofId, setProofIdState] = useState('');
-  const [outputHash, setOutputHash] = useState('');
   const [batchId, setBatchIdState] = useState('');
+  const [proofHash, setProofHashState] = useState('');
 
-  // Steps are only put into `action` closures once (see `initialSteps` below,
-  // which only seeds the initial `steps` state and is never re-applied while
-  // the demo runs). Reading `modelId`/`proofId`/`batchId` state directly from
-  // those closures would always see the values from the very first render
-  // (all empty strings), even after earlier steps set them - causing Step 2+
-  // to fail with "... not available. Complete Step N first." even though the
-  // earlier step actually succeeded. Refs give every step's closure a way to
-  // read the *current* value regardless of when the closure was created.
+  // Refs prevent stale closures — step actions always read the latest value.
   const modelIdRef = useRef('');
   const proofIdRef = useRef('');
   const batchIdRef = useRef('');
+  const proofHashRef = useRef('');
+
   const setModelId = (v: string) => { modelIdRef.current = v; setModelIdState(v); };
   const setProofId = (v: string) => { proofIdRef.current = v; setProofIdState(v); };
   const setBatchId = (v: string) => { batchIdRef.current = v; setBatchIdState(v); };
-  const [agentId] = useState(generateId('agent')); // Static agent ID for the demo
-  const [inputData] = useState(JSON.stringify({ temperature: 0.7, prompt: 'Generate a secure proof for AI decision.' }));
-  const [modelHash] = useState(generateId('modelhash'));
-  const [verifierContract] = useState('09c1f7f4ff8b6b8e2fb16c2b52b38a0d3d1e3c4f5a6b7c8d9e0f1a2b3c4d5e6f'); // Verifier Gate contract
+  const setProofHash = (v: string) => { proofHashRef.current = v; setProofHashState(v); };
+
+  const [agentId] = useState(genId('agent'));
+  const inputData = JSON.stringify({ temperature: 0.7, prompt: 'Generate a secure proof for AI decision.' });
+  const outputData = JSON.stringify({ decision: 'approved', confidence: 0.95, risk_score: 12 });
 
   const initialSteps: Step[] = [
     {
       id: 1,
-      name: 'Register AI Box',
+      name: 'Register AI Model',
       icon: Box,
       description: 'Register a new AI model on the CasperProver registry.',
       action: async () => {
-        const request: RegisterModelRequest = {
-          modelName: `AI-Decision-Box-${generateId('')}`,
-          modelHash: modelHash,
-          verifierContract: verifierContract,
-          description: 'Box for secure AI decision-making.',
-        };
-        const res = await registerModel(request);
+        const mid = genId('model');
+        const res = await registerModel({
+          model_id: mid,
+          model_hash: genId('hash'),
+          verifier_contract: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
+          metadata: { type: 'decision-box', version: '1.0' },
+        });
         if (res.success && res.data) {
-          setModelId(res.data.modelId);
+          const id = res.data.model_id || res.data.id || mid;
+          setModelId(id);
           return res.data;
         }
         throw new Error(res.error || 'Failed to register model');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
     {
       id: 2,
-      name: 'Run Inference & Generate Proof',
+      name: 'Run Inference & Prove',
       icon: FlaskConical,
-      description: 'Run an AI inference and generate a ZK proof for its decision.',
+      description: 'Run an AI inference and generate a cryptographic proof.',
       action: async () => {
         if (!modelIdRef.current) throw new Error('Model ID not available. Complete Step 1 first.');
-        const request: InferenceProveRequest = {
-          modelId: modelIdRef.current,
-          inputData: inputData,
-          agentId: agentId,
-        };
-        const res = await inferenceProve(request);
+        const res = await inferenceProve({
+          agent: agentId,
+          model_id: modelIdRef.current,
+          input: inputData,
+          output: outputData,
+          use_case: 'kyc-eligibility',
+        });
         if (res.success && res.data) {
-          setProofId(res.data.proofId);
-          setOutputHash(res.data.outputHash);
+          const pid = res.data.id || '';
+          const ph = res.data.proof_hash || '';
+          setProofId(pid);
+          setProofHash(ph);
           return res.data;
         }
-        throw new Error(res.error || 'Failed to run inference and generate proof');
+        throw new Error(res.error || 'Failed to generate inference proof');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
     {
       id: 3,
       name: 'Verify Proof',
       icon: ShieldCheck,
-      description: 'Verify the generated ZK proof on the CasperProver engine.',
+      description: 'Verify the generated proof on the CasperProver engine.',
       action: async () => {
         if (!proofIdRef.current) throw new Error('Proof ID not available. Complete Step 2 first.');
-        const request: VerifyProofRequest = {
-          proofId: proofIdRef.current,
-        };
-        const res = await verifyProof(request);
+        const res = await inferenceVerify({ proof_id: proofIdRef.current });
         if (res.success && res.data) {
-          if (!res.data.isValid) throw new Error('Proof verification failed.');
           return res.data;
         }
         throw new Error(res.error || 'Failed to verify proof');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
     {
       id: 4,
@@ -147,62 +129,49 @@ const AgentDemo: React.FC = () => {
       icon: GitMerge,
       description: 'Create a new batch for aggregating multiple proofs.',
       action: async () => {
-        const request: CreateBatchRequest = {
-          batchName: `AI-Decision-Batch-${generateId('')}`,
-          description: 'Batch for aggregating AI decision proofs.',
-        };
-        const res = await createAggregationBatch(request);
+        const bid = genId('batch');
+        const res = await createAggregationBatch({
+          batch_id: bid,
+          max_proofs: 50,
+        });
         if (res.success && res.data) {
-          setBatchId(res.data.batchId);
+          const id = res.data.batch_id || bid;
+          setBatchId(id);
           return res.data;
         }
         throw new Error(res.error || 'Failed to create batch');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
     {
       id: 5,
       name: 'Add Proof to Batch',
       icon: PlusCircle,
-      description: 'Add the generated proof to the newly created batch.',
+      description: 'Add the generated proof to the batch.',
       action: async () => {
         if (!batchIdRef.current) throw new Error('Batch ID not available. Complete Step 4 first.');
-        if (!proofIdRef.current) throw new Error('Proof ID not available. Complete Step 2 first.');
-        const request: AddProofToBatchRequest = {
-          batchId: batchIdRef.current,
-          proofId: proofIdRef.current,
-        };
-        const res = await addProofToAggregationBatch(request);
-        if (res.success) {
-          return res.data;
-        }
+        if (!proofHashRef.current) throw new Error('Proof hash not available. Complete Step 2 first.');
+        const res = await addProofToAggregationBatch({
+          batch_id: batchIdRef.current,
+          proof_hash: proofHashRef.current,
+        });
+        if (res.success) return res.data;
         throw new Error(res.error || 'Failed to add proof to batch');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
     {
       id: 6,
-      name: 'Finalize Batch & Aggregate',
+      name: 'Finalize & Aggregate',
       icon: CheckCircle,
-      description: 'Finalize the batch, generating an aggregated proof and Merkle root.',
+      description: 'Finalize the batch, generating an aggregated proof.',
       action: async () => {
         if (!batchIdRef.current) throw new Error('Batch ID not available. Complete Step 4 first.');
-        const request: FinalizeBatchRequest = {
-          batchId: batchIdRef.current,
-        };
-        const res = await finalizeAggregationBatch(request);
-        if (res.success) {
-          return res.data;
-        }
+        const res = await finalizeAggregationBatch({ batch_id: batchIdRef.current });
+        if (res.success) return res.data;
         throw new Error(res.error || 'Failed to finalize batch');
       },
-      status: 'idle',
-      response: null,
-      error: null,
+      status: 'idle', response: null, error: null,
     },
   ];
 
@@ -215,10 +184,9 @@ const AgentDemo: React.FC = () => {
     setGlobalError(null);
     setModelId('');
     setProofId('');
-    setOutputHash('');
     setBatchId('');
+    setProofHash('');
   }, []);
-  // Note: setModelId/setProofId/setBatchId above already reset the refs too.
 
   const runStep = useCallback(async (index: number) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'loading', error: null, response: null } : s)));
@@ -226,17 +194,17 @@ const AgentDemo: React.FC = () => {
 
     try {
       const response = await steps[index].action();
-      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'success', response: response } : s)));
+      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'success', response } : s)));
       toast.success(`Step ${index + 1}: ${steps[index].name} completed!`);
       return true;
     } catch (err: any) {
-      const errorMessage = err.message || 'An unknown error occurred.';
-      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'error', error: errorMessage } : s)));
-      setGlobalError(`Step ${index + 1} failed: ${errorMessage}`);
+      const msg = err.message || 'An unknown error occurred.';
+      setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'error', error: msg } : s)));
+      setGlobalError(`Step ${index + 1} failed: ${msg}`);
       toast.error(`Step ${index + 1}: ${steps[index].name} failed!`);
       return false;
     }
-  }, [steps, modelId, proofId, batchId, agentId, inputData, modelHash, verifierContract]); // Include all dependencies
+  }, [steps]);
 
   const runFullDemo = useCallback(async () => {
     resetDemo();
@@ -244,140 +212,105 @@ const AgentDemo: React.FC = () => {
     for (let i = 0; i < steps.length; i++) {
       setCurrentStepIndex(i);
       const success = await runStep(i);
-      if (!success) {
-        setIsDemoRunning(false);
-        return;
-      }
-      // Small delay for visual effect
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!success) { setIsDemoRunning(false); return; }
+      await new Promise((r) => setTimeout(r, 800));
     }
     setIsDemoRunning(false);
-    setCurrentStepIndex(steps.length); // Indicate completion
-    toast.success('Agent Demo completed successfully!');
+    setCurrentStepIndex(steps.length);
+    toast.success('Agent Demo completed!');
   }, [steps, runStep, resetDemo]);
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold text-gray-100 mb-6">AI Agent Proof Flow Demo</h2>
+      <h2 className="text-2xl font-bold text-gray-100 mb-2">AI Agent Proof Flow</h2>
       <p className="text-gray-400 mb-6">
-        This interactive demo simulates a full lifecycle of an AI decision proof: from model registration to batch aggregation.
-        Watch the steps unfold and see real API responses.
+        Interactive demo: model registration → inference proof → verification → batch aggregation. All calls hit the live API.
       </p>
 
       <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={runFullDemo}
-          disabled={isDemoRunning}
-          className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button onClick={runFullDemo} disabled={isDemoRunning}
+          className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-lg font-medium transition-colors disabled:opacity-50">
           {isDemoRunning ? <Loader2 size={24} className="animate-spin" /> : <Play size={24} />}
-          {isDemoRunning ? 'Running Demo...' : 'Start Full Demo'}
+          {isDemoRunning ? 'Running...' : 'Start Demo'}
         </button>
-        <button
-          onClick={resetDemo}
-          disabled={isDemoRunning}
-          className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md text-lg font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <XCircle size={24} />
-          Reset
+        <button onClick={resetDemo} disabled={isDemoRunning}
+          className="flex items-center gap-2 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-md text-lg font-medium transition-colors disabled:opacity-50">
+          <XCircle size={24} /> Reset
         </button>
       </div>
 
       {globalError && (
         <div className="p-4 bg-red-900/30 text-red-300 border border-red-700 rounded-md mb-6 flex items-center gap-2">
           <AlertTriangle size={20} />
-          <strong>Demo Error:</strong> {globalError}
+          <span>{globalError}</span>
         </div>
       )}
 
-      <div className="relative flex flex-col items-center justify-center space-y-8 lg:space-y-0 lg:flex-row lg:justify-between lg:space-x-4">
+      {/* Step cards */}
+      <div className="relative flex flex-col items-center space-y-6 lg:space-y-0 lg:flex-row lg:justify-between lg:space-x-3">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>
-            <div
-              className={`relative flex flex-col items-center p-6 rounded-lg border transition-all duration-500 ease-in-out
-                ${index <= currentStepIndex && step.status === 'success' ? 'bg-green-900/20 border-green-500' : ''}
-                ${index <= currentStepIndex && step.status === 'error' ? 'bg-red-900/20 border-red-500' : ''}
-                ${index === currentStepIndex && step.status === 'loading' ? 'bg-blue-900/20 border-blue-500 animate-pulse' : ''}
-                ${index > currentStepIndex || step.status === 'idle' ? 'bg-[#1a1a2a] border-[#222235]' : ''}
-                w-full lg:w-1/6 min-h-[250px]
-              `}
-            >
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-600 text-white text-xl font-bold mb-4">
+            <div className={`relative flex flex-col items-center p-5 rounded-lg border transition-all duration-500
+              ${step.status === 'success' ? 'bg-green-900/20 border-green-600' : ''}
+              ${step.status === 'error' ? 'bg-red-900/20 border-red-600' : ''}
+              ${step.status === 'loading' ? 'bg-blue-900/20 border-blue-500 animate-pulse' : ''}
+              ${step.status === 'idle' ? 'bg-[#1a1a2a] border-[#222235]' : ''}
+              w-full lg:w-1/6 min-h-[220px]`}>
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 text-white text-lg font-bold mb-3">
                 {step.id}
               </div>
-              <div className="text-center">
-                <step.icon size={32} className="mx-auto text-red-400 mb-2" />
-                <h3 className="text-lg font-semibold text-gray-100 mb-2">{step.name}</h3>
-                <p className="text-sm text-gray-400">{step.description}</p>
-              </div>
+              <step.icon size={28} className="text-red-400 mb-2" />
+              <h3 className="text-sm font-semibold text-gray-100 mb-1 text-center">{step.name}</h3>
+              <p className="text-xs text-gray-400 text-center">{step.description}</p>
 
               {step.status === 'loading' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
-                  <Loader2 size={32} className="animate-spin text-blue-400" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-lg">
+                  <Loader2 size={28} className="animate-spin text-blue-400" />
                 </div>
               )}
               {step.status === 'success' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
-                  <CheckCircle size={32} className="text-green-500" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg">
+                  <CheckCircle size={28} className="text-green-500" />
                 </div>
               )}
               {step.status === 'error' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 rounded-lg">
-                  <XCircle size={32} className="text-red-500" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg">
+                  <XCircle size={28} className="text-red-500" />
                 </div>
               )}
             </div>
             {index < steps.length - 1 && (
-              <div className="relative lg:w-1/12 flex items-center justify-center">
-                <ArrowRight
-                  size={32}
-                  className={`text-gray-500 transition-colors duration-500
-                    ${index < currentStepIndex && steps[index].status === 'success' ? 'text-green-500' : ''}
-                    ${index === currentStepIndex && steps[index].status === 'loading' ? 'text-blue-500 animate-pulse' : ''}
-                  `}
-                />
-                <div className="absolute w-0.5 h-16 lg:h-0.5 lg:w-16 bg-[#222235] lg:top-1/2 lg:-translate-y-1/2 -z-10"></div>
+              <div className="hidden lg:flex items-center">
+                <ArrowRight size={24} className={`text-gray-600 ${
+                  index < currentStepIndex && steps[index].status === 'success' ? 'text-green-500' : ''
+                }`} />
               </div>
             )}
           </React.Fragment>
         ))}
       </div>
 
-      <div className="mt-12 space-y-6">
-        <h3 className="text-xl font-bold text-gray-100">API Responses:</h3>
+      {/* API Responses */}
+      <div className="mt-10 space-y-4">
+        <h3 className="text-lg font-bold text-gray-100">API Responses</h3>
         {steps.map((step) => (
-          <div key={`response-${step.id}`} className="bg-[#1a1a2a] p-4 rounded-lg border border-[#222235]">
-            <h4 className="text-lg font-semibold text-gray-200 mb-2">
+          <div key={`resp-${step.id}`} className="bg-[#1a1a2a] p-4 rounded-lg border border-[#222235]">
+            <h4 className="text-sm font-semibold text-gray-200 mb-2">
               Step {step.id}: {step.name}
             </h4>
-            {step.status === 'loading' && (
-              <p className="text-blue-400 flex items-center gap-2">
-                <Loader2 size={18} className="animate-spin" /> Executing...
-              </p>
-            )}
+            {step.status === 'loading' && <p className="text-blue-400 text-sm flex items-center gap-2"><Loader2 size={14} className="animate-spin" /> Executing...</p>}
             {step.status === 'success' && (
-              <div className="space-y-2">
-                <p className="text-green-400 flex items-center gap-2">
-                  <CheckCircle size={18} /> Success!
-                </p>
-                <pre className="bg-[#0b0b10] p-3 rounded-md font-mono text-sm overflow-x-auto border border-[#222235]">
+              <>
+                <p className="text-green-400 text-sm flex items-center gap-1 mb-2"><CheckCircle size={14} /> Success</p>
+                <pre className="bg-[#0b0b10] p-3 rounded font-mono text-xs overflow-x-auto border border-[#222235] max-h-48 overflow-y-auto">
                   {JSON.stringify(step.response, null, 2)}
                 </pre>
-              </div>
+              </>
             )}
             {step.status === 'error' && (
-              <div className="space-y-2">
-                <p className="text-red-400 flex items-center gap-2">
-                  <XCircle size={18} /> Error:
-                </p>
-                <pre className="bg-[#0b0b10] p-3 rounded-md font-mono text-sm overflow-x-auto border border-[#222235] text-red-300">
-                  {step.error}
-                </pre>
-              </div>
+              <p className="text-red-400 text-sm flex items-center gap-1"><XCircle size={14} /> {step.error}</p>
             )}
-            {step.status === 'idle' && (
-              <p className="text-gray-500">Awaiting execution...</p>
-            )}
+            {step.status === 'idle' && <p className="text-gray-500 text-sm">Awaiting execution...</p>}
           </div>
         ))}
       </div>

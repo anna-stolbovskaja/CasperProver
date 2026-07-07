@@ -4,7 +4,7 @@ import {
   checkKycStatus,
   grantKycAccess,
   getKycWhitelist,
-  KYCStatusRequest,
+  
   KYCGrantRequest,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
@@ -34,7 +34,7 @@ const KYC: React.FC = () => {
     setKycStatusResult(null);
     setCheckKycError(null);
     try {
-      const request: KYCStatusRequest = { userId: checkUserId };
+      const request = { proof_id: checkUserId };
       const res = await checkKycStatus(request);
       if (res.success && res.data) {
         setKycStatusResult(res.data);
@@ -57,7 +57,7 @@ const KYC: React.FC = () => {
     setIsGrantingKyc(true);
     setGrantKycError(null);
     try {
-      const request: KYCGrantRequest = { userId: grantUserId, reason: grantReason || undefined };
+      const request: KYCGrantRequest = { user: grantUserId || '', proof_id: '' };
       const res = await grantKycAccess(request);
       if (res.success && res.data) {
         toast.success(`KYC access granted to ${grantUserId}!`);
@@ -88,7 +88,7 @@ const KYC: React.FC = () => {
     try {
       const res = await getKycWhitelist(whitelistUser || 'all'); // Assume 'all' if input is empty
       if (res.success && res.data) {
-        setWhitelistResult(res.data.users);
+        setWhitelistResult(res.data.whitelisted ? [res.data.user] : []);
         toast.success('KYC whitelist fetched.');
       } else {
         setWhitelistError(res.error || 'Failed to fetch KYC whitelist.');
@@ -150,7 +150,7 @@ const KYC: React.FC = () => {
 
           {kycStatusResult && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
-              <h4 className="text-lg font-semibold text-red-400">KYC Status for {kycStatusResult.userId}:</h4>
+              <h4 className="text-lg font-semibold text-red-400">KYC Status for {kycStatusResult.user}:</h4>
               <p><span className="font-medium text-gray-300">Whitelisted:</span> <span className={`font-bold ${kycStatusResult.isWhitelisted ? 'text-green-400' : 'text-red-400'}`}>{kycStatusResult.isWhitelisted ? 'YES' : 'NO'}</span></p>
               <p><span className="font-medium text-gray-300">Status:</span> <span className="font-mono break-all">{kycStatusResult.status}</span></p>
               <p className="text-gray-500 mt-2">

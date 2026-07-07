@@ -25,7 +25,7 @@ async function fetcher<T>(
     const data = await response.json();
 
     if (!response.ok) {
-      return { success: false, error: data.message || 'An unknown error occurred', message: data.message };
+      return { success: false, error: data.error || data.message || 'An unknown error occurred', message: data.message };
     }
 
     return { success: true, data };
@@ -35,9 +35,11 @@ async function fetcher<T>(
   }
 }
 
-// --- Main API Schemas & Types ---
+// ============================================================================
+// Types — all field names match the Go engine's JSON output (snake_case)
+// ============================================================================
 
-// Health — fields match the Go engine's JSON output
+// Health
 export interface HealthResponse {
   status: string
   version: string
@@ -47,8 +49,7 @@ export interface HealthResponse {
   contracts: Record<string, string>
 }
 
-
-// Proofs — fields match the Go engine's JSON output (snake_case)
+// Proofs
 export interface Proof {
   id: string
   agent: string
@@ -70,33 +71,40 @@ export interface Proof {
 }
 
 export interface ProofsListResponse {
-  proofs: any[]
+  proofs: Proof[]
   total: number
   page: number
   limit: number
 }
 
-
+// Submit proof — matches server.go submitProof handler
 export interface CreateProofRequest {
-  agentId: string
-  inputHash: string
-  outputHash: string
-  proofData: string
+  agent: string
+  input: string
+  output: string
+  model: string
+  use_case?: string
+  mode?: string  // "local" | "anchored"
 }
 
-
-export type BatchProofRequest = CreateProofRequest[];
-
+// Verify proof — matches server.go verifyProof handler
 export interface VerifyProofRequest {
-  proofId: string
+  proof_id: string
+  input?: string
+  output?: string
+  model?: string
 }
 
 export interface VerifyProofResponse {
-  isValid: boolean
-  message: string
+  proof_id: string
+  valid: boolean
+  revoked: boolean
+  verified?: boolean
+  error?: string
+  checks?: Record<string, boolean>
 }
 
-// Stats — fields match the Go engine's JSON output (snake_case)
+// Stats
 export interface StatsResponse {
   total_proofs: number
   valid_proofs: number
@@ -107,214 +115,105 @@ export interface StatsResponse {
   use_cases: Record<string, number>
 }
 
-
 // KYC
-export interface KYCStatusRequest {
-  userId: string
-}
-
-export interface KYCStatusResponse {
-  userId: string
-  isWhitelisted: boolean
-  status: string
+export interface KYCCheckRequest {
+  proof_id: string
 }
 
 export interface KYCGrantRequest {
-  userId: string
-  reason?: string
-}
-
-export interface KYCGrantResponse {
-  userId: string
-  granted: boolean
-  message: string
+  user: string
+  proof_id: string
 }
 
 export interface KYCWhitelistResponse {
-  users: string[]
+  user: string
+  whitelisted: boolean
 }
 
 // Inference
 export interface RegisterModelRequest {
-  modelName: string
-  modelHash: string
-  verifierContract: string
-  description?: string
-}
-
-export interface RegisterModelResponse {
-  modelId: string
-  message: string
-}
-
-export interface ModelDetails {
-  modelId: string
-  modelName: string
-  modelHash: string
-  verifierContract: string
-  description?: string
-  registeredAt: string
+  model_id: string
+  model_hash: string
+  verifier_contract?: string
+  metadata?: Record<string, string>
 }
 
 export interface InferenceProveRequest {
-  modelId: string
-  inputData: string
-  agentId: string
-}
-
-export interface InferenceProveResponse {
-  proofId: string
-  proofData: string
-  outputHash: string
-  message: string
+  agent: string
+  model_id: string
+  input: string
+  output: string
+  use_case?: string
+  public_key?: string
 }
 
 export interface InferenceVerifyRequest {
-  modelId: string
-  proofId: string
-  inputData: string
-  outputHash: string
-}
-
-export interface InferenceVerifyResponse {
-  isValid: boolean
-  message: string
+  proof_id: string
 }
 
 // Aggregation
 export interface CreateBatchRequest {
-  batchName: string
-  description?: string
-}
-
-export interface CreateBatchResponse {
-  batchId: string
-  message: string
+  batch_id: string
+  merkle_root?: string
+  max_proofs?: number
 }
 
 export interface AddProofToBatchRequest {
-  batchId: string
-  proofId: string
-}
-
-export interface AddProofToBatchResponse {
-  batchId: string
-  proofId: string
-  message: string
+  batch_id: string
+  proof_hash: string
+  leaf_index?: number
 }
 
 export interface FinalizeBatchRequest {
-  batchId: string
-}
-
-export interface FinalizeBatchResponse {
-  batchId: string
-  merkleRoot: string
-  finalProof: string
-  message: string
-}
-
-export interface BatchDetails {
-  batchId: string
-  batchName: string
-  description?: string
-  proofIds: string[]
-  status: any
-  merkleRoot?: string
-  finalProof?: string
-  createdAt: string
-  finalizedAt?: string
+  batch_id: string
 }
 
 // ZK
 export interface ZKVerifyGroth16Request {
   proof: string
-  publicSignals: string[]
+  public_inputs: string[]
+  vk_hash?: string
 }
 
-export interface ZKVerifyGroth16Response {
-  isValid: boolean
-  message: string
+export interface ZKGroth16RealProveRequest {
+  preimage: string
 }
 
-export interface ZKBatchVerifyRequest {
-  proofIds: string[]
-}
-
-export interface ZKBatchVerifyResponse {
-  results: Record<string, number>
-  message: string
+export interface ZKGroth16RealVerifyRequest {
+  hash: string
+  proof_hex: string
 }
 
 export interface ZKChallengeRequest {
-  challengerId: string
-  proofId: string
-  challengeData: string
-}
-
-export interface ZKChallengeResponse {
-  challengeId: string
-  message: string
-}
-
-export interface ZKChallengeDetails {
-  challengeId: string
-  challengerId: string
-  proofId: string
-  challengeData: string
-  status: any
-  resolvedAt?: string
-  resolution?: string
+  proof_id: string
+  reason: string
 }
 
 // PQ
-export interface PQSignSphincsRequest {
+export interface PQSignRequest {
   message: string
-  privateKey?: string
 }
 
-export interface PQSignSphincsResponse {
-  signature: string
-  publicKey: string
-}
-
-export interface PQVerifySphincsRequest {
+export interface PQVerifyRequest {
   message: string
   signature: string
-  publicKey: string
-}
-
-export interface PQVerifySphincsResponse {
-  isValid: boolean
+  public_key: string
 }
 
 export interface PQHybridSignRequest {
   message: string
-  classicalPrivateKey?: string
-  pqPrivateKey?: string
-}
-
-export interface PQHybridSignResponse {
-  classicalSignature: string
-  pqSignature: string
-  classicalPublicKey: string
-  pqPublicKey: string
 }
 
 export interface PQHybridVerifyRequest {
   message: string
-  classicalSignature: string
-  pqSignature: string
-  classicalPublicKey: string
-  pqPublicKey: string
+  signature: string
+  classic_public_key: string
+  pq_public_key: string
 }
 
-export interface PQHybridVerifyResponse {
-  isValid: boolean
-}
-
-
-// --- API Functions ---
+// ============================================================================
+// API Functions
+// ============================================================================
 
 // Main
 export const getHealth = () => fetcher<HealthResponse>('/health');
@@ -323,61 +222,63 @@ export const getProofs = (agent?: string, page: number = 1, limit: number = 10) 
 export const getProofById = (id: string) => fetcher<Proof>(`/proofs/${id}`);
 export const createProof = (data: CreateProofRequest) =>
   fetcher<Proof>('/proofs', { method: 'POST', body: JSON.stringify(data) });
-export const createBatchProofs = (data: BatchProofRequest) =>
-  fetcher<ProofsListResponse>('/proofs/batch', { method: 'POST', body: JSON.stringify(data) });
 export const verifyProof = (data: VerifyProofRequest) =>
   fetcher<VerifyProofResponse>('/verify', { method: 'POST', body: JSON.stringify(data) });
 export const revokeProof = (id: string) =>
-  fetcher<{ message: string }>(`/proofs/${id}/revoke`, { method: 'POST' });
+  fetcher<{ proof_id: string; revoked: boolean }>(`/proofs/${id}/revoke`, { method: 'POST', body: JSON.stringify({}) });
 export const exportProof = (id: string) =>
-  fetcher<string>(`/proofs/${id}/export`, { method: 'GET' }); // Returns raw proof data
+  fetcher<any>(`/proofs/${id}/export`, { method: 'GET' });
 
 export const getStats = () => fetcher<StatsResponse>('/stats');
 
 // KYC
-export const checkKycStatus = (data: KYCStatusRequest) =>
-  fetcher<KYCStatusResponse>('/kyc/check', { method: 'POST', body: JSON.stringify(data) });
+export const checkKycStatus = (data: KYCCheckRequest) =>
+  fetcher<any>('/kyc/check', { method: 'POST', body: JSON.stringify(data) });
 export const grantKycAccess = (data: KYCGrantRequest) =>
-  fetcher<KYCGrantResponse>('/kyc/grant', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/kyc/grant', { method: 'POST', body: JSON.stringify(data) });
 export const getKycWhitelist = (user: string) =>
   fetcher<KYCWhitelistResponse>(`/kyc/whitelist/${user}`);
 
 // Inference
 export const registerModel = (data: RegisterModelRequest) =>
-  fetcher<RegisterModelResponse>('/inference/register-model', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/inference/register-model', { method: 'POST', body: JSON.stringify(data) });
 export const getModelById = (id: string) =>
-  fetcher<ModelDetails>(`/inference/model/${id}`);
+  fetcher<any>(`/inference/model/${id}`);
 export const inferenceProve = (data: InferenceProveRequest) =>
-  fetcher<InferenceProveResponse>('/inference/prove', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<Proof>('/inference/prove', { method: 'POST', body: JSON.stringify(data) });
 export const inferenceVerify = (data: InferenceVerifyRequest) =>
-  fetcher<InferenceVerifyResponse>('/inference/verify', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/inference/verify', { method: 'POST', body: JSON.stringify(data) });
 
 // Aggregation
 export const createAggregationBatch = (data: CreateBatchRequest) =>
-  fetcher<CreateBatchResponse>('/aggregation/create-batch', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/aggregation/create-batch', { method: 'POST', body: JSON.stringify(data) });
 export const addProofToAggregationBatch = (data: AddProofToBatchRequest) =>
-  fetcher<AddProofToBatchResponse>('/aggregation/add-proof', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/aggregation/add-proof', { method: 'POST', body: JSON.stringify(data) });
 export const finalizeAggregationBatch = (data: FinalizeBatchRequest) =>
-  fetcher<FinalizeBatchResponse>('/aggregation/finalize', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/aggregation/finalize', { method: 'POST', body: JSON.stringify(data) });
 export const getAggregationBatchById = (id: string) =>
-  fetcher<BatchDetails>(`/aggregation/batch/${id}`);
+  fetcher<any>(`/aggregation/batch/${id}`);
 
 // ZK
 export const verifyGroth16 = (data: ZKVerifyGroth16Request) =>
-  fetcher<ZKVerifyGroth16Response>('/zk/verify-groth16', { method: 'POST', body: JSON.stringify(data) });
-export const batchVerifyZK = (data: ZKBatchVerifyRequest) =>
-  fetcher<ZKBatchVerifyResponse>('/zk/batch-verify', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/zk/verify-groth16', { method: 'POST', body: JSON.stringify(data) });
+export const batchVerifyZK = (data: { proofs: { proof: string; public_inputs: string[] }[] }) =>
+  fetcher<any>('/zk/batch-verify', { method: 'POST', body: JSON.stringify(data) });
+export const zkGroth16RealProve = (data: ZKGroth16RealProveRequest) =>
+  fetcher<any>('/zk/groth16-real/prove', { method: 'POST', body: JSON.stringify(data) });
+export const zkGroth16RealVerify = (data: ZKGroth16RealVerifyRequest) =>
+  fetcher<any>('/zk/groth16-real/verify', { method: 'POST', body: JSON.stringify(data) });
 export const challengeZK = (data: ZKChallengeRequest) =>
-  fetcher<ZKChallengeResponse>('/zk/challenge', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/zk/challenge', { method: 'POST', body: JSON.stringify(data) });
 export const getZKChallengeById = (id: string) =>
-  fetcher<ZKChallengeDetails>(`/zk/challenge/${id}`);
+  fetcher<any>(`/zk/challenge/${id}`);
 
 // PQ
-export const signSphincs = (data: PQSignSphincsRequest) =>
-  fetcher<PQSignSphincsResponse>('/pq/sign-sphincs', { method: 'POST', body: JSON.stringify(data) });
-export const verifySphincs = (data: PQVerifySphincsRequest) =>
-  fetcher<PQVerifySphincsResponse>('/pq/verify-sphincs', { method: 'POST', body: JSON.stringify(data) });
+export const signSphincs = (data: PQSignRequest) =>
+  fetcher<any>('/pq/sign-sphincs', { method: 'POST', body: JSON.stringify(data) });
+export const verifySphincs = (data: PQVerifyRequest) =>
+  fetcher<any>('/pq/verify-sphincs', { method: 'POST', body: JSON.stringify(data) });
 export const hybridSign = (data: PQHybridSignRequest) =>
-  fetcher<PQHybridSignResponse>('/pq/hybrid-sign', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/pq/hybrid-sign', { method: 'POST', body: JSON.stringify(data) });
 export const hybridVerify = (data: PQHybridVerifyRequest) =>
-  fetcher<PQHybridVerifyResponse>('/pq/hybrid-verify', { method: 'POST', body: JSON.stringify(data) });
+  fetcher<any>('/pq/hybrid-verify', { method: 'POST', body: JSON.stringify(data) });
