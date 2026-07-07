@@ -5,8 +5,8 @@ import {
   verifySphincs,
   hybridSign,
   hybridVerify,
-  PQSignSphincsRequest,
-  PQVerifySphincsRequest,
+  PQSignRequest,
+  PQVerifyRequest,
   PQHybridSignRequest,
   PQHybridVerifyRequest,
 } from '../../lib/api';
@@ -37,7 +37,7 @@ const PQCrypto: React.FC = () => {
     setSphincsSignature('');
     setSphincsPublicKey('');
     try {
-      const request: PQSignSphincsRequest = { message: sphincsMessage };
+      const request: PQSignRequest = { message: sphincsMessage };
       const res = await signSphincs(request);
       if (res.success && res.data) {
         setSphincsSignature(res.data.signature);
@@ -59,15 +59,15 @@ const PQCrypto: React.FC = () => {
     setIsVerifyingSphincs(true);
     setSphincsVerifyResult(null);
     try {
-      const request: PQVerifySphincsRequest = {
+      const request: PQVerifyRequest = {
         message: sphincsMessage,
         signature: sphincsSignature,
-        publicKey: sphincsPublicKey,
+        public_key: sphincsPublicKey,
       };
       const res = await verifySphincs(request);
       if (res.success && res.data) {
-        setSphincsVerifyResult(res.data.isValid);
-        toast.success(`SPHINCS+ verification result: ${res.data.isValid ? 'Valid' : 'Invalid'}`);
+        setSphincsVerifyResult(res.data.valid);
+        toast.success(`SPHINCS+ verification result: ${res.data.valid ? 'Valid' : 'Invalid'}`);
       } else {
         toast.error(res.error || 'Failed to verify SPHINCS+ signature');
       }
@@ -90,10 +90,10 @@ const PQCrypto: React.FC = () => {
       const request: PQHybridSignRequest = { message: hybridMessage };
       const res = await hybridSign(request);
       if (res.success && res.data) {
-        setHybridClassicalSignature(res.data.classicalSignature);
-        setHybridPQSignature(res.data.pqSignature);
-        setHybridClassicalPublicKey(res.data.classicalPublicKey);
-        setHybridPQPublicKey(res.data.pqPublicKey);
+        setHybridClassicalSignature(res.data.signature);
+        setHybridPQSignature(res.data.signature);
+        setHybridClassicalPublicKey(res.data.classic_public_key);
+        setHybridPQPublicKey(res.data.pq_public_key);
         toast.success('Hybrid message signed successfully!');
       } else {
         toast.error(res.error || 'Failed to sign message with Hybrid crypto');
@@ -113,15 +113,15 @@ const PQCrypto: React.FC = () => {
     try {
       const request: PQHybridVerifyRequest = {
         message: hybridMessage,
-        classicalSignature: hybridClassicalSignature,
-        pqSignature: hybridPQSignature,
-        classicalPublicKey: hybridClassicalPublicKey,
-        pqPublicKey: hybridPQPublicKey,
+        signature: hybridClassicalSignature,
+        
+        classic_public_key: hybridClassicalPublicKey,
+        pq_public_key: hybridPQPublicKey,
       };
       const res = await hybridVerify(request);
       if (res.success && res.data) {
-        setHybridVerifyResult(res.data.isValid);
-        toast.success(`Hybrid verification result: ${res.data.isValid ? 'Valid' : 'Invalid'}`);
+        setHybridVerifyResult(res.data.valid);
+        toast.success(`Hybrid verification result: ${res.data.valid ? 'Valid' : 'Invalid'}`);
       } else {
         toast.error(res.error || 'Failed to verify Hybrid signature');
       }

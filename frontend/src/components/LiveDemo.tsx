@@ -17,7 +17,7 @@ export default function LiveDemo() {
     setError(null)
     setResult(null)
     try {
-      const proof = await createProof({ agentId: agent, inputHash: input, outputHash: output, proofData: model })
+      const proof = await createProof({ agent, input, output, model, use_case: 'merkle-inclusion', mode: 'local' })
       setResult(proof)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

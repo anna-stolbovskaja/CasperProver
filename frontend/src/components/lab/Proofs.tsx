@@ -101,7 +101,7 @@ const Proofs: React.FC = () => {
   const handleVerifyProof = async (proofId: string) => {
     setIsVerifying(proofId);
     try {
-      const res = await verifyProof({ proofId });
+      const res = await verifyProof({ proof_id: proofId });
       if (res.success) {
         toast.success(`Proof ${proofId} verified.`);
       } else {
