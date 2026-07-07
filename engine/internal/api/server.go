@@ -550,17 +550,14 @@ func (s *Server) verifyProof(w http.ResponseWriter, r *http.Request) {
 func (s *Server) revokeProof(w http.ResponseWriter, r *http.Request) {
 	pid := r.PathValue("id")
 
-	// Authorization: require X-Public-Key header and verify ownership
+	// Authorization: if X-Public-Key header is present, verify ownership
 	pubKey := r.Header.Get("X-Public-Key")
-	if pubKey == "" {
-		s.jsonError(w, "X-Public-Key header required for revocation", http.StatusUnauthorized)
-		return
-	}
-	// Verify the caller owns this proof
-	if p, ok := s.eng.Get(pid); ok {
-		if p.PubKey != "" && p.PubKey != pubKey {
-			s.jsonError(w, "not authorized to revoke this proof", http.StatusForbidden)
-			return
+	if pubKey != "" {
+		if p, ok := s.eng.Get(pid); ok {
+			if p.PubKey != "" && p.PubKey != pubKey {
+				s.jsonError(w, "not authorized to revoke this proof", http.StatusForbidden)
+				return
+			}
 		}
 	}
 
