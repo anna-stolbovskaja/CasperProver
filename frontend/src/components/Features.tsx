@@ -7,7 +7,7 @@ const features = [
   { icon: Fingerprint, title: 'Model Fingerprinting', desc: 'Each proof includes a hash of the model used. Track which model version made which decision across time.' },
   { icon: Zap, title: 'Sub-Second Generation', desc: 'Proof generation takes milliseconds. No GPU required. No heavy computation. Just cryptographic hashing.' },
   { icon: GitBranch, title: 'Merkle Path Verification', desc: 'Each proof includes its Merkle path for independent verification. Reconstruct the root from any leaf.' },
-  { icon: Server, title: 'Casper Anchoring', desc: 'Proof hashes and Merkle roots are stored in 4 smart contracts on Casper Network. Immutable, timestamped records.' },
+  { icon: Server, title: 'Casper Anchoring', desc: 'Proof hashes and Merkle roots are stored in 7 smart contracts (4 deployed) on Casper Network. Immutable, timestamped records.' },
   { icon: Shield, title: 'Real ZK Proofs (Groth16)', desc: 'BN254 Groth16 via gnark — real R1CS circuits, trusted setup, pairing-based verification. Not simulation.' },
   { icon: Layers, title: 'Batch Aggregation', desc: 'Aggregate multiple proofs into a single batch with hash-chain verification and Postgres persistence.' },
   { icon: Cpu, title: 'Post-Quantum Ready', desc: 'SPHINCS+, ML-DSA-65 (FIPS 204), and hybrid Ed25519+ML-DSA signing. Future-proof against quantum attacks.' },
