@@ -345,7 +345,7 @@ const Aggregation: React.FC = () => {
               <h4 className="text-lg font-semibold text-red-400">Batch Details:</h4>
               <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundBatch.batch_id}</span></p>
               <p><span className="font-medium text-gray-300">Name:</span> {foundBatch.batch_id}</p>
-              {foundBatch?.max_proofs && <p><span className="font-medium text-gray-300">Description:</span> {foundBatch?.max_proofs}</p>}
+              {foundBatch?.max_proofs && <p><span className="font-medium text-gray-300">Max Proofs:</span> {foundBatch?.max_proofs}</p>}
               <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{foundBatch.status.toUpperCase()}</span></p>
               <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proof_hashs.length}</p>
               {foundBatch.merkle_root && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkle_root}</span></p>}
@@ -381,15 +381,16 @@ const Aggregation: React.FC = () => {
             />
           </div>
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-              Description (Optional)
+            <label htmlFor="merkle_root" className="block text-sm font-medium text-gray-300 mb-1">
+              Merkle Root (Optional)
             </label>
             <textarea
-              id="description"
-              name="description"
+              id="merkle_root"
+              name="merkle_root"
               rows={3}
-              value={newBatchData?.max_proofs}
+              value={newBatchData?.merkle_root ?? ''}
               onChange={handleCreateBatchChange}
+              placeholder="Leave empty to set later, or paste a known merkle root"
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
             ></textarea>
           </div>
