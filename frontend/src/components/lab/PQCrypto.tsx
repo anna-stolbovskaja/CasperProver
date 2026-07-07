@@ -11,6 +11,7 @@ import {
   PQHybridVerifyRequest,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 const PQCrypto: React.FC = () => {
   // SPHINCS+ State
@@ -145,6 +146,13 @@ const PQCrypto: React.FC = () => {
 
   return (
     <div className="p-4">
+      <SectionIntro
+        title="Post-Quantum Cryptography"
+        description="Test real post-quantum digital signature schemes: ML-DSA-65 (FIPS 204, formerly Dilithium) and Lamport One-Time Signatures. ML-DSA-65 provides quantum-resistant signing for production use. Lamport OTS is honestly labeled as educational — a hash-based scheme that demonstrates PQ principles."
+        dataSource="Real cryptographic operations computed on the CasperProver backend. ML-DSA-65 uses the official FIPS 204 implementation."
+        badge="Real PQ signatures"
+        badgeColor="green"
+      />
       <h2 className="text-2xl font-bold text-gray-100 mb-6">Post-Quantum Cryptography Lab</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

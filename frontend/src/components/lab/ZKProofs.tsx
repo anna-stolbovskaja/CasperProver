@@ -9,6 +9,7 @@ import {
   getZKChallengeById,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 const Modal: React.FC<{
   isOpen: boolean;

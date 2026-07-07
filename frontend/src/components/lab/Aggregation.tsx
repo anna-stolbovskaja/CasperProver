@@ -13,6 +13,7 @@ import {
   
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{

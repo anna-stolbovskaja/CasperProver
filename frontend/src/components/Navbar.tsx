@@ -27,6 +27,9 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
+  // Lab has its own header — don't render Navbar on /lab pages
+  if (isLab) return null
+
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault()
     const hash = href.split('#')[1]

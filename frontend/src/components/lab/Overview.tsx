@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, CheckCircle, XCircle, Users, Clock, HeartPulse, HardHat } from 'lucide-react';
 import { getStats, getHealth, StatsResponse, HealthResponse } from '../../lib/api';
+import SectionIntro from './SectionIntro';
 
 const Overview: React.FC = () => {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -154,6 +155,13 @@ const Overview: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      <SectionIntro
+        title="System Overview"
+        description="Real-time dashboard showing proof engine statistics, system health, connected smart contracts on Casper testnet, and use case distribution. All numbers reflect live data from the running CasperProver backend."
+        dataSource="Live CasperProver API (/stats + /health endpoints). Contract addresses verified on Casper testnet."
+        badge="Live data"
+        badgeColor="green"
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {renderCard('Total Proofs', stats?.total_proofs ?? 0, Activity, 'text-red-500')}
         {renderCard('Valid Proofs', stats?.valid_proofs ?? 0, CheckCircle, 'text-green-500')}

@@ -21,6 +21,7 @@ import {
   finalizeAggregationBatch,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
 
@@ -222,7 +223,14 @@ const AgentDemo: React.FC = () => {
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold text-gray-100 mb-2">AI Agent Proof Flow</h2>
+      <SectionIntro
+        title="Proof Pipeline"
+        description="End-to-end demonstration of the CasperProver proof lifecycle: register an AI model → generate an inference proof → verify it cryptographically → aggregate into a batch → finalize. Every step makes real API calls to the live backend. Watch the full pipeline execute in sequence."
+        dataSource="Live API calls to all CasperProver endpoints. Each step creates real data in the engine."
+        badge="Live pipeline"
+        badgeColor="blue"
+      />
+      <h2 className="text-2xl font-bold text-gray-100 mb-2">Proof Pipeline</h2>
       <p className="text-gray-400 mb-6">
         Interactive demo: model registration → inference proof → verification → batch aggregation. All calls hit the live API.
       </p>

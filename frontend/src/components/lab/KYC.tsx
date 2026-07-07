@@ -7,6 +7,7 @@ import {
   KYCGrantRequest,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
+import SectionIntro from './SectionIntro';
 
 const KYC: React.FC = () => {
   // Check KYC Status State
@@ -100,6 +101,13 @@ const KYC: React.FC = () => {
 
   return (
     <div className="p-4">
+      <SectionIntro
+        title="KYC Operations"
+        description="Privacy-preserving Know Your Customer verification using zero-knowledge proofs. Check if a cryptographic proof passes KYC eligibility, grant access to verified users, and view KYC whitelists — all without exposing the underlying personal data."
+        dataSource="Live KYC verification API calls. Proof verification uses the CasperProver engine's Merkle tree."
+        badge="Live verification"
+        badgeColor="green"
+      />
       <h2 className="text-2xl font-bold text-gray-100 mb-2">KYC Operations Lab</h2>
       <p className="text-gray-400 mb-6">
         Manage and verify Know Your Customer (KYC) statuses for users, ensuring privacy-preserving compliance on Casper.
