@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Menu, X, Wallet } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { connectWallet, disconnectWallet, shortKey, type WalletState } from '../lib/wallet'
+import { useWallet } from '../lib/CsprClickProvider'
+import { shortKey } from '../lib/wallet'
 
 interface Props { mobileOpen: boolean; setMobileOpen: (v: boolean) => void }
 
@@ -17,7 +18,7 @@ const links = [
 
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
-  const [wallet, setWallet] = useState<WalletState>({ connected: false, publicKey: null, accountHash: null, simulated: false })
+  const wallet = useWallet()
   const location = useLocation()
   const isLab = location.pathname.startsWith('/lab')
 
@@ -45,11 +46,11 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     }
   }
 
-  const handleWallet = async () => {
+  const handleWallet = () => {
     if (wallet.connected) {
-      setWallet(disconnectWallet())
+      wallet.signOut()
     } else {
-      setWallet(await connectWallet())
+      wallet.signIn()
     }
   }
 
@@ -73,11 +74,10 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
                 ? 'border-green-500/30 text-green-400 bg-green-500/5 hover:bg-green-500/10'
                 : 'border-gray-700 text-gray-400 hover:border-red-500/40 hover:text-red-400'
             }`}
-            title={wallet.connected && wallet.simulated ? 'Demo wallet (install Casper Wallet for real connection)' : undefined}
           >
             <Wallet className="w-3.5 h-3.5" />
             {wallet.connected
-              ? <>{shortKey(wallet.publicKey!)}{wallet.simulated && <span className="text-yellow-500/60 text-[9px]">demo</span>}</>
+              ? <>{shortKey(wallet.publicKey!)}{wallet.provider && <span className="text-gray-500 text-[9px] ml-1">{wallet.provider}</span>}</>
               : 'Connect'}
           </button>
           {!isLab && (

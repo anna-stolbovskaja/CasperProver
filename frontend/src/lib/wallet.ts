@@ -1,41 +1,22 @@
 /**
- * Casper Wallet integration with simulated fallback.
+ * Casper Wallet integration via CSPR.click SDK.
+ *
+ * Uses the official CSPR.click (cspr.click) platform for wallet connection,
+ * supporting Casper Wallet, Ledger, MetaMask Snap, and WalletConnect.
+ *
+ * Keys:
+ *   AppID: configured via CSPR.click dashboard for casperprover.xyz
+ *   CSPR.cloud: API access for balance queries etc.
  */
 
-const DEMO_PUBLIC_KEY = '020260dd84fc2f98a96e6a62ad499e0bcf21e7edf0eb1b48ee0fba6fda0d9478af4c'
-const DEMO_ACCOUNT_HASH = 'a3f5b4c2d1e6f7089a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f'
+export const CSPR_CLICK_APP_ID = '9584b117-384b-4433-aaba-c6407a06'
+export const CSPR_CLOUD_API_KEY = '019f3d52-8d25-79c9-922f-f072df32d62c'
 
 export interface WalletState {
   connected: boolean
   publicKey: string | null
   accountHash: string | null
-  simulated: boolean
-}
-
-export function detectCasperWallet(): boolean {
-  return typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).CasperWalletProvider
-}
-
-export async function connectWallet(): Promise<WalletState> {
-  if (detectCasperWallet()) {
-    try {
-      const provider = (window as unknown as Record<string, unknown>).CasperWalletProvider as () => {
-        requestConnection: () => Promise<boolean>
-        getActivePublicKey: () => Promise<string>
-      }
-      const wallet = provider()
-      const ok = await wallet.requestConnection()
-      if (ok) {
-        const pubKey = await wallet.getActivePublicKey()
-        return { connected: true, publicKey: pubKey, accountHash: pubKey.slice(0, 64), simulated: false }
-      }
-    } catch { /* fall through */ }
-  }
-  return { connected: true, publicKey: DEMO_PUBLIC_KEY, accountHash: DEMO_ACCOUNT_HASH, simulated: true }
-}
-
-export function disconnectWallet(): WalletState {
-  return { connected: false, publicKey: null, accountHash: null, simulated: false }
+  provider: string | null
 }
 
 export function shortKey(key: string): string {
