@@ -89,4 +89,9 @@ CASPERPROVER_API_URL=http://localhost:9090 go run ./sdk/cmd/mcpserver
 | `pq_sign_sphincs` / `pq_verify_sphincs` | post-quantum SPHINCS+ signing | ✅ |
 | `pq_hybrid_sign` / `pq_hybrid_verify` | hybrid Ed25519 + ML-DSA-65 signing | ✅ |
 
-All 27 tools map 1:1 to live API endpoints. No stubs.
+| `zk_batch_verify` | batch-verify multiple ZK proofs | ✅ |
+| `zk_challenge` / `zk_get_challenge` | dispute challenge lifecycle | ✅ |
+| `batch_proofs` | bulk proof creation | ✅ |
+| `validate_proof_chain` | DAG validation (Phase 2) | ✅ |
+
+All 32 tools map 1:1 to live API endpoints. No stubs.

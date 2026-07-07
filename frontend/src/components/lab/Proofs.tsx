@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import {
   getProofs,
+  createProof,
   verifyProof,
   revokeProof,
   exportProof,
@@ -72,6 +73,11 @@ const Proofs: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState<string | null>(null);
   const [isRevoking, setIsRevoking] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<string | null>(null);
+
+  // Create proof
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ agent: '', input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
 
   const fetchProofs = useCallback(async () => {
     setLoading(true);
@@ -160,6 +166,25 @@ const Proofs: React.FC = () => {
     }
   };
 
+  const handleCreateProof = async () => {
+    setIsCreating(true);
+    try {
+      const res = await createProof(createForm);
+      if (res.success) {
+        toast.success('Proof created!');
+        setIsCreateModalOpen(false);
+        setCreateForm({ agent: '', input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
+        fetchProofs();
+      } else {
+        toast.error(res.error || 'Failed to create proof');
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const openDetailModal = (proof: Proof) => {
     setSelectedProof(proof);
     setIsDetailModalOpen(true);
@@ -193,7 +218,16 @@ const Proofs: React.FC = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Proof Registry</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-bold text-gray-100">Proof Registry</h2>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium transition-colors"
+          >
+            <PlusCircle size={16} />
+            Create Proof
+          </button>
+        </div>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <input
@@ -375,6 +409,45 @@ const Proofs: React.FC = () => {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Create Proof Modal */}
+      <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Create New Proof">
+        <div className="space-y-3">
+          {(['agent', 'input', 'output', 'model'] as const).map((field) => (
+            <div key={field}>
+              <label className="text-sm text-gray-300 block mb-1 capitalize">{field}</label>
+              <input
+                type="text"
+                value={createForm[field]}
+                onChange={(e) => setCreateForm((f) => ({ ...f, [field]: e.target.value }))}
+                className="w-full bg-[#0b0b10] border border-[#222235] text-gray-100 px-3 py-2 rounded text-sm"
+                placeholder={field === 'agent' ? 'agent-name' : field === 'model' ? 'model-v1' : `${field} data`}
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-sm text-gray-300 block mb-1">Use Case</label>
+            <select
+              value={createForm.use_case}
+              onChange={(e) => setCreateForm((f) => ({ ...f, use_case: e.target.value }))}
+              className="w-full bg-[#0b0b10] border border-[#222235] text-gray-100 px-3 py-2 rounded text-sm"
+            >
+              <option value="merkle-inclusion">Merkle Inclusion</option>
+              <option value="inference">Inference</option>
+              <option value="kyc">KYC</option>
+              <option value="defi">DeFi</option>
+            </select>
+          </div>
+          <button
+            onClick={handleCreateProof}
+            disabled={isCreating || !createForm.agent || !createForm.input || !createForm.output || !createForm.model}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white rounded transition-colors text-sm font-medium mt-4"
+          >
+            {isCreating ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
+            Create Proof
+          </button>
+        </div>
       </Modal>
     </div>
   );

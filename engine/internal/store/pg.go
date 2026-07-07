@@ -55,6 +55,19 @@ CREATE TABLE IF NOT EXISTS model_registry (
 	registered_at bigint NOT NULL,
 	deploy_hash text NOT NULL DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS aggregation_batches (
+	batch_id text PRIMARY KEY,
+	max_proofs integer NOT NULL DEFAULT 10,
+	proof_hashes text[] NOT NULL DEFAULT '{}',
+	merkle_root text NOT NULL DEFAULT '',
+	status text NOT NULL DEFAULT 'open',
+	created_at bigint NOT NULL,
+	finalized_at bigint NOT NULL DEFAULT 0,
+	aggregate_proof_hash text NOT NULL DEFAULT '',
+	individual_proof_hashes text[] NOT NULL DEFAULT '{}',
+	proof_count integer NOT NULL DEFAULT 0
+);
 `
 
 // Open connects to PostgreSQL using DATABASE_URL. Returns nil,nil if unset.
@@ -222,4 +235,61 @@ func (s *PG) GetModelRegistryEntry(ctx context.Context, modelID string) (*ModelR
 		}
 	}
 	return &e, nil
+}
+
+// AggBatchRow is a persisted aggregation batch row.
+type AggBatchRow struct {
+	BatchID              string
+	MaxProofs            int
+	ProofHashes          []string
+	MerkleRoot           string
+	Status               string
+	CreatedAt            int64
+	FinalizedAt          int64
+	AggregateProofHash   string
+	IndividualProofHashes []string
+	ProofCount           int
+}
+
+// SaveAggBatch persists an aggregation batch row.
+func (s *PG) SaveAggBatch(ctx context.Context, b *AggBatchRow) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO aggregation_batches
+		(batch_id, max_proofs, proof_hashes, merkle_root, status,
+		 created_at, finalized_at, aggregate_proof_hash, individual_proof_hashes, proof_count)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		ON CONFLICT (batch_id) DO UPDATE SET
+			proof_hashes=EXCLUDED.proof_hashes, merkle_root=EXCLUDED.merkle_root,
+			status=EXCLUDED.status, finalized_at=EXCLUDED.finalized_at,
+			aggregate_proof_hash=EXCLUDED.aggregate_proof_hash,
+			individual_proof_hashes=EXCLUDED.individual_proof_hashes,
+			proof_count=EXCLUDED.proof_count`,
+		b.BatchID, b.MaxProofs, pq.StringArray(b.ProofHashes), b.MerkleRoot, b.Status,
+		b.CreatedAt, b.FinalizedAt, b.AggregateProofHash,
+		pq.StringArray(b.IndividualProofHashes), b.ProofCount)
+	return err
+}
+
+// LoadAggBatches reads all aggregation batches from the database.
+func (s *PG) LoadAggBatches() ([]AggBatchRow, error) {
+	rows, err := s.db.Query(`SELECT batch_id, max_proofs, proof_hashes, merkle_root, status,
+		created_at, finalized_at, aggregate_proof_hash, individual_proof_hashes, proof_count
+		FROM aggregation_batches ORDER BY created_at`)
+	if err != nil {
+		return nil, fmt.Errorf("pg load agg batches: %w", err)
+	}
+	defer rows.Close()
+
+	var out []AggBatchRow
+	for rows.Next() {
+		var b AggBatchRow
+		var ph, iph pq.StringArray
+		if err := rows.Scan(&b.BatchID, &b.MaxProofs, &ph, &b.MerkleRoot, &b.Status,
+			&b.CreatedAt, &b.FinalizedAt, &b.AggregateProofHash, &iph, &b.ProofCount); err != nil {
+			return out, fmt.Errorf("pg load agg scan: %w", err)
+		}
+		b.ProofHashes = []string(ph)
+		b.IndividualProofHashes = []string(iph)
+		out = append(out, b)
+	}
+	return out, rows.Err()
 }

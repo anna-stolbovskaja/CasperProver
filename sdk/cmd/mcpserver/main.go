@@ -124,6 +124,40 @@ func dispatch(ctx context.Context, c *sdk.Client, name string, args map[string]i
 	case "groth16_real_verify":
 		result, err = c.Groth16RealVerify(ctx, str("hash"), str("proof_hex"))
 
+	// ── ZK batch & challenges ──────────────────────────────────
+	case "zk_batch_verify":
+		var proofs []map[string]any
+		if arr, ok := args["proofs"].([]interface{}); ok {
+			for _, v := range arr {
+				if m, ok := v.(map[string]interface{}); ok {
+					pm := make(map[string]any, len(m))
+					for k, v := range m { pm[k] = v }
+					proofs = append(proofs, pm)
+				}
+			}
+		}
+		result, err = c.BatchVerifyZK(ctx, proofs)
+	case "zk_challenge":
+		result, err = c.ChallengeZK(ctx, str("proof_id"), str("reason"))
+	case "zk_get_challenge":
+		result, err = c.GetChallengeZK(ctx, str("id"))
+	case "validate_proof_chain":
+		chain := make(map[string]any)
+		for k, v := range args { chain[k] = v }
+		result, err = c.ValidateProofChain(ctx, chain)
+	case "batch_proofs":
+		var proofs []map[string]string
+		if arr, ok := args["proofs"].([]interface{}); ok {
+			for _, v := range arr {
+				if m, ok := v.(map[string]interface{}); ok {
+					pm := make(map[string]string, len(m))
+					for k, v := range m { pm[k] = fmt.Sprintf("%v", v) }
+					proofs = append(proofs, pm)
+				}
+			}
+		}
+		result, err = c.BatchProofs(ctx, proofs, str("mode"))
+
 	// ── Post-quantum crypto ───────────────────────────────────
 	case "pq_sign_sphincs":
 		result, err = c.SignSPHINCS(ctx, str("message"))

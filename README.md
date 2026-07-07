@@ -168,22 +168,40 @@ the agent.
 
 ---
 
+## Phase 2 Library (`engine/pkg/phase2/`)
+
+Partial implementations of Phase 2 features — real code, ready for wiring:
+
+| Module | What it does |
+|---|---|
+| `proof_dag.go` | `ValidateDAG()` — full cycle detection (DFS), input/output hash continuity, single-root check. **Wired to `POST /proof-chain/validate`** |
+| `hw_attestation.go` | `HardwareAttestor` interface + `SoftwareAttestor` fallback — TPM 2.0, Intel SGX, AMD SEV, ARM TrustZone attestation types |
+| `proof_chain.go` | `ProofChain`, `ChainStep` — DAG proof types with 5 verification statuses |
+| `prover_config.go` | `ProverConfig` — distributed proving config with MPC threshold support |
+| `verifier_config.go` | `VerifierConfig` — Optimistic / ZK / Hybrid verification modes |
+| `target_vm.go` | `TargetVM` — CasperVM / EVM / Future target enum |
+| `attestation_type.go` | `AttestationType` — 5-level attestation enum (Software → TrustZone) |
+
+---
+
 ## Project Structure
 
 ```
 CasperProver/
-├── contracts/          # Rust smart contracts
+├── contracts/          # Rust smart contracts (4 on testnet)
 │   ├── proof-registry/ # Main proof store
 │   ├── verifier-gate/  # Inclusion proof checker
-│   └── defi-mock/      # KYC-gated vault demo
+│   ├── defi-mock/      # KYC-gated vault demo
+│   └── stake-slashing/ # Economic penalty for revoked proofs
 ├── engine/             # Go proof generation engine
 │   ├── cmd/            # Entry point
-│   └── internal/       # Merkle builder, Casper client
-├── sdk/                # Go + Python SDK
-│   ├── client.go
+│   ├── internal/       # Merkle builder, Casper client, ZK verifier, PQ crypto
+│   └── pkg/phase2/     # Phase 2 library (DAG validation, HW attestation, proof chains)
+├── sdk/                # Go SDK + MCP server (31 tools)
+│   ├── client.go       # 1:1 API client methods
 │   ├── mcp_server.go   # MCP adapter for AI frameworks
-│   └── python_client.py
-├── frontend/           # Vite/TS lab
+│   └── cmd/mcpserver/  # MCP server entry point
+├── frontend/           # Vite/TS lab (10 tabs)
 └── docs/               # Architecture, SDK docs
 ```
 

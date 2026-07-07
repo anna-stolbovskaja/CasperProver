@@ -284,6 +284,38 @@ const playgroundEndpoints: EndpointConfig[] = [
     }, null, 2),
     apiCall: api.hybridVerify,
   },
+  {
+    name: 'POST /zk/groth16-real/prove',
+    method: 'POST',
+    path: '/zk/groth16-real/prove',
+    description: 'Generate a real BN254 Groth16 proof (MiMC preimage circuit via gnark).',
+    exampleBody: JSON.stringify({ preimage: '42' }, null, 2),
+    apiCall: api.zkGroth16RealProve,
+  },
+  {
+    name: 'POST /zk/groth16-real/verify',
+    method: 'POST',
+    path: '/zk/groth16-real/verify',
+    description: 'Verify a real BN254 Groth16 proof.',
+    exampleBody: JSON.stringify({ hash: '...', proof_hex: '...' }, null, 2),
+    apiCall: api.zkGroth16RealVerify,
+  },
+  {
+    name: 'GET /aggregation/verify-batch/{id}',
+    method: 'GET',
+    path: '/aggregation/verify-batch/{id}',
+    description: 'Verify a finalized aggregation batch.',
+    params: [{ name: 'id', type: 'string', optional: false, default: 'example-batch-id' }],
+    apiCall: (params: any) => api.verifyAggregationBatch(params.id),
+  },
+  {
+    name: 'GET /proofs/{id}/export',
+    method: 'GET',
+    path: '/proofs/{id}/export',
+    description: 'Export a proof as a portable JSON bundle.',
+    params: [{ name: 'id', type: 'string', optional: false, default: 'P-1' }],
+    apiCall: (params: any) => api.exportProof(params.id),
+  },
 ];
 
 const Playground: React.FC = () => {

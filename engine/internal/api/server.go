@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
+	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
@@ -120,7 +122,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		}
 	}
 
-	return &Server{
+	srv := &Server{
 		eng:    eng,
 		ver:    verifier.New(),
 		kyc:    demoKYC,
@@ -136,6 +138,34 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 
 		aggBatches: make(map[string]*aggBatch),
 	}
+
+	// Rehydrate aggregation batches from Postgres
+	if db != nil {
+		rows, err := db.LoadAggBatches()
+		if err != nil {
+			slog.Warn("failed to load aggregation batches from db", "err", err)
+		} else {
+			for _, row := range rows {
+				b := &aggBatch{
+					ID: row.BatchID, MerkleRoot: row.MerkleRoot, MaxProofs: row.MaxProofs,
+					ProofHashes: row.ProofHashes, Status: row.Status,
+					CreatedAt: row.CreatedAt, FinalizedAt: row.FinalizedAt,
+				}
+				if row.AggregateProofHash != "" {
+					b.Pack = &aggregator.STARKPack{
+						AggregateProofHash:    row.AggregateProofHash,
+						IndividualProofHashes: row.IndividualProofHashes,
+						ProofCount:            row.ProofCount,
+						Timestamp:             row.FinalizedAt,
+					}
+				}
+				srv.aggBatches[row.BatchID] = b
+			}
+			slog.Info("loaded aggregation batches from postgres", "count", len(rows))
+		}
+	}
+
+	return srv
 }
 
 func (s *Server) Start() error {
@@ -172,6 +202,8 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /zk/groth16-real/verify", s.zkGroth16RealVerify)
 	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
+	// Phase 2: proof chains (DAG validation)
+	mux.HandleFunc("POST /proof-chain/validate", s.proofChainValidate)
 	// Post-quantum routes
 	mux.HandleFunc("POST /pq/sign-sphincs", s.pqSignSPHINCS)
 	mux.HandleFunc("POST /pq/verify-sphincs", s.pqVerifySPHINCS)
@@ -745,6 +777,27 @@ func (s *Server) inferenceGetModel(w http.ResponseWriter, r *http.Request) {
 // Aggregation handlers
 // ---------------------------------------------------------------------------
 
+// persistAggBatch saves a batch to Postgres (if DB is configured).
+// Called after every mutation (create, add-proof, finalize).
+func (s *Server) persistAggBatch(b *aggBatch) {
+	if s.db == nil {
+		return
+	}
+	row := &store.AggBatchRow{
+		BatchID: b.ID, MaxProofs: b.MaxProofs,
+		ProofHashes: b.ProofHashes, MerkleRoot: b.MerkleRoot,
+		Status: b.Status, CreatedAt: b.CreatedAt, FinalizedAt: b.FinalizedAt,
+	}
+	if b.Pack != nil {
+		row.AggregateProofHash = b.Pack.AggregateProofHash
+		row.IndividualProofHashes = b.Pack.IndividualProofHashes
+		row.ProofCount = b.Pack.ProofCount
+	}
+	if err := s.db.SaveAggBatch(context.Background(), row); err != nil {
+		s.log.Warn("failed to persist agg batch", "batch_id", b.ID, "err", err)
+	}
+}
+
 func (s *Server) aggregationCreateBatch(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		BatchID    string `json:"batch_id"`
@@ -775,6 +828,7 @@ func (s *Server) aggregationCreateBatch(w http.ResponseWriter, r *http.Request) 
 	}
 	s.aggBatches[req.BatchID] = b
 	s.aggMu.Unlock()
+	s.persistAggBatch(b)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -812,6 +866,7 @@ func (s *Server) aggregationAddProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	b.ProofHashes = append(b.ProofHashes, req.ProofHash)
+	s.persistAggBatch(b)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
@@ -857,6 +912,7 @@ func (s *Server) aggregationFinalize(w http.ResponseWriter, r *http.Request) {
 	b.Pack = pack
 	b.Status = "finalized"
 	b.FinalizedAt = time.Now().Unix()
+	s.persistAggBatch(b)
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
@@ -1274,4 +1330,79 @@ func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Proof Chain (DAG) Validation
+// ---------------------------------------------------------------------------
+
+func (s *Server) proofChainValidate(w http.ResponseWriter, r *http.Request) {
+	var chain phase2.ProofChain
+	if err := json.NewDecoder(r.Body).Decode(&chain); err != nil {
+		s.jsonError(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if len(chain.Steps) == 0 {
+		s.jsonError(w, "chain must have at least one step", http.StatusBadRequest)
+		return
+	}
+
+	chain.TotalSteps = len(chain.Steps)
+	if chain.ID == "" {
+		chain.ID = fmt.Sprintf("chain-%x", sha256.Sum256([]byte(fmt.Sprintf("%v", chain.Steps))))[:16]
+	}
+
+	if err := phase2.ValidateDAG(&chain); err != nil {
+		chain.Status = phase2.ChainBroken
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"valid":       false,
+			"error":       err.Error(),
+			"chain_id":    chain.ID,
+			"total_steps": chain.TotalSteps,
+			"status":      "broken",
+		})
+		return
+	}
+
+	chain.Status = phase2.ChainFullyVerified
+	// Find depth (longest path from root to any leaf)
+	depth := 0
+	index := make(map[string]*phase2.ChainStep, len(chain.Steps))
+	for i := range chain.Steps {
+		index[chain.Steps[i].ProofID] = &chain.Steps[i]
+	}
+	var calcDepth func(id string) int
+	calcDepth = func(id string) int {
+		step := index[id]
+		if len(step.ParentIDs) == 0 {
+			return 0
+		}
+		maxParent := 0
+		for _, pid := range step.ParentIDs {
+			d := calcDepth(pid)
+			if d > maxParent {
+				maxParent = d
+			}
+		}
+		return maxParent + 1
+	}
+	for _, step := range chain.Steps {
+		d := calcDepth(step.ProofID)
+		if d > depth {
+			depth = d
+		}
+	}
+	chain.Depth = depth
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"valid":          true,
+		"chain_id":       chain.ID,
+		"total_steps":    chain.TotalSteps,
+		"depth":          chain.Depth,
+		"root_proof_id":  chain.RootProofID,
+		"status":         "fully_verified",
+	})
 }

@@ -37,6 +37,8 @@
 - [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof
 - [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
 - [x] MCP server expansion — all 27 tools wired (inference, aggregation, ZK, PQ crypto)
+- [x] Aggregation batch persistence — rehydrates from Postgres on restart
+- [x] Proof chain (DAG) validation — `POST /proof-chain/validate` with cycle detection, input continuity
 - [ ] Demo/Real data toggle in lab
 
 ## Phase 3 — Advanced

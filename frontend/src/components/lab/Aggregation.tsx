@@ -6,6 +6,7 @@ import {
   addProofToAggregationBatch,
   finalizeAggregationBatch,
   getAggregationBatchById,
+  verifyAggregationBatch,
   CreateBatchRequest,
   AddProofToBatchRequest,
   FinalizeBatchRequest,
@@ -54,6 +55,12 @@ const Aggregation: React.FC = () => {
   // Finalize Batch State
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [finalizeBatchId, setFinalizeBatchId] = useState('');
+
+  // Verify Batch State
+  const [isVerifyBatchModalOpen, setIsVerifyBatchModalOpen] = useState(false);
+  const [verifyBatchId, setVerifyBatchId] = useState('');
+  const [verifyBatchResult, setVerifyBatchResult] = useState<any>(null);
+  const [isVerifyingBatch, setIsVerifyingBatch] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
 
   // View Batch State
@@ -121,6 +128,27 @@ const Aggregation: React.FC = () => {
 
   const handleFinalizeBatchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFinalizeBatchId(e.target.value);
+  };
+
+  const handleVerifyBatchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsVerifyingBatch(true);
+    setVerifyBatchResult(null);
+    try {
+      const res = await verifyAggregationBatch(verifyBatchId);
+      if (res.success) {
+        setVerifyBatchResult(res.data);
+        toast.success(`Batch ${verifyBatchId.substring(0, 8)}... verification complete!`);
+      } else {
+        toast.error(res.error || 'Verification failed');
+        setVerifyBatchResult({ error: res.error });
+      }
+    } catch (err) {
+      toast.error('Verification error');
+      console.error(err);
+    } finally {
+      setIsVerifyingBatch(false);
+    }
   };
 
   const handleFinalizeBatchSubmit = async (e: React.FormEvent) => {
@@ -240,6 +268,13 @@ const Aggregation: React.FC = () => {
           >
             <CheckCircle size={20} />
             Finalize Batch
+          </button>
+          <button
+            onClick={() => setIsVerifyBatchModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200"
+          >
+            <CheckCircle size={20} />
+            Verify Batch
           </button>
         </div>
       </div>
@@ -447,6 +482,38 @@ const Aggregation: React.FC = () => {
             {isFinalizing ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
             {isFinalizing ? 'Finalizing...' : 'Finalize Batch'}
           </button>
+        </form>
+      </Modal>
+
+      {/* Verify Batch Modal */}
+      <Modal isOpen={isVerifyBatchModalOpen} onClose={() => { setIsVerifyBatchModalOpen(false); setVerifyBatchResult(null); }} title="Verify Aggregation Batch">
+        <form onSubmit={handleVerifyBatchSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-gray-300 block mb-1">Batch ID</label>
+            <input
+              type="text"
+              value={verifyBatchId}
+              onChange={(e) => setVerifyBatchId(e.target.value)}
+              required
+              className="w-full bg-[#0b0b10] border border-[#222235] text-gray-100 px-3 py-2 rounded text-sm font-mono"
+              placeholder="Enter batch ID to verify"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isVerifyingBatch || !verifyBatchId}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
+          >
+            {isVerifyingBatch ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}
+            {isVerifyingBatch ? 'Verifying...' : 'Verify Batch'}
+          </button>
+          {verifyBatchResult && (
+            <div className="mt-4">
+              <pre className={`bg-[#0b0b10] p-3 rounded text-xs overflow-auto max-h-48 font-mono ${verifyBatchResult.error ? 'text-red-300' : 'text-green-300'}`}>
+                {JSON.stringify(verifyBatchResult, null, 2)}
+              </pre>
+            </div>
+          )}
         </form>
       </Modal>
     </div>
