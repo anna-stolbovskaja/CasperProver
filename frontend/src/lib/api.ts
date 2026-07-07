@@ -224,8 +224,12 @@ export const createProof = (data: CreateProofRequest) =>
   fetcher<Proof>('/proofs', { method: 'POST', body: JSON.stringify(data) });
 export const verifyProof = (data: VerifyProofRequest) =>
   fetcher<VerifyProofResponse>('/verify', { method: 'POST', body: JSON.stringify(data) });
-export const revokeProof = (id: string) =>
-  fetcher<{ proof_id: string; revoked: boolean }>(`/proofs/${id}/revoke`, { method: 'POST', body: JSON.stringify({}) });
+export const revokeProof = (id: string, publicKey?: string) =>
+  fetcher<{ proof_id: string; revoked: boolean }>(`/proofs/${id}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+    ...(publicKey ? { headers: { 'Content-Type': 'application/json', 'X-Public-Key': publicKey } } : {}),
+  });
 export const exportProof = (id: string) =>
   fetcher<any>(`/proofs/${id}/export`, { method: 'GET' });
 

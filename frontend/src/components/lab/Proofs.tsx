@@ -168,27 +168,31 @@ const Proofs: React.FC = () => {
     setRevokeTarget(null);
     setIsRevoking(proofId);
     try {
-      // Backend revoke
-      const res = await revokeProof(proofId);
+      // Backend revoke (pass publicKey for ownership check if wallet connected)
+      const res = await revokeProof(proofId, isWalletConnected && publicKey ? publicKey : undefined);
       if (res.success) {
-        toast.success(`Proof ${proofId} revoked.`);
-        fetchAllProofs();
-
-        // Also revoke on-chain if wallet connected
+        // Also revoke on-chain if wallet connected (before showing final toast)
         if (isWalletConnected && clickRef && publicKey) {
-          toast.info('Signing on-chain revocation…');
-          const txResult = await revokeProofOnChain(clickRef, {
-            proofId,
-            senderPublicKeyHex: publicKey,
-          });
-          if (txResult.ok) {
-            toast.success(`On-chain revoke tx: ${txResult.transactionHash.substring(0, 16)}…`);
-          } else if ('cancelled' in txResult && txResult.cancelled) {
-            toast.info('On-chain revocation cancelled.');
-          } else {
-            toast.error(`On-chain revoke failed: ${'error' in txResult ? txResult.error : 'unknown'}`);
+          toast.info(`Proof ${proofId} revoked — sign on-chain revocation…`);
+          try {
+            const txResult = await revokeProofOnChain(clickRef, {
+              proofId,
+              senderPublicKeyHex: publicKey,
+            });
+            if (txResult.ok) {
+              toast.success(`Proof ${proofId} revoked & confirmed on-chain! Tx: ${txResult.transactionHash.substring(0, 16)}…`);
+            } else if ('cancelled' in txResult && txResult.cancelled) {
+              toast.success(`Proof ${proofId} revoked (on-chain skipped).`);
+            } else {
+              toast.success(`Proof ${proofId} revoked (on-chain failed: ${'error' in txResult ? txResult.error : 'unknown'}).`);
+            }
+          } catch (txErr: any) {
+            toast.success(`Proof ${proofId} revoked (on-chain error: ${txErr.message}).`);
           }
+        } else {
+          toast.success(`Proof ${proofId} revoked.`);
         }
+        fetchAllProofs();
       } else {
         toast.error(res.error || 'Revocation failed');
       }
@@ -234,9 +238,8 @@ const Proofs: React.FC = () => {
         setIsCreateModalOpen(false);
         const resetAgent = isWalletConnected && publicKey ? publicKey : '';
         setCreateForm({ agent: resetAgent, input: '', output: '', model: '', use_case: 'merkle-inclusion', mode: 'local' });
-        fetchAllProofs();
 
-        // If wallet connected, sign on-chain FIRST, then show final toast
+        // If wallet connected, sign on-chain FIRST, then refresh table & show toast
         if (isWalletConnected && clickRef && publicKey && res.data.proof_hash) {
           const proofData = res.data;
           toast.info(`Proof ${proofData.id} saved — sign to anchor on-chain…`);
@@ -264,6 +267,9 @@ const Proofs: React.FC = () => {
         } else {
           toast.success('Proof created!');
         }
+
+        // Refresh table only AFTER wallet flow completes (or if no wallet)
+        fetchAllProofs();
       } else {
         toast.error(res.error || 'Failed to create proof');
       }
