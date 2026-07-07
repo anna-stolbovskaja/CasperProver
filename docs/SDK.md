@@ -72,17 +72,21 @@ CASPERPROVER_API_URL=http://localhost:9090 go run ./sdk/cmd/mcpserver
 
 | tool | description | backed by real API? |
 |------|-------------|----------------------|
-| `health_check` | API health check | yes |
-| `generate_proof` | create proof of AI inference | yes |
-| `verify_proof` | check proof validity | yes |
-| `get_proof` | fetch proof details | yes |
-| `list_proofs` | list all proofs | yes |
-| `revoke_proof` | invalidate a proof | yes |
-| `export_proof` | export proof + chain metadata | yes |
-| `get_stats` | engine-wide proof stats | yes |
-| `kyc_check` / `kyc_grant` / `kyc_whitelist` | KYC flow | yes |
-| `get_model_info` / `register_model` | model registry | yes |
-| `batch_proofs` | batch-verify proofs | not yet wired over MCP - use `POST /proofs/batch` directly |
-| `get_merkle_root`, `list_models`, `get_model_registry`, `deprecate_model`, `estimate_complexity`, `get_complexity_report`, `submit_batch_task`, `get_task_status`, `list_worker_nodes` | aspirational manifest entries | **no backing API endpoint yet** - `cmd/mcpserver` returns a clear "not implemented" error rather than fabricating a response |
+| `health_check` | API health check | ✅ |
+| `generate_proof` | create proof of AI inference | ✅ |
+| `verify_proof` | check proof validity | ✅ |
+| `get_proof` | fetch proof details | ✅ |
+| `list_proofs` | list all proofs | ✅ |
+| `revoke_proof` | invalidate a proof | ✅ |
+| `export_proof` | export proof + chain metadata | ✅ |
+| `get_stats` | engine-wide proof stats | ✅ |
+| `kyc_check` / `kyc_grant` / `kyc_whitelist` | KYC flow | ✅ |
+| `inference_prove` / `inference_verify` | inference proof lifecycle | ✅ |
+| `get_model_info` / `register_model` | model registry | ✅ |
+| `create_batch` / `add_proof_to_batch` / `finalize_batch` / `get_batch` / `verify_batch` | STARK aggregation batches | ✅ |
+| `verify_groth16` | hash-based Groth16 check | ✅ |
+| `groth16_real_prove` / `groth16_real_verify` | real BN254 Groth16 via gnark | ✅ |
+| `pq_sign_sphincs` / `pq_verify_sphincs` | post-quantum SPHINCS+ signing | ✅ |
+| `pq_hybrid_sign` / `pq_hybrid_verify` | hybrid Ed25519 + ML-DSA-65 signing | ✅ |
 
-See `docs/KNOWN_LIMITATIONS.md` for details on the unimplemented tools.
+All 27 tools map 1:1 to live API endpoints. No stubs.

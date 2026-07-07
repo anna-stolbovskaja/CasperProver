@@ -22,7 +22,7 @@
 ## SDK
 
 - **Go SDK maps 1:1 to real API routes** — rewritten from scratch, tested against a fake server in CI.
-- **MCP server has 12 of 22 tools wired** — remaining 10 tools return a clear "not implemented" error (no backing API endpoint exists for those yet).
+- **MCP server has all 27 tools wired** — every tool maps to a live API endpoint, no stubs.
 
 ## Frontend
 
