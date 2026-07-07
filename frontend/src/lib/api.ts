@@ -37,24 +37,36 @@ async function fetcher<T>(
 
 // --- Main API Schemas & Types ---
 
-// Health
+// Health — fields match the Go engine's JSON output
 export interface HealthResponse {
   status: string
   version: string
-  contracts: Record<string, number>
+  uptime_s: number
+  total_proofs: number
+  chain: string
+  contracts: Record<string, string>
 }
 
 
-// Proofs
+// Proofs — fields match the Go engine's JSON output (snake_case)
 export interface Proof {
   id: string
-  agentId: string
-  inputHash: string
-  outputHash: string
-  proofData: string
-  createdAt: string
-  status: any
-  merklePath?: string[]
+  agent: string
+  proof_hash: string
+  input_hash: string
+  output_hash: string
+  model_hash: string
+  merkle_root: string
+  merkle_path: string[]
+  leaf_index: number
+  timestamp: number
+  valid: boolean
+  revoked: boolean
+  use_case: string
+  public_key: string
+  deploy_hash: string
+  generation_ms: number
+  mode: string
 }
 
 export interface ProofsListResponse {
@@ -84,13 +96,15 @@ export interface VerifyProofResponse {
   message: string
 }
 
-// Stats
+// Stats — fields match the Go engine's JSON output (snake_case)
 export interface StatsResponse {
-  totalProofs: number
-  validProofs: number
-  revokedProofs: number
-  uniqueAgents: number
-  averageGenerationTimeMs: number
+  total_proofs: number
+  valid_proofs: number
+  revoked_proofs: number
+  unique_agents: number
+  avg_generation_ms: number
+  max_merkle_depth: number
+  use_cases: Record<string, number>
 }
 
 

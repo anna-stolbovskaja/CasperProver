@@ -6,27 +6,35 @@
 
 ## Shipped (Hackathon)
 
-- [x] 3 contracts on Casper testnet (proof-registry, verifier-gate, defi-mock)
-- [x] Go API server with PostgreSQL
+- [x] 4 contracts on Casper testnet (proof-registry, verifier-gate, defi-mock, stake-slashing)
+- [x] Go API server with PostgreSQL persistence
 - [x] Merkle tree builder (SHA-256, configurable depth)
 - [x] Proof registration and on-chain verification
-- [x] KYC whitelisting via Merkle inclusion
-- [x] DeFi vault gated by verifier-gate
-- [x] React lab at casperprover.xyz
-- [x] SDK + MCP server
-- [x] 83 tests (62 Go + 21 Rust)
-- [x] CI via GitHub Actions
+- [x] KYC whitelisting via Merkle inclusion (survives server restart)
+- [x] DeFi vault gated by verifier-gate (admin-only `grant_access`, typed `AccountHash`)
+- [x] React lab at casperprover.xyz with 9 interactive tabs
+- [x] SDK (Go client + MCP server, ~12/22 tools wired to real API)
+- [x] 83+ tests (62 Go + 21 Rust)
+- [x] CI via GitHub Actions (engine test/vet/lint + SDK test/lint + contracts build/test)
+- [x] API-key auth for mutating endpoints
+- [x] Rate limiting (60 req/min per IP) + 1MB body limit
+- [x] 200+ successful testnet transactions
 
-## Phase 2 — Core Upgrades
+## Phase 2 — Core Upgrades (completed items checked)
 
+- [x] Post-quantum proof signing — real Ed25519 + ML-DSA-65 (FIPS 204) + Lamport OTS, wired to `/pq/*` endpoints
+- [x] STARK aggregation — hash-based STARKPack simulation, wired to `/aggregation/*` with real batch registry
+- [x] Groth16 zk-SNARK verifier — real BN254 pairing via `gnark`/`gnark-crypto` at `/zk/groth16-real/*` (MiMC preimage circuit)
+- [x] Stake-slashing contract — real CSPR economic penalty for revoked proofs (20% slash, permissionless bounty)
+- [x] SDK rewrite — Go client 1:1 mapped to real API routes, separate module with CI
+- [x] MCP server — real entry point at `sdk/cmd/mcpserver`, 12 tools wired
+- [x] KYC whitelist persistence — rehydrates from Postgres on restart
+- [x] Aggregation batch registry — real in-memory state (create/add/finalize/verify)
+- [x] `defi-mock` hardening — typed `AccountHash`, duplicate whitelist prevention, admin gate
 - [ ] Proof-of-Inference contract — model_hash + input_hash + output_hash on-chain
 - [ ] Model hash commitment — SHA-256(architecture + weights + hyperparams) before inference
 - [ ] ModelRegistry contract — on-chain model binding to prevent model-swap attacks
-- [ ] Proof aggregation registry — N proofs → 1 root hash with Merkle inclusion
-- [ ] Post-quantum proof signing (ML-DSA FIPS 204 + SPHINCS+ FIPS 205 backup)
-- [ ] Recursive STARK aggregation (STARKPack pattern, Winterfell)
-- [ ] Groth16 zk-SNARK verifier (gnark, optimistic mode with fraud proofs)
-- [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof, 5.5KB/24ms
+- [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof
 - [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
 - [ ] MCP server expansion to 15+ tools with ProofOfInference JSON-Schema
 - [ ] Demo/Real data toggle in lab
@@ -39,7 +47,6 @@
 - [ ] Distributed prover workers with MPC threshold proving
 - [ ] Trusted setup ceremony manager
 - [ ] EVM compatibility layer (Solidity verifier contract)
-- [ ] Proof complexity classifier (ML-based)
 - [ ] Property-based testing (Go rapid) with proof system invariants
 - [ ] ZK circuit constraint testing + fuzz testing
 - [ ] Gas benchmarking suite
@@ -53,12 +60,3 @@
 - [ ] Integration with model registries (HuggingFace, Replicate)
 - [ ] Cross-chain proof bridging
 - [ ] Formal verification (TLA+ specification for proof system)
-
-## Planned Infrastructure (stubs in codebase)
-
-- `VerifierConfig` — Optimistic/ZK/Hybrid verification modes
-- `ProverConfig` — distributed proving parameters
-- `AttestationType` — Software/TPM/SGX/SEV/TrustZone enum
-- `HWQuote` struct — hardware attestation quote format
-- `ProofChain` + `ProofDAG` — multi-model pipeline proofs
-- `TargetVM` enum — CasperVM/EVM abstraction

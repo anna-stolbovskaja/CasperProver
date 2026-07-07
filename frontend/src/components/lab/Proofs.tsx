@@ -11,20 +11,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  ExternalLink,
 } from 'lucide-react';
 import {
   getProofs,
-  createProof,
   verifyProof,
   revokeProof,
   exportProof,
   Proof,
-  CreateProofRequest,
-  VerifyProofRequest,
 } from '../../lib/api';
-import { toast } from '../ui/toast'; // Assuming react-toastify for notifications
+import { toast } from '../ui/toast';
 
-// Placeholder for a generic Modal component
 const Modal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -50,6 +47,17 @@ const Modal: React.FC<{
   );
 };
 
+function proofStatus(p: Proof): string {
+  if (p.revoked) return 'revoked';
+  if (p.valid) return 'valid';
+  return 'invalid';
+}
+
+function truncHash(h: string, len = 10): string {
+  if (!h || h.length <= len * 2) return h || '—';
+  return h.slice(0, len) + '...' + h.slice(-6);
+}
+
 const Proofs: React.FC = () => {
   const [proofs, setProofs] = useState<Proof[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,15 +66,6 @@ const Proofs: React.FC = () => {
   const [limit] = useState(10);
   const [totalProofs, setTotalProofs] = useState(0);
   const [agentFilter, setAgentFilter] = useState('');
-
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newProofData, setNewProofData] = useState<CreateProofRequest>({
-    agentId: '',
-    inputHash: '',
-    outputHash: '',
-    proofData: '',
-  });
-  const [isCreating, setIsCreating] = useState(false);
 
   const [selectedProof, setSelectedProof] = useState<Proof | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -80,7 +79,7 @@ const Proofs: React.FC = () => {
     try {
       const res = await getProofs(agentFilter || undefined, page, limit);
       if (res.success && res.data) {
-        setProofs(res.data.proofs);
+        setProofs(res.data.proofs || []);
         setTotalProofs(res.data.total);
       } else {
         setError(res.error || 'Failed to fetch proofs');
@@ -99,43 +98,17 @@ const Proofs: React.FC = () => {
     fetchProofs();
   }, [fetchProofs]);
 
-  const handleCreateProofChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setNewProofData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCreateProofSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCreating(true);
-    try {
-      const res = await createProof(newProofData);
-      if (res.success) {
-        toast.success('Proof created successfully!');
-        setIsCreateModalOpen(false);
-        setNewProofData({ agentId: '', inputHash: '', outputHash: '', proofData: '' });
-        fetchProofs();
-      } else {
-        toast.error(res.error || 'Failed to create proof');
-      }
-    } catch (err) {
-      toast.error('An unexpected error occurred.');
-      console.error(err);
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   const handleVerifyProof = async (proofId: string) => {
     setIsVerifying(proofId);
     try {
       const res = await verifyProof({ proofId });
       if (res.success) {
-        toast.success(`Proof ${proofId} verification: ${res.data?.isValid ? 'Valid' : 'Invalid'}!`);
+        toast.success(`Proof ${proofId} verified.`);
       } else {
-        toast.error(res.error || 'Failed to verify proof');
+        toast.error(res.error || 'Verification failed');
       }
     } catch (err) {
-      toast.error('An unexpected error occurred during verification.');
+      toast.error('Verification error.');
       console.error(err);
     } finally {
       setIsVerifying(null);
@@ -143,20 +116,18 @@ const Proofs: React.FC = () => {
   };
 
   const handleRevokeProof = async (proofId: string) => {
-    if (!window.confirm(`Are you sure you want to revoke proof ${proofId}? This action cannot be undone.`)) {
-      return;
-    }
+    if (!window.confirm(`Revoke proof ${proofId}? This cannot be undone.`)) return;
     setIsRevoking(proofId);
     try {
       const res = await revokeProof(proofId);
       if (res.success) {
-        toast.success(`Proof ${proofId} revoked successfully!`);
+        toast.success(`Proof ${proofId} revoked.`);
         fetchProofs();
       } else {
-        toast.error(res.error || 'Failed to revoke proof');
+        toast.error(res.error || 'Revocation failed');
       }
     } catch (err) {
-      toast.error('An unexpected error occurred during revocation.');
+      toast.error('Revocation error.');
       console.error(err);
     } finally {
       setIsRevoking(null);
@@ -168,7 +139,7 @@ const Proofs: React.FC = () => {
     try {
       const res = await exportProof(proofId);
       if (res.success && res.data) {
-        const blob = new Blob([res.data], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -177,12 +148,12 @@ const Proofs: React.FC = () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        toast.success(`Proof ${proofId} exported successfully!`);
+        toast.success(`Proof ${proofId} exported.`);
       } else {
-        toast.error(res.error || 'Failed to export proof');
+        toast.error(res.error || 'Export failed');
       }
     } catch (err) {
-      toast.error('An unexpected error occurred during export.');
+      toast.error('Export error.');
       console.error(err);
     } finally {
       setIsExporting(null);
@@ -222,290 +193,183 @@ const Proofs: React.FC = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-100">Proof Lab</h2>
+        <h2 className="text-2xl font-bold text-gray-100">Proof Registry</h2>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <input
               type="text"
-              placeholder="Filter by Agent ID"
+              placeholder="Filter by Agent"
               value={agentFilter}
-              onChange={(e) => setAgentFilter(e.target.value)}
+              onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
               className="pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
             />
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200"
-          >
-            <PlusCircle size={20} />
-            Create New Proof
-          </button>
+          <span className="text-sm text-gray-400">{totalProofs} proofs total</span>
         </div>
       </div>
 
-      {proofs.length === 0 && !agentFilter ? (
+      {proofs.length === 0 ? (
         <div className="text-center p-8 text-gray-400 bg-[#1a1a2a] rounded-lg border border-[#222235]">
           <FileText className="mx-auto mb-4" size={48} />
-          <p className="text-xl font-semibold">No proofs found.</p>
-          <p className="mt-2">Start by creating a new proof.</p>
-        </div>
-      ) : proofs.length === 0 && agentFilter ? (
-        <div className="text-center p-8 text-gray-400 bg-[#1a1a2a] rounded-lg border border-[#222235]">
-          <FileText className="mx-auto mb-4" size={48} />
-          <p className="text-xl font-semibold">No proofs found for agent "{agentFilter}".</p>
-          <p className="mt-2">Try a different agent ID or clear the filter.</p>
+          <p className="text-xl font-semibold">No proofs found{agentFilter ? ` for "${agentFilter}"` : ''}.</p>
         </div>
       ) : (
         <div className="overflow-x-auto bg-[#1a1a2a] rounded-lg border border-[#222235]">
           <table className="min-w-full divide-y divide-[#222235]">
             <thead className="bg-[#13131d]">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Proof ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Agent ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Input Hash
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Output Hash
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Agent</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Use Case</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Merkle Root</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Mode</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#222235]">
-              {proofs.map((proof) => (
-                <tr key={proof.id} className="hover:bg-[#1a1a2a]/50 transition-colors duration-150">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                    <span className="cursor-pointer hover:text-red-400" onClick={() => openDetailModal(proof)}>
-                      {proof.id.substring(0, 8)}...{proof.id.substring(proof.id.length - 8)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                    {proof.agentId.substring(0, 8)}...
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                    {proof.inputHash.substring(0, 8)}...
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-300">
-                    {proof.outputHash.substring(0, 8)}...
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        proof.status === 'valid'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                          : proof.status === 'revoked'
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      {proof.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => openDetailModal(proof)}
-                        className="text-blue-400 hover:text-blue-300 p-1 rounded-full hover:bg-[#222235]"
-                        title="View Details"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleVerifyProof(proof.id)}
-                        disabled={isVerifying === proof.id}
-                        className="text-green-400 hover:text-green-300 p-1 rounded-full hover:bg-[#222235] disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Verify Proof"
-                      >
-                        {isVerifying === proof.id ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle size={18} />}
-                      </button>
-                      <button
-                        onClick={() => handleRevokeProof(proof.id)}
-                        disabled={proof.status === 'revoked' || isRevoking === proof.id}
-                        className="text-yellow-400 hover:text-yellow-300 p-1 rounded-full hover:bg-[#222235] disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Revoke Proof"
-                      >
-                        {isRevoking === proof.id ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
-                      </button>
-                      <button
-                        onClick={() => handleExportProof(proof.id)}
-                        disabled={isExporting === proof.id}
-                        className="text-purple-400 hover:text-purple-300 p-1 rounded-full hover:bg-[#222235] disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Export Proof"
-                      >
-                        {isExporting === proof.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {proofs.map((proof) => {
+                const status = proofStatus(proof);
+                return (
+                  <tr key={proof.id} className="hover:bg-[#222235]/50 transition-colors duration-150">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-red-400 cursor-pointer hover:text-red-300" onClick={() => openDetailModal(proof)}>
+                      {proof.id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{proof.agent}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400">{proof.use_case}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-400" title={proof.merkle_root}>
+                      {truncHash(proof.merkle_root)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 capitalize">{proof.mode}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        status === 'valid'
+                          ? 'bg-green-900/60 text-green-300'
+                          : status === 'revoked'
+                          ? 'bg-yellow-900/60 text-yellow-300'
+                          : 'bg-gray-700 text-gray-300'
+                      }`}>
+                        {status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-1">
+                        <button onClick={() => openDetailModal(proof)} className="text-blue-400 hover:text-blue-300 p-1 rounded hover:bg-[#222235]" title="Details">
+                          <Eye size={16} />
+                        </button>
+                        <button onClick={() => handleVerifyProof(proof.id)} disabled={isVerifying === proof.id} className="text-green-400 hover:text-green-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Verify">
+                          {isVerifying === proof.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                        </button>
+                        <button onClick={() => handleRevokeProof(proof.id)} disabled={status === 'revoked' || isRevoking === proof.id} className="text-yellow-400 hover:text-yellow-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Revoke">
+                          {isRevoking === proof.id ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                        </button>
+                        <button onClick={() => handleExportProof(proof.id)} disabled={isExporting === proof.id} className="text-purple-400 hover:text-purple-300 p-1 rounded hover:bg-[#222235] disabled:opacity-50" title="Export">
+                          {isExporting === proof.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center mt-6 space-x-4">
-          <button
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            disabled={page === 1}
-            className="p-2 rounded-md bg-[#1a1a2a] border border-[#222235] text-gray-300 hover:bg-[#222235] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2 rounded-md bg-[#1a1a2a] border border-[#222235] text-gray-300 hover:bg-[#222235] disabled:opacity-50">
             <ChevronLeft size={20} />
           </button>
-          <span className="text-gray-300">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={page === totalPages}
-            className="p-2 rounded-md bg-[#1a1a2a] border border-[#222235] text-gray-300 hover:bg-[#222235] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <span className="text-gray-300">Page {page} of {totalPages}</span>
+          <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-2 rounded-md bg-[#1a1a2a] border border-[#222235] text-gray-300 hover:bg-[#222235] disabled:opacity-50">
             <ChevronRight size={20} />
           </button>
         </div>
       )}
 
-      {/* Create Proof Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Create New Proof"
-      >
-        <form onSubmit={handleCreateProofSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="agentId" className="block text-sm font-medium text-gray-300 mb-1">
-              Agent ID
-            </label>
-            <input
-              type="text"
-              id="agentId"
-              name="agentId"
-              value={newProofData.agentId}
-              onChange={handleCreateProofChange}
-              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="inputHash" className="block text-sm font-medium text-gray-300 mb-1">
-              Input Hash
-            </label>
-            <input
-              type="text"
-              id="inputHash"
-              name="inputHash"
-              value={newProofData.inputHash}
-              onChange={handleCreateProofChange}
-              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="outputHash" className="block text-sm font-medium text-gray-300 mb-1">
-              Output Hash
-            </label>
-            <input
-              type="text"
-              id="outputHash"
-              name="outputHash"
-              value={newProofData.outputHash}
-              onChange={handleCreateProofChange}
-              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="proofData" className="block text-sm font-medium text-gray-300 mb-1">
-              Proof Data (JSON/String)
-            </label>
-            <textarea
-              id="proofData"
-              name="proofData"
-              rows={5}
-              value={newProofData.proofData}
-              onChange={handleCreateProofChange}
-              className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 font-mono focus:ring-red-500 focus:border-red-500"
-              required
-            ></textarea>
-          </div>
-          <button
-            type="submit"
-            disabled={isCreating}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isCreating ? <Loader2 size={20} className="animate-spin" /> : <PlusCircle size={20} />}
-            {isCreating ? 'Creating...' : 'Create Proof'}
-          </button>
-        </form>
-      </Modal>
-
       {/* Proof Detail Modal */}
-      <Modal
-        isOpen={isDetailModalOpen}
-        onClose={closeDetailModal}
-        title="Proof Details"
-        className="max-w-3xl"
-      >
+      <Modal isOpen={isDetailModalOpen} onClose={closeDetailModal} title="Proof Details" className="max-w-3xl">
         {selectedProof && (
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Proof ID:</h3>
-              <p className="font-mono text-red-400 break-all">{selectedProof.id}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Agent ID:</h3>
-              <p className="font-mono break-all">{selectedProof.agentId}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Input Hash:</h3>
-              <p className="font-mono break-all">{selectedProof.inputHash}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Output Hash:</h3>
-              <p className="font-mono break-all">{selectedProof.outputHash}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Status:</h3>
-              <p className="font-mono break-all">{selectedProof.status}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Created At:</h3>
-              <p className="font-mono break-all">{new Date(selectedProof.createdAt).toLocaleString()}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-gray-300">Proof Data:</h3>
-              <pre className="bg-[#0b0b10] p-3 rounded-md font-mono text-sm overflow-x-auto border border-[#222235]">
-                {JSON.stringify(JSON.parse(selectedProof.proofData), null, 2)}
-              </pre>
-            </div>
-            {selectedProof.merklePath && selectedProof.merklePath.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-300">Merkle Path:</h3>
-                <div className="bg-[#0b0b10] p-3 rounded-md font-mono text-sm overflow-x-auto border border-[#222235]">
-                  <p className="text-gray-400 mb-2">Visualizing Merkle path (simplified):</p>
-                  <div className="space-y-2">
-                    {selectedProof.merklePath.map((node, index) => (
-                      <div key={index} className="flex items-center">
-                        <span className="text-red-500 mr-2">{index === 0 ? 'Leaf:' : `Node ${index}:`}</span>
-                        <span className="break-all">{node}</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center">
-                      <span className="text-red-500 mr-2">Root:</span>
-                      <span className="break-all">... (derived from path)</span>
+                <h3 className="text-sm font-medium text-gray-400">Proof ID</h3>
+                <p className="font-mono text-red-400">{selectedProof.id}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Agent</h3>
+                <p className="font-mono">{selectedProof.agent}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Use Case</h3>
+                <p>{selectedProof.use_case}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Mode</h3>
+                <p className="capitalize">{selectedProof.mode}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Status</h3>
+                <p className={selectedProof.revoked ? 'text-yellow-400' : selectedProof.valid ? 'text-green-400' : 'text-gray-400'}>
+                  {proofStatus(selectedProof)}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Generated</h3>
+                <p>{new Date(selectedProof.timestamp * 1000).toLocaleString()}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Generation Time</h3>
+                <p>{selectedProof.generation_ms} ms</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-400">Leaf Index</h3>
+                <p>{selectedProof.leaf_index}</p>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-1">Input Hash</h3>
+              <p className="font-mono text-sm break-all bg-[#0b0b10] p-2 rounded border border-[#222235]">{selectedProof.input_hash}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-1">Output Hash</h3>
+              <p className="font-mono text-sm break-all bg-[#0b0b10] p-2 rounded border border-[#222235]">{selectedProof.output_hash}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-1">Model Hash</h3>
+              <p className="font-mono text-sm break-all bg-[#0b0b10] p-2 rounded border border-[#222235]">{selectedProof.model_hash}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 mb-1">Merkle Root</h3>
+              <p className="font-mono text-sm break-all bg-[#0b0b10] p-2 rounded border border-[#222235]">{selectedProof.merkle_root}</p>
+            </div>
+
+            {selectedProof.deploy_hash && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-400 mb-1">Deploy Hash (on-chain)</h3>
+                <a
+                  href={`https://testnet.cspr.live/deploy/${selectedProof.deploy_hash}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="font-mono text-sm text-red-400 hover:text-red-300 break-all flex items-center gap-1"
+                >
+                  {selectedProof.deploy_hash} <ExternalLink size={14} />
+                </a>
+              </div>
+            )}
+
+            {selectedProof.merkle_path && selectedProof.merkle_path.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-400 mb-1">Merkle Path</h3>
+                <div className="bg-[#0b0b10] p-3 rounded font-mono text-sm border border-[#222235] space-y-1">
+                  {selectedProof.merkle_path.map((node, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-red-500 w-16 text-right text-xs">Level {idx}:</span>
+                      <span className="break-all text-gray-300">{node}</span>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
