@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Play,
   CheckCircle,
@@ -48,10 +48,25 @@ const AgentDemo: React.FC = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
 
   // Data generated during the demo
-  const [modelId, setModelId] = useState('');
-  const [proofId, setProofId] = useState('');
+  const [modelId, setModelIdState] = useState('');
+  const [proofId, setProofIdState] = useState('');
   const [outputHash, setOutputHash] = useState('');
-  const [batchId, setBatchId] = useState('');
+  const [batchId, setBatchIdState] = useState('');
+
+  // Steps are only put into `action` closures once (see `initialSteps` below,
+  // which only seeds the initial `steps` state and is never re-applied while
+  // the demo runs). Reading `modelId`/`proofId`/`batchId` state directly from
+  // those closures would always see the values from the very first render
+  // (all empty strings), even after earlier steps set them - causing Step 2+
+  // to fail with "... not available. Complete Step N first." even though the
+  // earlier step actually succeeded. Refs give every step's closure a way to
+  // read the *current* value regardless of when the closure was created.
+  const modelIdRef = useRef('');
+  const proofIdRef = useRef('');
+  const batchIdRef = useRef('');
+  const setModelId = (v: string) => { modelIdRef.current = v; setModelIdState(v); };
+  const setProofId = (v: string) => { proofIdRef.current = v; setProofIdState(v); };
+  const setBatchId = (v: string) => { batchIdRef.current = v; setBatchIdState(v); };
   const [agentId] = useState(generateId('agent')); // Static agent ID for the demo
   const [inputData] = useState(JSON.stringify({ temperature: 0.7, prompt: 'Generate a secure proof for AI decision.' }));
   const [modelHash] = useState(generateId('modelhash'));
@@ -87,9 +102,9 @@ const AgentDemo: React.FC = () => {
       icon: FlaskConical,
       description: 'Run an AI inference and generate a ZK proof for its decision.',
       action: async () => {
-        if (!modelId) throw new Error('Model ID not available. Complete Step 1 first.');
+        if (!modelIdRef.current) throw new Error('Model ID not available. Complete Step 1 first.');
         const request: InferenceProveRequest = {
-          modelId: modelId,
+          modelId: modelIdRef.current,
           inputData: inputData,
           agentId: agentId,
         };
@@ -111,9 +126,9 @@ const AgentDemo: React.FC = () => {
       icon: ShieldCheck,
       description: 'Verify the generated ZK proof on the CasperProver engine.',
       action: async () => {
-        if (!proofId) throw new Error('Proof ID not available. Complete Step 2 first.');
+        if (!proofIdRef.current) throw new Error('Proof ID not available. Complete Step 2 first.');
         const request: VerifyProofRequest = {
-          proofId: proofId,
+          proofId: proofIdRef.current,
         };
         const res = await verifyProof(request);
         if (res.success && res.data) {
@@ -153,11 +168,11 @@ const AgentDemo: React.FC = () => {
       icon: PlusCircle,
       description: 'Add the generated proof to the newly created batch.',
       action: async () => {
-        if (!batchId) throw new Error('Batch ID not available. Complete Step 4 first.');
-        if (!proofId) throw new Error('Proof ID not available. Complete Step 2 first.');
+        if (!batchIdRef.current) throw new Error('Batch ID not available. Complete Step 4 first.');
+        if (!proofIdRef.current) throw new Error('Proof ID not available. Complete Step 2 first.');
         const request: AddProofToBatchRequest = {
-          batchId: batchId,
-          proofId: proofId,
+          batchId: batchIdRef.current,
+          proofId: proofIdRef.current,
         };
         const res = await addProofToAggregationBatch(request);
         if (res.success) {
@@ -175,9 +190,9 @@ const AgentDemo: React.FC = () => {
       icon: CheckCircle,
       description: 'Finalize the batch, generating an aggregated proof and Merkle root.',
       action: async () => {
-        if (!batchId) throw new Error('Batch ID not available. Complete Step 4 first.');
+        if (!batchIdRef.current) throw new Error('Batch ID not available. Complete Step 4 first.');
         const request: FinalizeBatchRequest = {
-          batchId: batchId,
+          batchId: batchIdRef.current,
         };
         const res = await finalizeAggregationBatch(request);
         if (res.success) {
@@ -203,6 +218,7 @@ const AgentDemo: React.FC = () => {
     setOutputHash('');
     setBatchId('');
   }, []);
+  // Note: setModelId/setProofId/setBatchId above already reset the refs too.
 
   const runStep = useCallback(async (index: number) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status: 'loading', error: null, response: null } : s)));

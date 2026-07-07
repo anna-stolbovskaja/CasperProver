@@ -1,15 +1,18 @@
-// Package sdk provides an MCP server for CasperProver.
+// Package sdk provides an MCP (Model Context Protocol) server manifest and
+// stdio JSON-RPC loop (RunStdio) for CasperProver.
 //
-// The server exposes proof generation, verification, and KYC flow
-// as tools that any MCP-compatible LLM can invoke.
+// This file only defines the tool manifest and the stdio transport loop; it
+// has no `func main` and cannot be run directly (`go run sdk/mcp_server.go`
+// will fail - that was a documentation bug, now fixed). A working entry
+// point that wires a subset of these tools to real API calls lives at
+// sdk/cmd/mcpserver:
 //
-// Start:
+//	go run ./sdk/cmd/mcpserver
 //
-//	go run sdk/mcp_server.go
-//
-// or via the main binary:
-//
-//	casperprover serve --mcp
+// Not every tool in the manifest below has a backing API endpoint yet
+// (e.g. list_models, get_task_status, submit_batch_task - see
+// docs/KNOWN_LIMITATIONS.md); cmd/mcpserver returns a clear "not
+// implemented" error for those rather than pretending to execute them.
 package sdk
 
 import (
@@ -209,10 +212,10 @@ var mcpTools = []MCPTool{
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"model_name":    map[string]interface{}{"type": "string", "description": "Human-readable model name"},
-				"model_hash":    map[string]interface{}{"type": "string", "description": "SHA-256 of model weights"},
-				"framework":     map[string]interface{}{"type": "string", "description": "ML framework (pytorch, tensorflow, onnx)"},
-				"version":       map[string]interface{}{"type": "string", "description": "Semantic version"},
+				"model_name":     map[string]interface{}{"type": "string", "description": "Human-readable model name"},
+				"model_hash":     map[string]interface{}{"type": "string", "description": "SHA-256 of model weights"},
+				"framework":      map[string]interface{}{"type": "string", "description": "ML framework (pytorch, tensorflow, onnx)"},
+				"version":        map[string]interface{}{"type": "string", "description": "Semantic version"},
 				"max_input_size": map[string]interface{}{"type": "integer", "description": "Max input size in bytes"},
 			},
 			"required": []string{"model_name", "model_hash", "framework"},
@@ -249,9 +252,9 @@ var mcpTools = []MCPTool{
 		InputSchema: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
-				"model_hash":  map[string]interface{}{"type": "string", "description": "Model identifier"},
-				"input_size":  map[string]interface{}{"type": "integer", "description": "Input size in bytes"},
-				"proof_type":  map[string]interface{}{"type": "string", "enum": []string{"full", "compact", "aggregated"}},
+				"model_hash": map[string]interface{}{"type": "string", "description": "Model identifier"},
+				"input_size": map[string]interface{}{"type": "integer", "description": "Input size in bytes"},
+				"proof_type": map[string]interface{}{"type": "string", "enum": []string{"full", "compact", "aggregated"}},
 			},
 			"required": []string{"model_hash", "input_size"},
 		},

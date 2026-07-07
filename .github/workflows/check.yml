@@ -30,6 +30,28 @@ jobs:
         with:
           working-directory: engine
 
+  sdk-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: cd sdk && go build ./...
+      - run: cd sdk && go vet ./...
+      - run: cd sdk && go test -race -v ./...
+
+  sdk-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: sdk
+
   build-contracts:
     runs-on: ubuntu-latest
     steps:
