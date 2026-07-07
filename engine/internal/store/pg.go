@@ -142,6 +142,35 @@ func (s *PG) SaveKYC(user, proofID string, ts int64) error {
 	return err
 }
 
+// KYCEntry is a persisted KYC whitelist row.
+type KYCEntry struct {
+	User    string
+	ProofID string
+}
+
+// LoadKYC reads all currently-whitelisted users from the database. Used to
+// rehydrate the in-memory whitelist on server start - previously this table
+// was write-only (SaveKYC was called but nothing ever read it back), so every
+// restart silently lost every KYC grant even though the row was sitting in
+// Postgres the whole time.
+func (s *PG) LoadKYC() ([]KYCEntry, error) {
+	rows, err := s.db.Query(`SELECT user_id, proof_id FROM kyc_whitelist WHERE whitelisted = TRUE`)
+	if err != nil {
+		return nil, fmt.Errorf("pg load kyc query: %w", err)
+	}
+	defer rows.Close()
+
+	var out []KYCEntry
+	for rows.Next() {
+		var e KYCEntry
+		if err := rows.Scan(&e.User, &e.ProofID); err != nil {
+			return out, fmt.Errorf("pg load kyc scan: %w", err)
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 // ModelRegistryEntry is the persisted record for an on-chain-bound AI model.
 // (Defined here, not in package inference, so store has no import-cycle back
 // to its own caller; inference.ModelRegistryEntry is converted to/from this.)
