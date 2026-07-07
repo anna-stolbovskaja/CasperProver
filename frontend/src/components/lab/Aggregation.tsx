@@ -99,7 +99,10 @@ const Aggregation: React.FC = () => {
 
   const handleAddProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setAddProofData((prev) => ({ ...prev, [name]: value }));
+    // Map HTML name attributes to API field names
+    const fieldMap: Record<string, string> = { batchId: 'batch_id', proofId: 'proof_hash' };
+    const field = fieldMap[name] || name;
+    setAddProofData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleAddProofSubmit = async (e: React.FormEvent) => {
@@ -346,14 +349,14 @@ const Aggregation: React.FC = () => {
               <p><span className="font-medium text-gray-300">ID:</span> <span className="font-mono break-all">{foundBatch.batch_id}</span></p>
               <p><span className="font-medium text-gray-300">Name:</span> {foundBatch.batch_id}</p>
               {foundBatch?.max_proofs && <p><span className="font-medium text-gray-300">Max Proofs:</span> {foundBatch?.max_proofs}</p>}
-              <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{foundBatch.status.toUpperCase()}</span></p>
-              <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proof_hashs.length}</p>
+              <p><span className="font-medium text-gray-300">Status:</span> <span className={`font-semibold ${foundBatch.status === 'finalized' ? 'text-green-400' : 'text-yellow-400'}`}>{(foundBatch.status || 'unknown').toUpperCase()}</span></p>
+              <p><span className="font-medium text-gray-300">Proofs in Batch:</span> {foundBatch.proof_count ?? (foundBatch.proof_hashs?.length || 0)}</p>
               {foundBatch.merkle_root && <p><span className="font-medium text-gray-300">Merkle Root:</span> <span className="font-mono break-all">{foundBatch.merkle_root}</span></p>}
               {foundBatch.finalProof && <p><span className="font-medium text-gray-300">Final Proof:</span> <span className="font-mono break-all">{foundBatch?.finalProof?.substring(0, 60)}...</span></p>}
-              <p><span className="font-medium text-gray-300">Created At:</span> {new Date(foundBatch.createdAt).toLocaleString()}</p>
-              {foundBatch.finalizedAt && <p><span className="font-medium text-gray-300">Finalized At:</span> {new Date(foundBatch.finalizedAt).toLocaleString()}</p>}
+              {(foundBatch.created_at || foundBatch.createdAt) && <p><span className="font-medium text-gray-300">Created At:</span> {new Date((foundBatch.created_at || foundBatch.createdAt) * 1000).toLocaleString()}</p>}
+              {(foundBatch.finalized_at || foundBatch.finalizedAt) ? <p><span className="font-medium text-gray-300">Finalized At:</span> {new Date((foundBatch.finalized_at || foundBatch.finalizedAt) * 1000).toLocaleString()}</p> : null}
 
-              {renderMerkleTree(foundBatch.proof_hashs, foundBatch.merkle_root)}
+              {renderMerkleTree(foundBatch.proof_hashs || [], foundBatch.merkle_root)}
             </div>
           )}
         </div>

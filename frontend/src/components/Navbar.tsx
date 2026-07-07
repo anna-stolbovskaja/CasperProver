@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Menu, X, Wallet } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { useWallet } from '../lib/CsprClickProvider'
 import { shortKey } from '../lib/wallet'
@@ -18,7 +18,6 @@ const links = [
 
 export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
   const [scrolled, setScrolled] = useState(false)
-  const wallet = useWallet()
   const location = useLocation()
   const isLab = location.pathname.startsWith('/lab')
 
@@ -46,40 +45,22 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
     }
   }
 
-  const handleWallet = () => {
-    if (wallet.connected) {
-      wallet.signOut()
-    } else {
-      wallet.signIn()
-    }
-  }
-
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/90 backdrop-blur border-b border-gray-800/50' : 'bg-transparent'}`}>
-      <div className="cp-section flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
         <a href="/" onClick={handleLogoClick} className="flex items-center gap-2">
           <img src="/images/logo.webp" alt="CasperProver" className="h-7 w-auto" />
           <span className="font-bold text-white text-lg hidden sm:block">CasperProver</span>
         </a>
-        <div className="hidden md:flex items-center gap-1">
-          {links.map(l => (
-            <a key={l.href} href={l.href} onClick={(e) => handleNavClick(e, l.href)} className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-400 rounded-lg transition-colors">{l.label}</a>
-          ))}
-        </div>
+        {!isLab && (
+          <div className="hidden md:flex items-center gap-1">
+            {links.map(l => (
+              <a key={l.href} href={l.href} onClick={(e) => handleNavClick(e, l.href)} className="px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-400 rounded-lg transition-colors">{l.label}</a>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleWallet}
-            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-colors border ${
-              wallet.connected
-                ? 'border-green-500/30 text-green-400 bg-green-500/5 hover:bg-green-500/10'
-                : 'border-gray-700 text-gray-400 hover:border-red-500/40 hover:text-red-400'
-            }`}
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            {wallet.connected
-              ? <>{shortKey(wallet.publicKey!)}{wallet.provider && <span className="text-gray-500 text-[9px] ml-1">{wallet.provider}</span>}</>
-              : 'Connect'}
-          </button>
+          {/* No wallet button on landing — wallet connect is in Lab only */}
           {!isLab && (
             <a href="/lab" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
               Proof Lab
@@ -99,10 +80,6 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
             {!isLab && (
               <a href="/lab" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 text-red-400 font-semibold rounded-lg hover:bg-white/5">Proof Lab</a>
             )}
-            <button onClick={handleWallet} className="w-full text-left px-3 py-2.5 text-gray-300 rounded-lg hover:bg-white/5 flex items-center gap-2">
-              <Wallet className="w-4 h-4" />
-              {wallet.connected ? `Disconnect ${shortKey(wallet.publicKey!)}` : 'Connect Wallet'}
-            </button>
           </div>
         </div>
       )}

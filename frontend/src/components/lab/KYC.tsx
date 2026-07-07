@@ -1,30 +1,30 @@
 import React, { useState } from 'react';
-import { UserCheck, UserPlus, List, Loader2, AlertTriangle, Shield, XCircle } from 'lucide-react';
+import { UserCheck, UserPlus, List, Loader2, AlertTriangle, Shield } from 'lucide-react';
 import {
   checkKycStatus,
   grantKycAccess,
   getKycWhitelist,
-  
   KYCGrantRequest,
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 
 const KYC: React.FC = () => {
   // Check KYC Status State
-  const [checkUserId, setCheckUserId] = useState('alice-agent-01');
+  const [checkProofId, setCheckProofId] = useState('P-1');
   const [kycStatusResult, setKycStatusResult] = useState<any>(null);
   const [isCheckingKyc, setIsCheckingKyc] = useState(false);
   const [checkKycError, setCheckKycError] = useState<string | null>(null);
 
   // Grant KYC Access State
   const [grantUserId, setGrantUserId] = useState('alice-agent-01');
-  const [grantReason, setGrantReason] = useState('Manual verification after document submission');
+  const [grantProofId, setGrantProofId] = useState('P-1');
   const [isGrantingKyc, setIsGrantingKyc] = useState(false);
   const [grantKycError, setGrantKycError] = useState<string | null>(null);
+  const [grantResult, setGrantResult] = useState<any>(null);
 
   // View Whitelist State
-  const [whitelistUser, setWhitelistUser] = useState('alice-agent-01'); // Can be specific user or 'all' (if API supports)
-  const [whitelistResult, setWhitelistResult] = useState<string[] | null>(null);
+  const [whitelistUser, setWhitelistUser] = useState('alice-agent-01');
+  const [whitelistResult, setWhitelistResult] = useState<any>(null);
   const [isViewingWhitelist, setIsViewingWhitelist] = useState(false);
   const [whitelistError, setWhitelistError] = useState<string | null>(null);
 
@@ -34,11 +34,10 @@ const KYC: React.FC = () => {
     setKycStatusResult(null);
     setCheckKycError(null);
     try {
-      const request = { proof_id: checkUserId };
-      const res = await checkKycStatus(request);
+      const res = await checkKycStatus({ proof_id: checkProofId });
       if (res.success && res.data) {
         setKycStatusResult(res.data);
-        toast.success(`KYC status for ${checkUserId} fetched.`);
+        toast.success(`KYC check for proof ${checkProofId} complete.`);
       } else {
         setCheckKycError(res.error || 'Failed to check KYC status.');
         toast.error(res.error || 'Failed to check KYC status.');
@@ -56,17 +55,13 @@ const KYC: React.FC = () => {
     e.preventDefault();
     setIsGrantingKyc(true);
     setGrantKycError(null);
+    setGrantResult(null);
     try {
-      const request: KYCGrantRequest = { user: grantUserId || '', proof_id: '' };
+      const request: KYCGrantRequest = { user: grantUserId, proof_id: grantProofId };
       const res = await grantKycAccess(request);
       if (res.success && res.data) {
+        setGrantResult(res.data);
         toast.success(`KYC access granted to ${grantUserId}!`);
-        setGrantUserId('');
-        setGrantReason('');
-        // Optionally refresh whitelist if it's currently displayed
-        if (whitelistUser === 'all' || whitelistUser === grantUserId) {
-          handleViewWhitelist({ preventDefault: () => {} } as React.FormEvent);
-        }
       } else {
         setGrantKycError(res.error || 'Failed to grant KYC access.');
         toast.error(res.error || 'Failed to grant KYC access.');
@@ -86,9 +81,9 @@ const KYC: React.FC = () => {
     setWhitelistResult(null);
     setWhitelistError(null);
     try {
-      const res = await getKycWhitelist(whitelistUser || 'all'); // Assume 'all' if input is empty
+      const res = await getKycWhitelist(whitelistUser || 'all');
       if (res.success && res.data) {
-        setWhitelistResult(res.data.whitelisted ? [res.data.user] : []);
+        setWhitelistResult(res.data);
         toast.success('KYC whitelist fetched.');
       } else {
         setWhitelistError(res.error || 'Failed to fetch KYC whitelist.');
@@ -105,7 +100,7 @@ const KYC: React.FC = () => {
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold text-gray-100 mb-6">KYC Operations Lab</h2>
+      <h2 className="text-2xl font-bold text-gray-100 mb-2">KYC Operations Lab</h2>
       <p className="text-gray-400 mb-6">
         Manage and verify Know Your Customer (KYC) statuses for users, ensuring privacy-preserving compliance on Casper.
       </p>
@@ -119,18 +114,19 @@ const KYC: React.FC = () => {
           </h3>
           <form onSubmit={handleCheckKycStatus} className="space-y-4">
             <div>
-              <label htmlFor="checkUserId" className="block text-sm font-medium text-gray-300 mb-1">
-                User ID
+              <label htmlFor="checkProofId" className="block text-sm font-medium text-gray-300 mb-1">
+                Proof ID
               </label>
               <input
                 type="text"
-                id="checkUserId"
-                value={checkUserId}
-                onChange={(e) => setCheckUserId(e.target.value)}
+                id="checkProofId"
+                value={checkProofId}
+                onChange={(e) => setCheckProofId(e.target.value)}
                 className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-                placeholder="Enter User ID"
+                placeholder="e.g. P-1"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">The proof ID to verify for KYC eligibility (e.g. P-1, P-2)</p>
             </div>
             <button
               type="submit"
@@ -150,12 +146,12 @@ const KYC: React.FC = () => {
 
           {kycStatusResult && (
             <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
-              <h4 className="text-lg font-semibold text-red-400">KYC Status for {kycStatusResult.user}:</h4>
-              <p><span className="font-medium text-gray-300">Whitelisted:</span> <span className={`font-bold ${kycStatusResult.isWhitelisted ? 'text-green-400' : 'text-red-400'}`}>{kycStatusResult.isWhitelisted ? 'YES' : 'NO'}</span></p>
-              <p><span className="font-medium text-gray-300">Status:</span> <span className="font-mono break-all">{kycStatusResult.status}</span></p>
+              <h4 className="text-lg font-semibold text-red-400">KYC Verification Result</h4>
+              <p><span className="font-medium text-gray-300">Proof ID:</span> <span className="font-mono">{kycStatusResult.proof_id}</span></p>
+              <p><span className="font-medium text-gray-300">Verified:</span> <span className={`font-bold ${kycStatusResult.verified ? 'text-green-400' : 'text-red-400'}`}>{kycStatusResult.verified ? 'YES ✓' : 'NO ✗'}</span></p>
               <p className="text-gray-500 mt-2">
                 <Shield size={16} className="inline-block mr-1" />
-                Privacy Note: Only whitelisted status and general status are revealed. No personal data is exposed.
+                This checks whether the cryptographic proof is valid for KYC eligibility.
               </p>
             </div>
           )}
@@ -170,7 +166,7 @@ const KYC: React.FC = () => {
           <form onSubmit={handleGrantKycAccess} className="space-y-4">
             <div>
               <label htmlFor="grantUserId" className="block text-sm font-medium text-gray-300 mb-1">
-                User ID to Grant
+                User ID
               </label>
               <input
                 type="text"
@@ -178,22 +174,24 @@ const KYC: React.FC = () => {
                 value={grantUserId}
                 onChange={(e) => setGrantUserId(e.target.value)}
                 className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-                placeholder="Enter User ID"
+                placeholder="e.g. alice-agent-01"
                 required
               />
             </div>
             <div>
-              <label htmlFor="grantReason" className="block text-sm font-medium text-gray-300 mb-1">
-                Reason (Optional)
+              <label htmlFor="grantProofId" className="block text-sm font-medium text-gray-300 mb-1">
+                Proof ID
               </label>
-              <textarea
-                id="grantReason"
-                rows={3}
-                value={grantReason}
-                onChange={(e) => setGrantReason(e.target.value)}
+              <input
+                type="text"
+                id="grantProofId"
+                value={grantProofId}
+                onChange={(e) => setGrantProofId(e.target.value)}
                 className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-                placeholder="e.g., 'Manual verification after document submission'"
-              ></textarea>
+                placeholder="e.g. P-1"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">A valid proof ID that has been verified</p>
             </div>
             <button
               type="submit"
@@ -210,6 +208,13 @@ const KYC: React.FC = () => {
               <AlertTriangle size={20} /> {grantKycError}
             </div>
           )}
+
+          {grantResult && (
+            <div className="mt-4 p-3 bg-green-900/30 text-green-300 border border-green-700 rounded-md text-sm">
+              <p>✓ Access granted for <strong>{grantResult.user}</strong></p>
+              <p className="text-xs mt-1 font-mono">Proof: {grantResult.proof_id}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -222,7 +227,7 @@ const KYC: React.FC = () => {
         <form onSubmit={handleViewWhitelist} className="space-y-4">
           <div>
             <label htmlFor="whitelistUser" className="block text-sm font-medium text-gray-300 mb-1">
-              Specific User ID (Optional, leave empty for all)
+              User ID
             </label>
             <input
               type="text"
@@ -230,7 +235,7 @@ const KYC: React.FC = () => {
               value={whitelistUser}
               onChange={(e) => setWhitelistUser(e.target.value)}
               className="w-full p-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 focus:ring-red-500 focus:border-red-500"
-              placeholder="Enter User ID or leave empty for all"
+              placeholder="Enter User ID to check"
             />
           </div>
           <button
@@ -239,7 +244,7 @@ const KYC: React.FC = () => {
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isViewingWhitelist ? <Loader2 size={20} className="animate-spin" /> : <List size={20} />}
-            {isViewingWhitelist ? 'Loading Whitelist...' : 'View Whitelist'}
+            {isViewingWhitelist ? 'Loading...' : 'View Whitelist'}
           </button>
         </form>
 
@@ -251,19 +256,20 @@ const KYC: React.FC = () => {
 
         {whitelistResult && (
           <div className="mt-6 p-4 bg-[#0b0b10] border border-[#222235] rounded-md space-y-2 text-sm">
-            <h4 className="text-lg font-semibold text-red-400">Whitelisted Users:</h4>
-            {whitelistResult.length === 0 ? (
-              <p className="text-gray-500">No users found in the whitelist.</p>
-            ) : (
-              <ul className="list-disc list-inside space-y-1 text-gray-300">
-                {whitelistResult.map((user, index) => (
-                  <li key={index} className="font-mono break-all">{user}</li>
-                ))}
-              </ul>
-            )}
+            <h4 className="text-lg font-semibold text-red-400">Whitelist Status</h4>
+            <p>
+              <span className="font-medium text-gray-300">User:</span>{' '}
+              <span className="font-mono">{whitelistResult.user}</span>
+            </p>
+            <p>
+              <span className="font-medium text-gray-300">Whitelisted:</span>{' '}
+              <span className={`font-bold ${whitelistResult.whitelisted ? 'text-green-400' : 'text-red-400'}`}>
+                {whitelistResult.whitelisted ? 'YES ✓' : 'NO ✗'}
+              </span>
+            </p>
             <p className="text-gray-500 mt-2">
               <Shield size={16} className="inline-block mr-1" />
-              Privacy Note: Only User IDs are listed. No other personal information is exposed.
+              Only whitelist status is revealed. No personal data is exposed.
             </p>
           </div>
         )}

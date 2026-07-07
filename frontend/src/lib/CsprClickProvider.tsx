@@ -1,25 +1,64 @@
 /**
- * CSPR.click integration wrapper.
+ * CSPR.click SDK integration — CDN-based pattern.
  *
- * Wraps the app in ClickProvider and exposes a lightweight React context
- * so any component can read the connected account and call sign/send.
+ * Loads the CSPR.click SDK from CDN, hides its default top-bar via CSS,
+ * and exposes a React context for custom wallet UI. The sign-in modal
+ * itself still renders from the SDK (popup/iframe).
+ *
+ * Reference: @make-software/csprclick-core-types v2.1.0
  */
-
 import {
   createContext,
   useContext,
-  useState,
   useEffect,
+  useState,
   useCallback,
   type ReactNode,
 } from 'react'
-import { ClickProvider, useClickRef } from '@make-software/csprclick-ui'
 import { CONTENT_MODE } from '@make-software/csprclick-core-types'
-import { CSPR_CLICK_APP_ID, type WalletState } from './wallet'
+import type {
+  AccountType,
+  CsprClickInitOptions,
+  ICSPRClickSDK,
+} from '@make-software/csprclick-core-types'
+import type { ClickUIOptions } from '@make-software/csprclick-core-types/clickui'
+import { CSPR_CLICK_APP_ID } from './wallet'
+
+declare global {
+  interface Window {
+    clickUIOptions: ClickUIOptions
+    clickSDKOptions: CsprClickInitOptions
+    csprclick?: ICSPRClickSDK
+  }
+}
+
+/* ---------- SDK bootstrap options ---------- */
+
+window.clickUIOptions = {
+  uiContainer: 'csprclick-ui',
+  rootAppElement: '#root',
+  showTopBar: false,
+  defaultTheme: 'dark',
+  accountMenuItems: ['CopyHashMenuItem'],
+}
+
+window.clickSDKOptions = {
+  appName: 'CasperProver',
+  appId: CSPR_CLICK_APP_ID,
+  providers: ['casper-wallet', 'ledger', 'metamask-snap', 'csprclick-w3a-google'],
+  contentMode: CONTENT_MODE.IFRAME,
+  chainName: 'casper-test',
+}
 
 /* ---------- context ---------- */
 
-interface WalletCtx extends WalletState {
+interface WalletCtx {
+  connected: boolean
+  publicKey: string | null
+  accountHash: string | null
+  provider: string | null
+  clickRef: ICSPRClickSDK | undefined
+  ready: boolean
   signIn: () => void
   signOut: () => void
 }
@@ -29,70 +68,64 @@ const WalletContext = createContext<WalletCtx>({
   publicKey: null,
   accountHash: null,
   provider: null,
+  clickRef: undefined,
+  ready: false,
   signIn: () => {},
   signOut: () => {},
 })
 
 export const useWallet = () => useContext(WalletContext)
 
-/* ---------- inner (has access to useClickRef) ---------- */
+/* ---------- provider ---------- */
 
-function WalletBridge({ children }: { children: ReactNode }) {
-  const clickRef = useClickRef()
-  const [wallet, setWallet] = useState<WalletState>({
-    connected: false,
-    publicKey: null,
-    accountHash: null,
-    provider: null,
-  })
+type AccountChangedEvent = { account?: AccountType }
+
+export default function CsprClickWrapper({ children }: { children: ReactNode }) {
+  const [connectedAccount, setConnectedAccount] = useState<AccountType | undefined>()
+  const [clickRef, setClickRef] = useState<ICSPRClickSDK | undefined>()
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    if (!clickRef) return
-
-    const onSignedIn = (evt: { account: { public_key: string; provider: string } }) => {
-      setWallet({
-        connected: true,
-        publicKey: evt.account.public_key,
-        accountHash: evt.account.public_key.slice(0, 64),
-        provider: evt.account.provider,
-      })
+    const checkActive = async (ref: ICSPRClickSDK) => {
+      try {
+        const account = await ref.getActiveAccountAsync({ withBalance: false })
+        setConnectedAccount(account?.public_key ? account : undefined)
+      } catch {
+        setConnectedAccount(undefined)
+      }
     }
 
-    const onSignedOut = () => {
-      setWallet({ connected: false, publicKey: null, accountHash: null, provider: null })
+    const handleAccountChanged = (event: AccountChangedEvent) => {
+      setConnectedAccount(event.account?.public_key ? event.account : undefined)
     }
 
-    const onSwitched = (evt: { account: { public_key: string; provider: string } }) => {
-      setWallet({
-        connected: true,
-        publicKey: evt.account.public_key,
-        accountHash: evt.account.public_key.slice(0, 64),
-        provider: evt.account.provider,
-      })
+    const handleSdkLoaded = () => {
+      const ref = window.csprclick
+      if (!ref) return
+      setClickRef(ref)
+      setReady(true)
+      ref.on('csprclick:signed_in', handleAccountChanged)
+      ref.on('csprclick:switched_account', handleAccountChanged)
+      ref.on('csprclick:unsolicited_account_change', handleAccountChanged)
+      ref.on('csprclick:signed_out', () => setConnectedAccount(undefined))
+      ref.on('csprclick:disconnected', () => setConnectedAccount(undefined))
+      checkActive(ref)
     }
 
-    clickRef.on('csprclick:signed_in', onSignedIn)
-    clickRef.on('csprclick:switched_account', onSwitched)
-    clickRef.on('csprclick:signed_out', onSignedOut)
-    clickRef.on('csprclick:disconnected', onSignedOut)
+    window.addEventListener('csprclick:loaded', handleSdkLoaded)
+    if (window.csprclick) handleSdkLoaded()
 
-    const existing = clickRef.getActiveAccount?.()
-    if (existing?.public_key) {
-      setWallet({
-        connected: true,
-        publicKey: existing.public_key,
-        accountHash: existing.public_key.slice(0, 64),
-        provider: existing.provider,
-      })
+    // Load the SDK script from CDN if not already present
+    if (!document.querySelector('script#csprclick-client')) {
+      const script = document.createElement('script')
+      script.src = 'https://cdn.cspr.click/ui/v2.1.0/csprclick-client-2.1.0.js'
+      script.id = 'csprclick-client'
+      script.async = true
+      document.head.appendChild(script)
     }
 
-    return () => {
-      clickRef.off('csprclick:signed_in', onSignedIn)
-      clickRef.off('csprclick:switched_account', onSwitched)
-      clickRef.off('csprclick:signed_out', onSignedOut)
-      clickRef.off('csprclick:disconnected', onSignedOut)
-    }
-  }, [clickRef])
+    return () => window.removeEventListener('csprclick:loaded', handleSdkLoaded)
+  }, [])
 
   const signIn = useCallback(() => {
     clickRef?.signIn()
@@ -102,30 +135,22 @@ function WalletBridge({ children }: { children: ReactNode }) {
     clickRef?.signOut()
   }, [clickRef])
 
-  return (
-    <WalletContext.Provider value={{ ...wallet, signIn, signOut }}>
-      {children}
-    </WalletContext.Provider>
-  )
-}
+  const connected = !!connectedAccount?.public_key
 
-/* ---------- outer wrapper ---------- */
-
-export default function CsprClickWrapper({ children }: { children: ReactNode }) {
   return (
-    <ClickProvider
-      options={{
-        appName: 'CasperProver',
-        appId: CSPR_CLICK_APP_ID,
-        contentMode: CONTENT_MODE.POPUP,
-        providers: ['casper-wallet', 'ledger', 'metamask-snap', 'csprclick-w3a-google'],
-        chainName: 'casper-test',
-        logLevel: 1,
+    <WalletContext.Provider
+      value={{
+        connected,
+        publicKey: connectedAccount?.public_key ?? null,
+        accountHash: (connectedAccount as any)?.account_hash ?? null,
+        provider: (connectedAccount as any)?.provider ?? null,
+        clickRef,
+        ready,
+        signIn,
+        signOut,
       }}
     >
-      <WalletBridge>
-        {children}
-      </WalletBridge>
-    </ClickProvider>
+      {children}
+    </WalletContext.Provider>
   )
 }
