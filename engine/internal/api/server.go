@@ -403,7 +403,7 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "agent, input, output, model are required", http.StatusBadRequest)
 		return
 	}
-	if len(req.Agent) > 64 || len(req.Input) > 10240 || len(req.Output) > 10240 || len(req.Model) > 256 {
+	if len(req.Agent) > 128 || len(req.Input) > 10240 || len(req.Output) > 10240 || len(req.Model) > 256 {
 		s.jsonError(w, "field exceeds max length", http.StatusBadRequest)
 		return
 	}
