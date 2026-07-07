@@ -6,6 +6,24 @@ members = [
     "model-registry",
     "proof-aggregation",
     "proof-of-inference",
+    "stake-slashing",
+    "stake-slashing-session",
     "tests",
 ]
 resolver = "2"
+
+# Moved here from per-member Cargo.toml files: Cargo only honors [profile.*]
+# at the workspace root, so those per-package blocks were being silently
+# ignored (see the "profiles for the non root package will be ignored"
+# warning) and every contract in this workspace was being compiled
+# unoptimized. Also added opt-level="z" and panic="abort", which shrink wasm
+# output substantially - relevant because casper-js-sdk 5.0.12's
+# installOrUpgrade() has a known, unresolved bug that rejects install/upgrade
+# transactions whose wasm exceeds ~64KB (see docs in
+# skills/web3_development/references on the Viktor side, or ask if you need
+# the details) - keeping new contracts under that size avoids it entirely.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"

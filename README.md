@@ -124,8 +124,34 @@ curl https://casperprover-api.onrender.com/api/v1/proof/verify \
 | Proof Registry | [96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) |
 | Verifier Gate | [a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) |
 | DeFi Mock | [b9b11a97...b81d3](https://testnet.cspr.live/contract/b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3) |
+| Stake Slashing | [cf70e1fe...d9bd1](https://testnet.cspr.live/contract/cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1) |
 
 ---
+
+## Stake & Slash
+
+`revoke_proof` on Proof Registry was self-revocation only - no real economic
+cost for an agent that gets caught submitting a bad proof. The `stake-slashing`
+contract adds real skin in the game:
+
+- An agent stakes CSPR (atomically, via the companion `stake-slashing-session`
+  session code - one deploy does purse-to-purse transfer + recording, so it
+  can't be split or front-run).
+- Anyone can permissionlessly call `report_and_slash(agent, proof_id)` once
+  that proof is revoked on Proof Registry. It reads Proof Registry's own
+  on-chain state via a cross-contract call - it can't force a revocation
+  itself, so it can never be used to attack an honest agent.
+- A confirmed revocation slashes 20% of the agent's current stake and pays it
+  to whoever reported it, as a permissionless monitoring bounty.
+- Each `proof_id` can only trigger one slash (tombstoned in a dictionary) -
+  no repeated draining of the same revoked proof.
+
+Verified live on testnet 2026-07-07: staked 5 CSPR, an unrelated third-party
+account (not the agent, not the deployer) called `report_and_slash` on a
+self-revoked test proof and received a real 1 CSPR (20%) bounty; a second
+attempt against the same proof_id correctly reverted (`User error: 2`,
+already-slashed); `unstake` correctly drained the remaining balance back to
+the agent.
 
 ## Tech Stack
 
