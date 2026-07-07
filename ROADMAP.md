@@ -13,7 +13,7 @@
 - [x] KYC whitelisting via Merkle inclusion (survives server restart)
 - [x] DeFi vault gated by verifier-gate (admin-only `grant_access`, typed `AccountHash`)
 - [x] React lab at casperprover.xyz with 9 interactive tabs
-- [x] SDK (Go client + MCP server, ~12/22 tools wired to real API)
+- [x] SDK (Go client + MCP server, 27/27 tools wired 1:1 to real API)
 - [x] 83+ tests (62 Go + 21 Rust)
 - [x] CI via GitHub Actions (engine test/vet/lint + SDK test/lint + contracts build/test)
 - [x] API-key auth for mutating endpoints
@@ -27,7 +27,7 @@
 - [x] Groth16 zk-SNARK verifier — real BN254 pairing via `gnark`/`gnark-crypto` at `/zk/groth16-real/*` (MiMC preimage circuit)
 - [x] Stake-slashing contract — real CSPR economic penalty for revoked proofs (20% slash, permissionless bounty)
 - [x] SDK rewrite — Go client 1:1 mapped to real API routes, separate module with CI
-- [x] MCP server — real entry point at `sdk/cmd/mcpserver`, 12 tools wired
+- [x] MCP server — real entry point at `sdk/cmd/mcpserver`, all 27 tools wired
 - [x] KYC whitelist persistence — rehydrates from Postgres on restart
 - [x] Aggregation batch registry — real in-memory state (create/add/finalize/verify)
 - [x] `defi-mock` hardening — typed `AccountHash`, duplicate whitelist prevention, admin gate
@@ -36,7 +36,7 @@
 - [ ] ModelRegistry contract — on-chain model binding to prevent model-swap attacks
 - [ ] Layerwise ZK (NANOZK pattern) — per-layer transformer proof
 - [ ] ZK-KYC whitelisting factory (CEP-86, zk-SNARK upgrade)
-- [ ] MCP server expansion to 15+ tools with ProofOfInference JSON-Schema
+- [x] MCP server expansion — all 27 tools wired (inference, aggregation, ZK, PQ crypto)
 - [ ] Demo/Real data toggle in lab
 
 ## Phase 3 — Advanced

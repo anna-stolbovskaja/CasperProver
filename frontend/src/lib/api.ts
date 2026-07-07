@@ -1,5 +1,5 @@
 
-const BASE_URL = 'https://casperprover-api.onrender.com';
+const BASE_URL = '/api';
 
 // --- Utility Types ---
 export type ApiResponse<T> = {

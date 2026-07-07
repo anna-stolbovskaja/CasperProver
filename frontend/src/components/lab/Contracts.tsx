@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Link as LinkIcon, FileText, Code, Shield } from 'lucide-react';
+import { Link as LinkIcon, FileText, Code, Shield, Swords } from 'lucide-react';
 
 const CONTRACTS = {
   'Proof Registry': '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
@@ -24,6 +24,7 @@ const Contracts: React.FC = () => {
                 {name === 'Proof Registry' && <FileText size={28} className="text-red-500" />}
                 {name === 'Verifier Gate' && <Shield size={28} className="text-red-500" />}
                 {name === 'DeFi Mock' && <Code size={28} className="text-red-500" />}
+                {name === 'Stake Slashing' && <Swords size={28} className="text-red-500" />}
                 <h3 className="text-xl font-semibold text-gray-100">{name}</h3>
               </div>
               <p className="text-gray-400 mb-3">
@@ -33,6 +34,7 @@ const Contracts: React.FC = () => {
                 {name === 'Proof Registry' && 'Stores and manages all ZK proof metadata on the Casper blockchain.'}
                 {name === 'Verifier Gate' && 'Acts as a gateway for on-chain verification of ZK proofs.'}
                 {name === 'DeFi Mock' && 'A mock DeFi contract for testing interactions with ZK proofs.'}
+                {name === 'Stake Slashing' && 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters.'}
               </p>
             </div>
             <a
