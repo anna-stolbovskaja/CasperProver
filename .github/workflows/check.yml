@@ -41,6 +41,8 @@ jobs:
       - run: cd contracts/proof-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/verifier-gate && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/defi-mock && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/stake-slashing && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/stake-slashing-session && cargo build --release --target wasm32-unknown-unknown --no-default-features
 
   test-contracts:
     runs-on: ubuntu-latest
