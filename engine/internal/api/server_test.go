@@ -18,6 +18,11 @@ func decodeJSON(b []byte, v any) error {
 	return json.Unmarshal(b, v)
 }
 
+func asString(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
 func newTestServer(apiKey string) *Server {
 	eng := prover.New()
 	s := New(eng, 0, nil)
@@ -201,7 +206,7 @@ func TestPQSignVerifySPHINCS_HTTPRoundTrip(t *testing.T) {
 		t.Fatalf("decode sign response: %v", err)
 	}
 
-	verifyBody := `{"message":"hello","signature":"` + signResp["signature"].(string) + `","public_key":"` + signResp["public_key"].(string) + `"}`
+	verifyBody := `{"message":"hello","signature":"` + asString(signResp["signature"]) + `","public_key":"` + asString(signResp["public_key"]) + `"}`
 	verifyReq := httptest.NewRequest(http.MethodPost, "/pq/verify-sphincs", jsonBody(verifyBody))
 	verifyRec := httptest.NewRecorder()
 	mux.ServeHTTP(verifyRec, verifyReq)
@@ -214,7 +219,7 @@ func TestPQSignVerifySPHINCS_HTTPRoundTrip(t *testing.T) {
 	}
 
 	// Tampered message must be rejected.
-	tamperedBody := `{"message":"goodbye","signature":"` + signResp["signature"].(string) + `","public_key":"` + signResp["public_key"].(string) + `"}`
+	tamperedBody := `{"message":"goodbye","signature":"` + asString(signResp["signature"]) + `","public_key":"` + asString(signResp["public_key"]) + `"}`
 	tamperedReq := httptest.NewRequest(http.MethodPost, "/pq/verify-sphincs", jsonBody(tamperedBody))
 	tamperedRec := httptest.NewRecorder()
 	mux.ServeHTTP(tamperedRec, tamperedReq)
@@ -242,9 +247,9 @@ func TestPQHybridSignVerify_HTTPRoundTrip(t *testing.T) {
 		t.Fatalf("decode sign response: %v", err)
 	}
 
-	verifyBody := `{"message":"hello","signature":"` + signResp["signature"].(string) +
-		`","classic_public_key":"` + signResp["classic_public_key"].(string) +
-		`","pq_public_key":"` + signResp["pq_public_key"].(string) + `"}`
+	verifyBody := `{"message":"hello","signature":"` + asString(signResp["signature"]) +
+		`","classic_public_key":"` + asString(signResp["classic_public_key"]) +
+		`","pq_public_key":"` + asString(signResp["pq_public_key"]) + `"}`
 	verifyReq := httptest.NewRequest(http.MethodPost, "/pq/hybrid-verify", jsonBody(verifyBody))
 	verifyRec := httptest.NewRecorder()
 	mux.ServeHTTP(verifyRec, verifyReq)
@@ -257,9 +262,9 @@ func TestPQHybridSignVerify_HTTPRoundTrip(t *testing.T) {
 	}
 
 	// Tampered message must be rejected on both components.
-	tamperedBody := `{"message":"goodbye","signature":"` + signResp["signature"].(string) +
-		`","classic_public_key":"` + signResp["classic_public_key"].(string) +
-		`","pq_public_key":"` + signResp["pq_public_key"].(string) + `"}`
+	tamperedBody := `{"message":"goodbye","signature":"` + asString(signResp["signature"]) +
+		`","classic_public_key":"` + asString(signResp["classic_public_key"]) +
+		`","pq_public_key":"` + asString(signResp["pq_public_key"]) + `"}`
 	tamperedReq := httptest.NewRequest(http.MethodPost, "/pq/hybrid-verify", jsonBody(tamperedBody))
 	tamperedRec := httptest.NewRecorder()
 	mux.ServeHTTP(tamperedRec, tamperedReq)
