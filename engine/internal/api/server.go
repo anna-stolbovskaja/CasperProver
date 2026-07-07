@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
@@ -25,6 +26,7 @@ type Server struct {
 	kyc   *kyc.DemoKYC
 	db    *store.PG
 	sub   *submitter.CasperSubmitter
+	inf   *inference.InferenceService
 	port  int
 	log   *slog.Logger
 	start time.Time
@@ -55,6 +57,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		kyc:   kyc.NewDemo(eng),
 		db:    db,
 		sub:   sub,
+		inf:   inference.New(eng, db, sub),
 		port:  port,
 		log:   slog.Default(),
 		start: time.Now(),
@@ -555,21 +558,29 @@ func (s *Server) jsonError(w http.ResponseWriter, msg string, code int) {
 
 func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		Agent   string `json:"agent"`
 		ModelID string `json:"model_id"`
 		Input   string `json:"input"`
 		Output  string `json:"output"`
+		UseCase string `json:"use_case"`
+		PubKey  string `json:"public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	proof := map[string]any{
-		"model_id":   req.ModelID,
-		"input_hash": fmt.Sprintf("%x", sha256.Sum256([]byte(req.Input))),
-		"output_hash": fmt.Sprintf("%x", sha256.Sum256([]byte(req.Output))),
-		"proof_type": "inference",
-		"timestamp":  time.Now().Unix(),
-		"status":     "generated",
+	if req.Agent == "" {
+		req.Agent = "api-client"
+	}
+	if req.UseCase == "" {
+		req.UseCase = "inference"
+	}
+	proof, err := s.inf.GenerateInferenceProof(r.Context(), req.Agent,
+		[]byte(req.Input), []byte(req.Output), []byte(req.ModelID), req.UseCase, req.PubKey)
+	if err != nil {
+		s.log.Error("inference proof generation failed", "error", err)
+		http.Error(w, `{"error":"proof generation failed"}`, http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(proof)
@@ -578,39 +589,54 @@ func (s *Server) inferenceProve(w http.ResponseWriter, r *http.Request) {
 func (s *Server) inferenceVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ProofID string `json:"proof_id"`
-		Proof   string `json:"proof"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"proof_id": req.ProofID, "valid": true, "verified_at": time.Now().Unix()}
+	valid, err := s.inf.VerifyInferenceProof(r.Context(), req.ProofID)
+	if err != nil {
+		s.log.Warn("inference proof verification error", "proof_id", req.ProofID, "error", err)
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusNotFound)
+		return
+	}
+	result := map[string]any{"proof_id": req.ProofID, "valid": valid, "verified_at": time.Now().Unix()}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *Server) inferenceRegisterModel(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		Hash    string `json:"hash"`
+		ModelID          string            `json:"model_id"`
+		ModelHash        string            `json:"model_hash"`
+		VerifierContract string            `json:"verifier_contract"`
+		Metadata         map[string]string `json:"metadata"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	id := fmt.Sprintf("model-%x", sha256.Sum256([]byte(req.Name+req.Version)))[:16]
-	result := map[string]any{"model_id": id, "name": req.Name, "version": req.Version, "registered_at": time.Now().Unix()}
+	entry, err := s.inf.RegisterModel(r.Context(), req.ModelID, req.ModelHash, req.VerifierContract, req.Metadata)
+	if err != nil {
+		s.log.Error("model registration failed", "model_id", req.ModelID, "error", err)
+		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(entry)
 }
 
 func (s *Server) inferenceGetModel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	result := map[string]any{"model_id": id, "status": "active"}
+	entry, err := s.inf.GetModelInfo(r.Context(), id)
+	if err != nil {
+		http.Error(w, `{"error":"model not found"}`, http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)}
+	_ = json.NewEncoder(w).Encode(entry)
+}
 
 // ---------------------------------------------------------------------------
 // Aggregation handlers
