@@ -6,6 +6,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — 2026-07-07
+
+### Changed
+- **DeFi Mock contract redeployed** at `fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef` (package `54757fa72e6ca1898f3a8bc6e5af1d643b120a8c8605e0b1581fdcc3b76f9a04`), replacing the previous `b9b11a97...b81d3` deployment. New contract has the hardened `is_whitelisted(user: ByteArray32)` signature (see `docs/KNOWN_LIMITATIONS.md`). The original deployer account (`anna-stolbovskaja`) could not redeploy for reasons never fully root-caused; a dedicated new key was generated, funded, and used for this deployment instead — see `docs/KNOWN_LIMITATIONS.md` for the full investigation.
+
+---
+
 ## [1.1.0] — 2026-07-02
 
 *Major feature expansion — pre-submission hardening*
