@@ -1,7 +1,9 @@
 package store
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -13,6 +15,47 @@ import (
 type PG struct {
 	db *sql.DB
 }
+
+// schemaDDL creates all tables used by the engine if they don't already exist.
+// This makes a fresh DATABASE_URL (local dev, CI, a new Render Postgres instance)
+// self-provisioning instead of relying on manual/undocumented DDL.
+const schemaDDL = `
+CREATE TABLE IF NOT EXISTS proofs (
+	id text PRIMARY KEY,
+	agent text NOT NULL,
+	proof_hash text NOT NULL,
+	input_hash text NOT NULL,
+	output_hash text NOT NULL,
+	model_hash text NOT NULL,
+	merkle_root text NOT NULL,
+	merkle_path text[] NOT NULL DEFAULT '{}',
+	leaf_index integer NOT NULL DEFAULT 0,
+	created_at bigint NOT NULL,
+	valid boolean NOT NULL DEFAULT true,
+	revoked boolean NOT NULL DEFAULT false,
+	use_case text NOT NULL DEFAULT '',
+	public_key text NOT NULL DEFAULT '',
+	deploy_hash text NOT NULL DEFAULT '',
+	generation_ms bigint NOT NULL DEFAULT 0,
+	mode text NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS kyc_whitelist (
+	user_id text PRIMARY KEY,
+	proof_id text NOT NULL,
+	whitelisted boolean NOT NULL DEFAULT true,
+	granted_at bigint NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS model_registry (
+	model_id text PRIMARY KEY,
+	model_hash text NOT NULL,
+	verifier_contract text NOT NULL,
+	metadata jsonb NOT NULL DEFAULT '{}',
+	registered_at bigint NOT NULL,
+	deploy_hash text NOT NULL DEFAULT ''
+);
+`
 
 // Open connects to PostgreSQL using DATABASE_URL. Returns nil,nil if unset.
 func Open() (*PG, error) {
@@ -28,6 +71,9 @@ func Open() (*PG, error) {
 	db.SetMaxIdleConns(2)
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("pg ping: %w", err)
+	}
+	if _, err := db.Exec(schemaDDL); err != nil {
+		return nil, fmt.Errorf("pg schema init: %w", err)
 	}
 	return &PG{db: db}, nil
 }
@@ -94,4 +140,57 @@ func (s *PG) SaveKYC(user, proofID string, ts int64) error {
 		VALUES ($1,$2,TRUE,$3) ON CONFLICT (user_id) DO UPDATE SET proof_id=EXCLUDED.proof_id, granted_at=EXCLUDED.granted_at`,
 		user, proofID, ts)
 	return err
+}
+
+// ModelRegistryEntry is the persisted record for an on-chain-bound AI model.
+// (Defined here, not in package inference, so store has no import-cycle back
+// to its own caller; inference.ModelRegistryEntry is converted to/from this.)
+type ModelRegistryEntry struct {
+	ModelID          string
+	ModelHash        string
+	VerifierContract string
+	Metadata         map[string]string
+	RegisteredAt     int64
+	DeployHash       string
+}
+
+// SaveProof is a context-aware alias for Save, for callers that pass a ctx
+// (the underlying database/sql call itself is not yet context-cancellable
+// here; kept as a thin wrapper so call sites can pass ctx uniformly).
+func (s *PG) SaveProof(ctx context.Context, p *prover.Proof) error {
+	return s.Save(p)
+}
+
+// SaveModelRegistryEntry inserts or updates a model registry row.
+func (s *PG) SaveModelRegistryEntry(ctx context.Context, e *ModelRegistryEntry) error {
+	meta, err := json.Marshal(e.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO model_registry
+		(model_id, model_hash, verifier_contract, metadata, registered_at, deploy_hash)
+		VALUES ($1,$2,$3,$4,$5,$6)
+		ON CONFLICT (model_id) DO UPDATE SET
+			model_hash=EXCLUDED.model_hash, verifier_contract=EXCLUDED.verifier_contract,
+			metadata=EXCLUDED.metadata, deploy_hash=EXCLUDED.deploy_hash`,
+		e.ModelID, e.ModelHash, e.VerifierContract, meta, e.RegisteredAt, e.DeployHash)
+	return err
+}
+
+// GetModelRegistryEntry looks up a model registry row by model ID.
+func (s *PG) GetModelRegistryEntry(ctx context.Context, modelID string) (*ModelRegistryEntry, error) {
+	var e ModelRegistryEntry
+	var meta []byte
+	err := s.db.QueryRowContext(ctx, `SELECT model_id, model_hash, verifier_contract, metadata, registered_at, deploy_hash
+		FROM model_registry WHERE model_id=$1`, modelID).
+		Scan(&e.ModelID, &e.ModelHash, &e.VerifierContract, &meta, &e.RegisteredAt, &e.DeployHash)
+	if err != nil {
+		return nil, err
+	}
+	if len(meta) > 0 {
+		if err := json.Unmarshal(meta, &e.Metadata); err != nil {
+			return nil, fmt.Errorf("unmarshal metadata: %w", err)
+		}
+	}
+	return &e, nil
 }

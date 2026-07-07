@@ -2,14 +2,12 @@ package inference
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/submitter"
@@ -169,7 +167,7 @@ func (s *InferenceService) RegisterModel(
 
 	// Store in database
 	if s.db != nil {
-		if err := s.db.SaveModelRegistryEntry(ctx, entry); err != nil {
+		if err := s.db.SaveModelRegistryEntry(ctx, toStoreEntry(entry)); err != nil {
 			s.log.Error("failed to save model registry entry to database", "model_id", modelID, "error", err)
 			return nil, fmt.Errorf("failed to save model registry entry: %w", err)
 		}
@@ -178,9 +176,6 @@ func (s *InferenceService) RegisterModel(
 	// Optionally, submit model registration to Casper blockchain
 	if s.sub != nil {
 		s.log.Info("submitting model registration to Casper", "model_id", modelID)
-		// This would involve a Casper deploy to a ModelRegistry contract
-		// For demonstration, we'll simulate a deploy for the model hash.
-		// In a real scenario, this would call a specific contract method.
 		deployHash, err := s.sub.SubmitModelRegistration(modelID, modelHash, verifierContract, metadata)
 		if err != nil {
 			s.log.Error("failed to submit model registration to Casper", "model_id", modelID, "error", err)
@@ -190,7 +185,7 @@ func (s *InferenceService) RegisterModel(
 			s.log.Info("model registration submitted to Casper", "model_id", modelID, "deploy_hash", deployHash)
 			// Update the entry in DB with deploy hash
 			if s.db != nil {
-				_ = s.db.SaveModelRegistryEntry(ctx, entry) // Update with deploy hash
+				_ = s.db.SaveModelRegistryEntry(ctx, toStoreEntry(entry)) // Update with deploy hash
 			}
 		}
 	}
@@ -217,14 +212,39 @@ func (s *InferenceService) GetModelInfo(ctx context.Context, modelID string) (*M
 		return nil, errors.New("database not configured for model registry")
 	}
 
-	entry, err := s.db.GetModelRegistryEntry(ctx, modelID)
+	stored, err := s.db.GetModelRegistryEntry(ctx, modelID)
 	if err != nil {
 		s.log.Error("failed to retrieve model info from database", "model_id", modelID, "error", err)
 		return nil, fmt.Errorf("model %s not found: %w", modelID, err)
 	}
 
 	s.log.Debug("model info retrieved", "model_id", modelID)
-	return entry, nil
+	return fromStoreEntry(stored), nil
+}
+
+// toStoreEntry/fromStoreEntry convert between the API-facing ModelRegistryEntry
+// and the persistence-layer store.ModelRegistryEntry (kept as distinct types so
+// package store has no import back on package inference).
+func toStoreEntry(e *ModelRegistryEntry) *store.ModelRegistryEntry {
+	return &store.ModelRegistryEntry{
+		ModelID:          e.ModelID,
+		ModelHash:        e.ModelHash,
+		VerifierContract: e.VerifierContract,
+		Metadata:         e.Metadata,
+		RegisteredAt:     e.RegisteredAt,
+		DeployHash:       e.DeployHash,
+	}
+}
+
+func fromStoreEntry(e *store.ModelRegistryEntry) *ModelRegistryEntry {
+	return &ModelRegistryEntry{
+		ModelID:          e.ModelID,
+		ModelHash:        e.ModelHash,
+		VerifierContract: e.VerifierContract,
+		Metadata:         e.Metadata,
+		RegisteredAt:     e.RegisteredAt,
+		DeployHash:       e.DeployHash,
+	}
 }
 
 // emitCEP88Event is a helper to simulate emitting a CEP-88 compliant event.
@@ -238,47 +258,4 @@ func (s *InferenceService) emitCEP88Event(eventType string, data map[string]inte
 	}
 	s.log.Info("CEP-88 Event Emitted", "event_type", eventType, "data", string(eventData))
 	return nil
-}
-
-// Mock database methods for demonstration. In a real scenario, these would be
-// part of the `store.PG` struct and interact with a PostgreSQL database.
-// For the purpose of this file, we'll add them here conceptually.
-
-// SaveModelRegistryEntry simulates saving a model registry entry to the database.
-func (pg *store.PG) SaveModelRegistryEntry(ctx context.Context, entry *ModelRegistryEntry) error {
-	// In a real PG implementation, this would be an INSERT/UPDATE query.
-	// For now, just log it.
-	slog.Default().Debug("simulating saving model registry entry to DB", "model_id", entry.ModelID)
-	return nil // Simulate success
-}
-
-// GetModelRegistryEntry simulates retrieving a model registry entry from the database.
-func (pg *store.PG) GetModelRegistryEntry(ctx context.Context, modelID string) (*ModelRegistryEntry, error) {
-	// In a real PG implementation, this would be a SELECT query.
-	// For now, return a dummy entry if modelID matches a known one.
-	slog.Default().Debug("simulating getting model registry entry from DB", "model_id", modelID)
-	if modelID == "test-model-123" {
-		return &ModelRegistryEntry{
-			ModelID:          "test-model-123",
-			ModelHash:        hasher.HexHash([]byte("dummy-model-weights")),
-			VerifierContract: "hash-verifier-contract-addr",
-			Metadata:         map[string]string{"version": "1.0", "author": "CasperLabs"},
-			RegisteredAt:     time.Now().Unix() - 3600,
-			DeployHash:       "0xmockdeployhashformodelreg",
-		}, nil
-	}
-	return nil, errors.New("model not found in simulated DB")
-}
-
-// Mock submitter method for demonstration. In a real scenario, this would be
-// part of the `submitter.CasperSubmitter` struct and interact with Casper RPC.
-
-// SubmitModelRegistration simulates submitting a model registration deploy to Casper.
-func (s *submitter.CasperSubmitter) SubmitModelRegistration(modelID, modelHash, verifierContract string, metadata map[string]string) (string, error) {
-	slog.Default().Info("simulating Casper deploy for model registration", "model_id", modelID, "model_hash", modelHash)
-	// In a real implementation, this would construct and sign a Casper deploy
-	// to a ModelRegistry contract and send it via RPC.
-	// For now, return a mock deploy hash.
-	mockDeployHash := hex.EncodeToString(hasher.Hash([]byte(fmt.Sprintf("%s-%s-%d", modelID, modelHash, time.Now().UnixNano()))))
-	return "0x" + mockDeployHash, nil // Simulate success
 }

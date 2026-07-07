@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -52,24 +53,28 @@ func TestWorkerSetStatus(t *testing.T) {
 	}
 }
 
-func TestWorkerLoad(t *testing.T) {
-	tests := []struct {
-		name     string
-		initial  int
-		expected int
-	}{
-		{"InitialLoad", 0, 0},
-		{"AfterInc", 1, 1},
-		{"AfterDec", 2, 1},
+// TestWorkerLoad_IncDecSequence exercises real incLoad/decLoad transitions.
+// (A prior version of this test constructed a Worker with a given Load and
+// then asserted it equalled a *different* expected value without ever
+// calling incLoad/decLoad in between - a tautology that could only pass when
+// initial == expected, so it had never actually verified any load-mutation
+// behavior; TestWorkerIncLoad/TestWorkerDecLoad below cover that directly.)
+func TestWorkerLoad_IncDecSequence(t *testing.T) {
+	w := &Worker{}
+	if w.Load != 0 {
+		t.Fatalf("expected initial load 0, got %d", w.Load)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := &Worker{Load: tt.initial}
-			if got := w.Load; got != tt.expected {
-				t.Errorf("Initial load = %v, want %v", got, tt.expected)
-			}
-		})
+	w.incLoad()
+	if w.Load != 1 {
+		t.Fatalf("expected load 1 after incLoad, got %d", w.Load)
+	}
+	w.incLoad()
+	if w.Load != 2 {
+		t.Fatalf("expected load 2 after second incLoad, got %d", w.Load)
+	}
+	w.decLoad()
+	if w.Load != 1 {
+		t.Fatalf("expected load 1 after decLoad, got %d", w.Load)
 	}
 }
 

@@ -1,314 +1,84 @@
 package inference
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 )
 
-func TestModelRegistryEntryUnmarshalJSON(t *testing.T) {
-	tests := []struct {
-		name    string
-		jsonStr string
-		want    ModelRegistryEntry
-	}{
-		{
-			name: "valid json",
-			jsonStr: `{
-				"model_id": "model-1",
-				"model_hash": "hash-1",
-				"verifier_contract": "contract-1"
-			}`,
-			want: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-		},
-		{
-			name: "invalid json",
-			jsonStr: `{
-				"model_id": "model-1",
-				"model_hash": "hash-1"
-			}`,
-			want: ModelRegistryEntry{},
-		},
+// NOTE: a prior version of this file tested an imagined API (a
+// NewModelRegistryEntry constructor, and a JSON shape with only 3 fields)
+// that never matched the real ModelRegistryEntry struct (6 fields, no
+// omitempty on most) and had never been compiled. Replaced with honest tests
+// of the real struct and the store <-> inference conversion helpers, which
+// don't require a live Postgres/Casper connection.
+
+func TestModelRegistryEntry_JSONRoundTrip(t *testing.T) {
+	entry := ModelRegistryEntry{
+		ModelID:          "model-1",
+		ModelHash:        "hash-1",
+		VerifierContract: "contract-1",
+		Metadata:         map[string]string{"version": "1.0"},
+		RegisteredAt:     1720000000,
+		DeployHash:       "deploy-1",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var m ModelRegistryEntry
-			err := json.Unmarshal([]byte(tt.jsonStr), &m)
-			if tt.name == "invalid json" {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, m)
-			}
-		})
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	var out ModelRegistryEntry
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if out.ModelID != entry.ModelID || out.ModelHash != entry.ModelHash ||
+		out.VerifierContract != entry.VerifierContract || out.RegisteredAt != entry.RegisteredAt ||
+		out.DeployHash != entry.DeployHash || out.Metadata["version"] != entry.Metadata["version"] {
+		t.Errorf("round-tripped entry = %+v, want %+v", out, entry)
 	}
 }
 
-func TestModelRegistryEntryMarshalJSON(t *testing.T) {
-	tests := []struct {
-		name string
-		m    ModelRegistryEntry
-		want string
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: `{"model_id":"model-1","model_hash":"hash-1","verifier_contract":"contract-1"}`,
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			want: `{"model_id":"","model_hash":"","verifier_contract":""}`,
-		},
+func TestModelRegistryEntry_MetadataOmittedWhenEmpty(t *testing.T) {
+	entry := ModelRegistryEntry{ModelID: "m", ModelHash: "h", VerifierContract: "c"}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			jsonStr, err := json.Marshal(tt.m)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want, string(jsonStr))
-		})
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal to map failed: %v", err)
+	}
+	if _, present := raw["metadata"]; present {
+		t.Error("expected metadata field to be omitted when empty (see `omitempty` tag)")
 	}
 }
 
-func TestNewModelRegistryEntry(t *testing.T) {
-	tests := []struct {
-		name string
-		modelID          string
-		modelHash        string
-		verifierContract string
-		want    ModelRegistryEntry
-	}{
-		{
-			name: "valid model",
-			modelID:          "model-1",
-			modelHash:        "hash-1",
-			verifierContract: "contract-1",
-			want: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-		},
-		{
-			name: "empty model",
-			modelID:          "",
-			modelHash:        "",
-			verifierContract: "",
-			want: ModelRegistryEntry{},
-		},
+func TestToStoreEntry_FromStoreEntry_RoundTrip(t *testing.T) {
+	entry := &ModelRegistryEntry{
+		ModelID:          "model-42",
+		ModelHash:        "abc123",
+		VerifierContract: "verifier-hash",
+		Metadata:         map[string]string{"author": "test"},
+		RegisteredAt:     1720000000,
+		DeployHash:       "deploy-42",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := NewModelRegistryEntry(tt.modelID, tt.modelHash, tt.verifierContract)
-			assert.Equal(t, tt.want, m)
-		})
+	stored := toStoreEntry(entry)
+	if stored.ModelID != entry.ModelID || stored.ModelHash != entry.ModelHash {
+		t.Fatalf("toStoreEntry lost fields: got %+v", stored)
+	}
+
+	back := fromStoreEntry(stored)
+	if back.ModelID != entry.ModelID || back.ModelHash != entry.ModelHash ||
+		back.VerifierContract != entry.VerifierContract || back.RegisteredAt != entry.RegisteredAt ||
+		back.DeployHash != entry.DeployHash || back.Metadata["author"] != entry.Metadata["author"] {
+		t.Errorf("round trip through store.ModelRegistryEntry changed data: got %+v, want %+v", back, entry)
 	}
 }
 
-func TestModelRegistryEntryValidate(t *testing.T) {
-	tests := []struct {
-		name    string
-		m       ModelRegistryEntry
-		wantErr bool
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.m.Validate()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestModelRegistryEntryString(t *testing.T) {
-	tests := []struct {
-		name string
-		m    ModelRegistryEntry
-		want string
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: "ModelRegistryEntry{ModelID:model-1, ModelHash:hash-1, VerifierContract:contract-1}",
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			want: "ModelRegistryEntry{ModelID:, ModelHash:, VerifierContract:}",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.m.String())
-		})
-	}
-}
-
-func TestModelRegistryEntryEqual(t *testing.T) {
-	tests := []struct {
-		name string
-		m1   ModelRegistryEntry
-		m2   ModelRegistryEntry
-		want bool
-	}{
-		{
-			name: "equal models",
-			m1: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			m2: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: true,
-		},
-		{
-			name: "different models",
-			m1: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			m2: ModelRegistryEntry{
-				ModelID:          "model-2",
-				ModelHash:        "hash-2",
-				VerifierContract: "contract-2",
-			},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.m1.Equal(tt.m2))
-		})
-	}
-}
-
-func TestModelRegistryEntryGetModelID(t *testing.T) {
-	tests := []struct {
-		name string
-		m    ModelRegistryEntry
-		want string
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: "model-1",
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.m.GetModelID())
-		})
-	}
-}
-
-func TestModelRegistryEntryGetModelHash(t *testing.T) {
-	tests := []struct {
-		name string
-		m    ModelRegistryEntry
-		want string
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: "hash-1",
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.m.GetModelHash())
-		})
-	}
-}
-
-func TestModelRegistryEntryGetVerifierContract(t *testing.T) {
-	tests := []struct {
-		name string
-		m    ModelRegistryEntry
-		want string
-	}{
-		{
-			name: "valid model",
-			m: ModelRegistryEntry{
-				ModelID:          "model-1",
-				ModelHash:        "hash-1",
-				VerifierContract: "contract-1",
-			},
-			want: "contract-1",
-		},
-		{
-			name: "empty model",
-			m:   ModelRegistryEntry{},
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.m.GetVerifierContract())
-		})
-	}
+func TestToStoreEntry_ReturnsStoreType(t *testing.T) {
+	entry := &ModelRegistryEntry{ModelID: "x", ModelHash: "y", VerifierContract: "z"}
+	var _ *store.ModelRegistryEntry = toStoreEntry(entry) // compile-time type check
 }

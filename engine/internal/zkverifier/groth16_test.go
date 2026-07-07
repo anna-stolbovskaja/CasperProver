@@ -3,258 +3,157 @@ package zkverifier
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
-	"errors"
+	"io"
 	"math/big"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 )
 
+// NOTE: a prior version of this file referenced functions (HexEncode,
+// HexDecode, GenerateRandomBytes, GenerateRandomString, NewBigInt, and a
+// 2-return-value NewGroth16Verifier) that never existed in this package and
+// had never been compiled. It's replaced with honest tests of the real
+// exported API (NewGroth16Verifier/VerifyGroth16/BatchVerify/CreateChallenge/
+// ResolveChallenge). See the package-level doc comment in groth16.go: this is
+// an explicitly-labeled conceptual simulation, not real BN254 pairing math -
+// tests reflect that, they don't pretend it's cryptographically sound.
+
+func randBytes(n int) []byte {
+	b := make([]byte, n)
+	_, _ = io.ReadFull(rand.Reader, b)
+	return b
+}
+
+// findPassingComponents brute-forces a nonce so the conceptual VerifyGroth16
+// hash check (last byte == 0x01) actually passes, instead of assuming the
+// package's own generateDummyGroth16Components helper reliably does so (it
+// doesn't: it only sets a byte in the input, not in the resulting hash).
+func findPassingComponents(t *testing.T) (*Groth16VerificationKey, *Groth16Proof, []*big.Int) {
+	t.Helper()
+	gv := NewGroth16Verifier()
+	for i := 0; i < 100000; i++ {
+		vk, proof, inputs := generateDummyGroth16Components()
+		ok, _ := gv.VerifyGroth16(vk, proof, inputs)
+		if ok {
+			return vk, proof, inputs
+		}
+	}
+	t.Fatal("could not find a passing conceptual proof in 100000 tries")
+	return nil, nil, nil
+}
+
 func TestNewGroth16Verifier(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantErr bool
-	}{
-		{
-			name:    "valid verifier",
-			wantErr: false,
-		},
-		{
-			name:    "invalid verifier",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewGroth16Verifier()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	if NewGroth16Verifier() == nil {
+		t.Fatal("expected non-nil verifier")
 	}
 }
 
-func TestGroth16VerifierVerify(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []byte
-		proof   []byte
-		want    bool
-		wantErr bool
-	}{
-		{
-			name:    "valid input and proof",
-			input:   []byte{1, 2, 3},
-			proof:   []byte{4, 5, 6},
-			want:    true,
-			wantErr: false,
-		},
-		{
-			name:    "invalid input and proof",
-			input:   []byte{},
-			proof:   []byte{},
-			want:    false,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			verifier, err := NewGroth16Verifier()
-			if err != nil {
-				t.Fatal(err)
-			}
-			valid, err := verifier.Verify(tt.input, tt.proof)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, valid)
-			}
-		})
+func TestVerifyGroth16_RejectsNilInputs(t *testing.T) {
+	gv := NewGroth16Verifier()
+	if _, err := gv.VerifyGroth16(nil, nil, nil); err == nil {
+		t.Error("expected error for nil vk/proof/inputs")
 	}
 }
 
-func TestSha256Hash(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []byte
-		want    string
-	}{
-		{
-			name:    "valid input",
-			input:   []byte{1, 2, 3},
-			want:    "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1ba9fe6b9abf4e913a71",
-		},
-		{
-			name:    "empty input",
-			input:   []byte{},
-			want:    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-		},
+func TestVerifyGroth16_PassingCaseVerifies(t *testing.T) {
+	gv := NewGroth16Verifier()
+	vk, proof, inputs := findPassingComponents(t)
+	ok, err := gv.VerifyGroth16(vk, proof, inputs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			hash := Sha256Hash(tt.input)
-			assert.Equal(t, tt.want, hash)
-		})
+	if !ok {
+		t.Error("expected the found passing components to verify as valid")
 	}
 }
 
-func TestHexEncode(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []byte
-		want    string
-	}{
-		{
-			name:    "valid input",
-			input:   []byte{1, 2, 3},
-			want:    "010203",
-		},
-		{
-			name:    "empty input",
-			input:   []byte{},
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			encoded := HexEncode(tt.input)
-			assert.Equal(t, tt.want, encoded)
-		})
+func TestVerifyGroth16_TamperedProofRejected(t *testing.T) {
+	gv := NewGroth16Verifier()
+	vk, proof, inputs := findPassingComponents(t)
+	tampered := &Groth16Proof{A: append([]byte{}, proof.A...), B: proof.B, C: proof.C}
+	tampered.A[0] ^= 0xFF
+	ok, _ := gv.VerifyGroth16(vk, tampered, inputs)
+	if ok {
+		t.Error("expected tampered proof to fail verification")
 	}
 }
 
-func TestHexDecode(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    []byte
-		wantErr bool
-	}{
-		{
-			name:    "valid input",
-			input:   "010203",
-			want:    []byte{1, 2, 3},
-			wantErr: false,
-		},
-		{
-			name:    "invalid input",
-			input:   "abcdef",
-			want:    []byte{},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			decoded, err := HexDecode(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, decoded)
-			}
-		})
+func TestBatchVerify_MismatchedLengthsRejected(t *testing.T) {
+	gv := NewGroth16Verifier()
+	vk, proof, inputs := findPassingComponents(t)
+	_, err := gv.BatchVerify(vk, []*Groth16Proof{proof}, [][]*big.Int{inputs, inputs})
+	if err == nil {
+		t.Error("expected error for mismatched proof/input batch lengths")
 	}
 }
 
-func TestGenerateRandomBytes(t *testing.T) {
-	tests := []struct {
-		name    string
-		size    int
-		wantErr bool
-	}{
-		{
-			name:    "valid size",
-			size:    32,
-			wantErr: false,
-		},
-		{
-			name:    "invalid size",
-			size:    -1,
-			wantErr: true,
-		},
+func TestBatchVerify_AllPassing(t *testing.T) {
+	gv := NewGroth16Verifier()
+	vk1, proof1, inputs1 := findPassingComponents(t)
+	// Reuse the same vk for a second passing proof to keep the search cheap.
+	var proof2 *Groth16Proof
+	var inputs2 []*big.Int
+	for i := 0; i < 100000; i++ {
+		p := &Groth16Proof{A: randBytes(32), B: randBytes(64), C: randBytes(32)}
+		in := []*big.Int{big.NewInt(1)}
+		ok, _ := gv.VerifyGroth16(vk1, p, in)
+		if ok {
+			proof2, inputs2 = p, in
+			break
+		}
+	}
+	if proof2 == nil {
+		t.Fatal("could not find a second passing proof")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateRandomBytes(tt.size)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	ok, err := gv.BatchVerify(vk1, []*Groth16Proof{proof1, proof2}, [][]*big.Int{inputs1, inputs2})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Error("expected batch of passing proofs to verify")
 	}
 }
 
-func TestGenerateRandomString(t *testing.T) {
-	tests := []struct {
-		name    string
-		size    int
-		wantErr bool
-	}{
-		{
-			name:    "valid size",
-			size:    32,
-			wantErr: false,
-		},
-		{
-			name:    "invalid size",
-			size:    -1,
-			wantErr: true,
-		},
+func TestChallenge_CreateAndResolve(t *testing.T) {
+	gv := NewGroth16Verifier()
+	proofHash := randBytes(32)
+	inputsHash := randBytes(32)
+
+	ch, err := gv.CreateChallenge(proofHash, inputsHash)
+	if err != nil {
+		t.Fatalf("CreateChallenge failed: %v", err)
+	}
+	if ch.Resolved {
+		t.Error("expected a freshly created challenge to be unresolved")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := GenerateRandomString(tt.size)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+	// Build the exact response the implementation expects.
+	h := append(append(append([]byte{}, ch.ChallengeValue...), proofHash...), inputsHash...)
+	sum := sha256.Sum256(h)
+
+	ok, err := gv.ResolveChallenge(ch, sum[:])
+	if err != nil {
+		t.Fatalf("ResolveChallenge failed: %v", err)
+	}
+	if !ok {
+		t.Error("expected correctly derived response to resolve the challenge")
+	}
+	if !ch.Resolved {
+		t.Error("expected challenge.Resolved to be true after successful resolution")
 	}
 }
 
-func TestNewBigInt(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    *big.Int
-		wantErr bool
-	}{
-		{
-			name:    "valid input",
-			input:   "123",
-			want:    big.NewInt(123),
-			wantErr: false,
-		},
-		{
-			name:    "invalid input",
-			input:   "abcdef",
-			want:    big.NewInt(0),
-			wantErr: true,
-		},
+func TestChallenge_ExpiredRejected(t *testing.T) {
+	gv := NewGroth16Verifier()
+	ch, err := gv.CreateChallenge(randBytes(32), randBytes(32))
+	if err != nil {
+		t.Fatalf("CreateChallenge failed: %v", err)
 	}
+	ch.ExpiresAt = time.Now().Add(-time.Minute) // force expiry
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bi, err := NewBigInt(tt.input)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, bi)
-			}
-		})
+	ok, err := gv.ResolveChallenge(ch, randBytes(32))
+	if ok || err == nil {
+		t.Error("expected expired challenge to be rejected with an error")
 	}
 }
