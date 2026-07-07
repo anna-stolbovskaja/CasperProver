@@ -293,7 +293,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 		"contracts": map[string]string{
 			"proof_registry": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
 			"verifier_gate":  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
-			"defi_mock":      "b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3",
+			"defi_mock":      "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
 		},
 	})
 }
