@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSPR.click SDK's showTopBar:false is unreliable — hide it via CSS */
+.csprclick-top-bar { display: none !important; }
+#csprclick-ui { position: absolute; top: 0; left: 0; height: 0; overflow: visible; }
+
+/* Toast slide-in animation */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(1rem) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-toast-in { animation: toast-in 0.25s ease-out; }
+
 @layer base {
   * { box-sizing: border-box; }
   html { -webkit-font-smoothing: antialiased; }

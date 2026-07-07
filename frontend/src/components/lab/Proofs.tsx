@@ -232,10 +232,10 @@ const Proofs: React.FC = () => {
           <div className="relative">
             <input
               type="text"
-              placeholder="Filter by Agent"
+              placeholder="Filter by Agent (exact match)"
               value={agentFilter}
               onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
-              className="pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500"
+              className="pl-10 pr-4 py-2 bg-[#0b0b10] border border-[#222235] rounded-md text-gray-100 placeholder-gray-500 focus:ring-red-500 focus:border-red-500 w-56"
             />
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           </div>
