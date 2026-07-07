@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
+	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
@@ -24,6 +27,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier/gnarkzk"
+	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 )
@@ -62,6 +66,13 @@ type aggBatch struct {
 	Status      string // "open" | "finalized"
 	CreatedAt   int64
 	FinalizedAt int64
+
+	// Pack is populated on finalize by running the batch's proof hashes
+	// through the real internal/aggregator (still a conceptual/hash-based
+	// simulation of STARK aggregation, not real STARK math - see that
+	// package's doc comment - but genuinely wired in and genuinely
+	// verifiable, not just bookkeeping).
+	Pack *aggregator.STARKPack
 }
 
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
@@ -153,6 +164,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /aggregation/add-proof", s.aggregationAddProof)
 	mux.HandleFunc("POST /aggregation/finalize", s.aggregationFinalize)
 	mux.HandleFunc("GET /aggregation/batch/{id}", s.aggregationGetBatch)
+	mux.HandleFunc("GET /aggregation/verify-batch/{id}", s.aggregationVerifyBatch)
 	// ZK Verification routes
 	mux.HandleFunc("POST /zk/verify-groth16", s.zkVerifyGroth16)
 	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)
@@ -828,14 +840,61 @@ func (s *Server) aggregationFinalize(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "batch already finalized", http.StatusConflict)
 		return
 	}
+	if len(b.ProofHashes) == 0 {
+		s.jsonError(w, "cannot finalize an empty batch", http.StatusBadRequest)
+		return
+	}
+
+	proofBytes := make([][]byte, len(b.ProofHashes))
+	for i, h := range b.ProofHashes {
+		proofBytes[i] = []byte(h)
+	}
+	pack, err := aggregator.NewSTARKAggregator().CreateSTARKPack(proofBytes, map[string]string{"batch_id": b.ID})
+	if err != nil {
+		s.jsonError(w, fmt.Sprintf("aggregation failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+	b.Pack = pack
 	b.Status = "finalized"
 	b.FinalizedAt = time.Now().Unix()
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"batch_id": b.ID, "status": b.Status, "proof_count": len(b.ProofHashes),
-		"finalized_at": b.FinalizedAt,
+		"finalized_at": b.FinalizedAt, "aggregate_proof_hash": pack.AggregateProofHash,
 	})
+}
+
+// aggregationVerifyBatch re-runs the finalized batch's proof hashes through
+// internal/aggregator.UnpackAndVerify - this is a real round trip through the
+// aggregator's own verification path (still hash-based/conceptual, not real
+// STARK math), not a re-derivation done inline in this handler.
+func (s *Server) aggregationVerifyBatch(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	s.aggMu.Lock()
+	b, ok := s.aggBatches[id]
+	s.aggMu.Unlock()
+	if !ok {
+		s.jsonError(w, "batch not found", http.StatusNotFound)
+		return
+	}
+	if b.Status != "finalized" || b.Pack == nil {
+		s.jsonError(w, "batch is not finalized yet", http.StatusConflict)
+		return
+	}
+
+	valid, err := aggregator.NewSTARKAggregator().UnpackAndVerify(b.Pack)
+	w.Header().Set("Content-Type", "application/json")
+	result := map[string]any{
+		"batch_id": b.ID, "valid": valid,
+		"aggregate_proof_hash": b.Pack.AggregateProofHash,
+		"proof_count":          b.Pack.ProofCount,
+	}
+	if err != nil {
+		result["error"] = err.Error()
+	}
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *Server) aggregationGetBatch(w http.ResponseWriter, r *http.Request) {
@@ -849,12 +908,16 @@ func (s *Server) aggregationGetBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	resp := map[string]any{
 		"batch_id": b.ID, "merkle_root": b.MerkleRoot, "status": b.Status,
 		"proof_count": len(b.ProofHashes), "max_proofs": b.MaxProofs,
 		"created_at": b.CreatedAt, "finalized_at": b.FinalizedAt,
-	})
+	}
+	if b.Pack != nil {
+		resp["aggregate_proof_hash"] = b.Pack.AggregateProofHash
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,6 +1138,11 @@ func (s *Server) zkGetChallenge(w http.ResponseWriter, r *http.Request) {
 // Post-quantum handlers
 // ---------------------------------------------------------------------------
 
+// pqSignSPHINCS signs the message with a freshly generated, single-use
+// Lamport one-time signature key pair (see internal/crypto's package doc for
+// why this stands in for SPHINCS+). The private key is deliberately not
+// returned - only the public key needed to verify - since the key must never
+// be reused for a second message.
 func (s *Server) pqSignSPHINCS(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Message string `json:"message"`
@@ -1083,8 +1151,22 @@ func (s *Server) pqSignSPHINCS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	sig := fmt.Sprintf("%x", sha256.Sum256([]byte("sphincs:"+req.Message)))
-	result := map[string]any{"signature": sig, "algorithm": "SPHINCS+", "level": "NIST-5"}
+	priv, pub, err := pqcrypto.GenerateLamportKeyPair()
+	if err != nil {
+		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		return
+	}
+	sig, err := pqcrypto.SignSPHINCS(priv, []byte(req.Message))
+	if err != nil {
+		http.Error(w, `{"error":"signing failed"}`, http.StatusInternalServerError)
+		return
+	}
+	result := map[string]any{
+		"signature":  hex.EncodeToString(sig),
+		"public_key": hex.EncodeToString(pub.Bytes()),
+		"algorithm":  "Lamport-OTS",
+		"note":       "single-use key: do not reuse this public_key to sign another message",
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
@@ -1099,11 +1181,30 @@ func (s *Server) pqVerifySPHINCS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"valid": true, "algorithm": "SPHINCS+"}
+	sigBytes, err1 := hex.DecodeString(req.Signature)
+	pubBytes, err2 := hex.DecodeString(req.PublicKey)
+	if err1 != nil || err2 != nil {
+		http.Error(w, `{"error":"signature and public_key must be hex-encoded"}`, http.StatusBadRequest)
+		return
+	}
+	pub, err := pqcrypto.LamportPublicKeyFromBytes(pubBytes)
+	if err != nil {
+		http.Error(w, `{"error":"invalid public_key length"}`, http.StatusBadRequest)
+		return
+	}
+	valid, err := pqcrypto.VerifySPHINCS(pub, []byte(req.Message), sigBytes)
+	if err != nil {
+		http.Error(w, `{"error":"invalid signature length"}`, http.StatusBadRequest)
+		return
+	}
+	result := map[string]any{"valid": valid, "algorithm": "Lamport-OTS"}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+// pqHybridSign signs the message with a freshly generated Ed25519 key pair
+// and a freshly generated real ML-DSA-65 key pair, and returns both public
+// keys plus the combined hybrid signature.
 func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Message string `json:"message"`
@@ -1112,11 +1213,28 @@ func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	classicSig := fmt.Sprintf("%x", sha256.Sum256([]byte("ed25519:"+req.Message)))
-	pqSig := fmt.Sprintf("%x", sha256.Sum256([]byte("mldsa:"+req.Message)))
+	classicPriv, classicPub, err := pqcrypto.GenerateEd25519KeyPair()
+	if err != nil {
+		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		return
+	}
+	pqPriv, pqPub, err := pqcrypto.GenerateMLDSAKeyPair()
+	if err != nil {
+		http.Error(w, `{"error":"key generation failed"}`, http.StatusInternalServerError)
+		return
+	}
+	sig, err := pqcrypto.HybridSign(classicPriv, pqPriv, []byte(req.Message))
+	if err != nil {
+		http.Error(w, `{"error":"signing failed"}`, http.StatusInternalServerError)
+		return
+	}
+	pqPubBytes, _ := pqPub.MarshalBinary()
 	result := map[string]any{
-		"classic_signature": classicSig, "pq_signature": pqSig,
-		"algorithm": "Ed25519+ML-DSA", "hybrid": true,
+		"signature":          hex.EncodeToString(sig),
+		"classic_public_key": hex.EncodeToString(classicPub),
+		"pq_public_key":      hex.EncodeToString(pqPubBytes),
+		"algorithm":          "Ed25519+ML-DSA-65",
+		"hybrid":             true,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
@@ -1125,14 +1243,35 @@ func (s *Server) pqHybridSign(w http.ResponseWriter, r *http.Request) {
 func (s *Server) pqHybridVerify(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Message          string `json:"message"`
-		ClassicSignature string `json:"classic_signature"`
-		PqSignature      string `json:"pq_signature"`
+		Signature        string `json:"signature"`
+		ClassicPublicKey string `json:"classic_public_key"`
+		PqPublicKey      string `json:"pq_public_key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid request"}`, http.StatusBadRequest)
 		return
 	}
-	result := map[string]any{"valid": true, "classic_valid": true, "pq_valid": true, "algorithm": "Ed25519+ML-DSA"}
+	sigBytes, e1 := hex.DecodeString(req.Signature)
+	classicPubBytes, e2 := hex.DecodeString(req.ClassicPublicKey)
+	pqPubBytes, e3 := hex.DecodeString(req.PqPublicKey)
+	if e1 != nil || e2 != nil || e3 != nil {
+		http.Error(w, `{"error":"signature and public keys must be hex-encoded"}`, http.StatusBadRequest)
+		return
+	}
+	var pqPub mldsa65.PublicKey
+	if err := pqPub.UnmarshalBinary(pqPubBytes); err != nil {
+		http.Error(w, `{"error":"invalid pq_public_key"}`, http.StatusBadRequest)
+		return
+	}
+	valid, classicValid, pqValid, err := pqcrypto.HybridVerify(ed25519.PublicKey(classicPubBytes), &pqPub, []byte(req.Message), sigBytes)
+	if err != nil {
+		http.Error(w, `{"error":"invalid signature format"}`, http.StatusBadRequest)
+		return
+	}
+	result := map[string]any{
+		"valid": valid, "classic_valid": classicValid, "pq_valid": pqValid,
+		"algorithm": "Ed25519+ML-DSA-65",
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }

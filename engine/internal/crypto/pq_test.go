@@ -2,58 +2,123 @@ package crypto
 
 import "testing"
 
-// NOTE: package crypto is not currently wired into any HTTP endpoint or the
-// main binary (see docs/KNOWN_LIMITATIONS.md) - it's scaffolding for the
-// roadmap's "post-quantum proof signing" item, not a live feature. These are
-// honest tests of its actual current behavior. A prior version of this file
-// referenced functions (GenerateKeyPair, SignMessage, VerifySignature,
-// HashMessage, Sha256Hash, HexEncode, HexDecode, GenerateRandomBytes,
-// GenerateRandomString) that never existed anywhere in this package and had
-// never been compiled; it was replaced with this file.
+// These are real sign-then-verify round trips against distinct, freshly
+// generated key pairs. A prior version of this package had Sign and Verify
+// derive their internal hash input from different key halves (Sign used the
+// private key, Verify used the public key, which is not a prefix of the
+// private key) so Verify(pub, msg, Sign(priv, msg)) never returned true for
+// two independently generated keys - that bug is why these tests exist.
 
-func TestGenerateSimulatedKeyPair_Lengths(t *testing.T) {
-	for _, keyLen := range []int{simulatedSPHINCSKeyLen, simulatedMLDSAKeyLen, simulatedClassicSigLen} {
-		priv, pub, err := generateSimulatedKeyPair(keyLen)
-		if err != nil {
-			t.Fatalf("keyLen=%d: unexpected error: %v", keyLen, err)
-		}
-		if len(priv) != keyLen || len(pub) != keyLen {
-			t.Errorf("keyLen=%d: got priv=%d pub=%d", keyLen, len(priv), len(pub))
-		}
-	}
-}
-
-func TestSignSPHINCS_RejectsWrongKeyLength(t *testing.T) {
-	if _, err := SignSPHINCS([]byte("too-short"), []byte("msg")); err == nil {
-		t.Error("expected error for wrong-length private key")
-	}
-}
-
-func TestSignSPHINCS_ProducesFixedLengthSignature(t *testing.T) {
-	priv, _, err := generateSimulatedKeyPair(simulatedSPHINCSKeyLen)
+func TestClassicEd25519_SignVerifyRoundTrip(t *testing.T) {
+	priv, pub, err := GenerateEd25519KeyPair()
 	if err != nil {
 		t.Fatalf("keygen failed: %v", err)
 	}
-	sig, err := SignSPHINCS(priv, []byte("message"))
+	msg := []byte("hello casperprover")
+	sig, err := SignClassic(priv, msg)
 	if err != nil {
 		t.Fatalf("sign failed: %v", err)
 	}
-	if len(sig) != simulatedSPHINCSSigLen {
-		t.Errorf("expected signature length %d, got %d", simulatedSPHINCSSigLen, len(sig))
+	valid, err := VerifyClassic(pub, msg, sig)
+	if err != nil || !valid {
+		t.Fatalf("expected valid signature, got valid=%v err=%v", valid, err)
 	}
 }
 
-func TestSignMLDSA_ProducesFixedLengthSignature(t *testing.T) {
-	priv, _, err := generateSimulatedKeyPair(simulatedMLDSAKeyLen)
+func TestClassicEd25519_RejectsTamperedMessageAndSignature(t *testing.T) {
+	priv, pub, _ := GenerateEd25519KeyPair()
+	msg := []byte("hello casperprover")
+	sig, _ := SignClassic(priv, msg)
+
+	if valid, _ := VerifyClassic(pub, []byte("tampered message"), sig); valid {
+		t.Error("expected tampered message to be rejected")
+	}
+	tamperedSig := append([]byte(nil), sig...)
+	tamperedSig[0] ^= 0xFF
+	if valid, _ := VerifyClassic(pub, msg, tamperedSig); valid {
+		t.Error("expected tampered signature to be rejected")
+	}
+}
+
+func TestMLDSA_SignVerifyRoundTrip(t *testing.T) {
+	priv, pub, err := GenerateMLDSAKeyPair()
 	if err != nil {
 		t.Fatalf("keygen failed: %v", err)
 	}
-	sig, err := SignMLDSA(priv, []byte("message"))
+	msg := []byte("hello casperprover")
+	sig, err := SignMLDSA(priv, msg)
 	if err != nil {
 		t.Fatalf("sign failed: %v", err)
 	}
-	if len(sig) != simulatedMLDSASigLen {
-		t.Errorf("expected signature length %d, got %d", simulatedMLDSASigLen, len(sig))
+	valid, err := VerifyMLDSA(pub, msg, sig)
+	if err != nil || !valid {
+		t.Fatalf("expected valid signature, got valid=%v err=%v", valid, err)
+	}
+}
+
+func TestMLDSA_RejectsTamperedMessageAndSignature(t *testing.T) {
+	priv, pub, _ := GenerateMLDSAKeyPair()
+	msg := []byte("hello casperprover")
+	sig, _ := SignMLDSA(priv, msg)
+
+	if valid, _ := VerifyMLDSA(pub, []byte("tampered message"), sig); valid {
+		t.Error("expected tampered message to be rejected")
+	}
+	tamperedSig := append([]byte(nil), sig...)
+	tamperedSig[0] ^= 0xFF
+	if valid, _ := VerifyMLDSA(pub, msg, tamperedSig); valid {
+		t.Error("expected tampered signature to be rejected")
+	}
+}
+
+func TestMLDSA_RejectsWrongKeyPair(t *testing.T) {
+	_, pub1, _ := GenerateMLDSAKeyPair()
+	priv2, _, _ := GenerateMLDSAKeyPair()
+	msg := []byte("hello casperprover")
+	sig, _ := SignMLDSA(priv2, msg)
+	if valid, _ := VerifyMLDSA(pub1, msg, sig); valid {
+		t.Error("expected signature from a different key pair to be rejected")
+	}
+}
+
+func TestLamportOTS_SignVerifyRoundTrip(t *testing.T) {
+	priv, pub, err := GenerateLamportKeyPair()
+	if err != nil {
+		t.Fatalf("keygen failed: %v", err)
+	}
+	msg := []byte("hello casperprover")
+	sig, err := SignSPHINCS(priv, msg)
+	if err != nil {
+		t.Fatalf("sign failed: %v", err)
+	}
+	valid, err := VerifySPHINCS(pub, msg, sig)
+	if err != nil || !valid {
+		t.Fatalf("expected valid signature, got valid=%v err=%v", valid, err)
+	}
+}
+
+func TestLamportOTS_RejectsTamperedMessageAndSignature(t *testing.T) {
+	priv, pub, _ := GenerateLamportKeyPair()
+	msg := []byte("hello casperprover")
+	sig, _ := SignSPHINCS(priv, msg)
+
+	if valid, _ := VerifySPHINCS(pub, []byte("tampered message"), sig); valid {
+		t.Error("expected tampered message to be rejected")
+	}
+	tamperedSig := append([]byte(nil), sig...)
+	tamperedSig[0] ^= 0xFF
+	if valid, _ := VerifySPHINCS(pub, msg, tamperedSig); valid {
+		t.Error("expected tampered signature to be rejected")
+	}
+}
+
+func TestLamportOTS_RejectsWrongKeyPair(t *testing.T) {
+	_, pub1, _ := GenerateLamportKeyPair()
+	priv2, _, _ := GenerateLamportKeyPair()
+	msg := []byte("hello casperprover")
+	sig, _ := SignSPHINCS(priv2, msg)
+	if valid, _ := VerifySPHINCS(pub1, msg, sig); valid {
+		t.Error("expected signature from a different key pair to be rejected")
 	}
 }
 
@@ -72,16 +137,41 @@ func TestHybridSignature_MarshalUnmarshalRoundTrip(t *testing.T) {
 	}
 }
 
-func TestHybridSign_ProducesUnmarshalableOutput(t *testing.T) {
-	classicPriv, _, _ := generateSimulatedKeyPair(simulatedClassicSigLen)
-	mldsaPriv, _, _ := generateSimulatedKeyPair(simulatedMLDSAKeyLen)
+func TestHybridSignVerify_RoundTrip(t *testing.T) {
+	classicPriv, classicPub, _ := GenerateEd25519KeyPair()
+	pqPriv, pqPub, _ := GenerateMLDSAKeyPair()
+	msg := []byte("hello casperprover")
 
-	out, err := HybridSign(classicPriv, mldsaPriv, []byte("message"))
+	sig, err := HybridSign(classicPriv, pqPriv, msg)
 	if err != nil {
 		t.Fatalf("HybridSign failed: %v", err)
 	}
-	var hs HybridSignature
-	if err := hs.UnmarshalBinary(out); err != nil {
-		t.Fatalf("output of HybridSign did not unmarshal: %v", err)
+	valid, classicValid, pqValid, err := HybridVerify(classicPub, pqPub, msg, sig)
+	if err != nil || !valid || !classicValid || !pqValid {
+		t.Fatalf("expected valid hybrid signature, got valid=%v classic=%v pq=%v err=%v", valid, classicValid, pqValid, err)
 	}
+}
+
+func TestHybridVerify_RejectsIfEitherComponentInvalid(t *testing.T) {
+	classicPriv, classicPub, _ := GenerateEd25519KeyPair()
+	pqPriv, pqPub, _ := GenerateMLDSAKeyPair()
+	otherPQPriv, _, _ := GenerateMLDSAKeyPair()
+	msg := []byte("hello casperprover")
+
+	// Valid classic component, PQ component signed with the wrong key.
+	sig, err := HybridSign(classicPriv, otherPQPriv, msg)
+	if err != nil {
+		t.Fatalf("HybridSign failed: %v", err)
+	}
+	valid, classicValid, pqValid, _ := HybridVerify(classicPub, pqPub, msg, sig)
+	if valid {
+		t.Error("expected hybrid verification to fail when the PQ component doesn't match")
+	}
+	if !classicValid {
+		t.Error("expected classic component to still be valid on its own")
+	}
+	if pqValid {
+		t.Error("expected pq component to be invalid since it was signed with the wrong key")
+	}
+	_ = pqPriv
 }
