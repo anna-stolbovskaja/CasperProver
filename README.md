@@ -20,14 +20,17 @@
 
 ---
 
-> [!NOTE]
 > **4 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
 
 ## 📸 Screenshots
 
-| Homepage — proof registry | Lab — proofs dashboard | Proof detail — Merkle path | KYC-gated DeFi demo |
-|---|---|---|---|
-| ![Homepage](docs/screenshots/01-homepage.png) | ![Lab](docs/screenshots/02-lab.png) | ![Proof detail](docs/screenshots/03-proof-detail.png) | ![KYC demo](docs/screenshots/04-kyc-demo.png) |
+| Landing | Lab Overview | Proof Registry |
+|---|---|---|
+| ![Landing](docs/screenshots/01-homepage.png) | ![Lab](docs/screenshots/02-lab.png) | ![Proofs](docs/screenshots/03-proofs.png) |
+
+| ZK Proofs | Smart Contracts | PQ Crypto |
+|---|---|---|
+| ![ZK Proofs](docs/screenshots/04-zk-proofs.png) | ![Contracts](docs/screenshots/05-contracts.png) | ![PQ Crypto](docs/screenshots/06-pq-crypto.png) |
 
 > Live at [casperprover.xyz](https://casperprover.xyz)
 
