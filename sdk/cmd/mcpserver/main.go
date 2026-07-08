@@ -92,7 +92,7 @@ func dispatch(ctx context.Context, c *sdk.Client, name string, args map[string]i
 	case "inference_prove":
 		result, err = c.InferenceProve(ctx, sdk.InferenceProveRequest{
 			Input: str("input"), Output: str("output"),
-			Model: str("model"), Agent: str("agent"),
+			ModelID: str("model"), Agent: str("agent"),
 		})
 	case "inference_verify":
 		result, err = c.InferenceVerify(ctx, str("proof_id"))
