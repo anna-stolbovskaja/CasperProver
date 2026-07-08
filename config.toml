@@ -3,7 +3,7 @@ node_url = "https://node.integration.cspr.cloud/"
 chain_name = "casper-test"
 
 [api]
-port = 8080
+port = 10000
 rate_limit = 100
 
 [prover]

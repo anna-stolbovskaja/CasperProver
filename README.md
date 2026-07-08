@@ -48,7 +48,7 @@ CasperProver closes that gap:
 | Trust the agent operator | Verify cryptographically on-chain |
 | Black-box outputs | Merkle-anchored, tamper-evident record |
 | Centralized log (mutable) | Immutable on-chain commitment |
-| No quantum resistance | Post-quantum signing (SPHINCS+, ML-DSA-65) |
+| No quantum resistance | Post-quantum signing (ML-DSA-65, Lamport OTS) |
 | No economic penalties | Stake-and-slash for dishonest agents |
 
 ---
@@ -61,7 +61,7 @@ flowchart LR
     B -->|"SHA-256 leaves"| C["📦 Proof Engine"]
     C -->|"Merkle root"| D["⛓️ Casper Network"]
     C -->|"ZK proof"| E["🔐 Groth16 Verifier"]
-    C -->|"PQ signature"| F["🛡️ SPHINCS+ / ML-DSA"]
+    C -->|"PQ signature"| F["🛡️ ML-DSA-65 / Lamport"]
     D -->|"on-chain anchor"| G["✅ Verifiable Forever"]
     E -->|"pairing check"| G
     F -->|"quantum-safe"| G
@@ -80,7 +80,7 @@ Given `f(x) = y` with model `M`, CasperProver produces `π = MerkleProof(H(x), H
 
 For stronger guarantees, the same proof can be:
 - **ZK-verified** via real BN254 Groth16 (gnark)
-- **Post-quantum signed** with SPHINCS+ or hybrid Ed25519+ML-DSA-65
+- **Post-quantum signed** with hybrid Ed25519+ML-DSA-65 or Lamport OTS
 - **Chained** into a DAG with cycle detection and input continuity validation
 
 ---
@@ -91,7 +91,7 @@ For stronger guarantees, the same proof can be:
 |---|---|---|
 | **Merkle Proofs** | SHA-256 + Merkle tree, <50ms generation | ✅ Live |
 | **Real ZK Proofs** | BN254 Groth16 via gnark — R1CS circuits, trusted setup, pairing verification | ✅ Live |
-| **Post-Quantum Crypto** | SPHINCS+ (NIST PQC), ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA | ✅ Live |
+| **Post-Quantum Crypto** | ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA, Lamport OTS | ✅ Live |
 | **Batch Aggregation** | Hash-chain aggregation with Postgres persistence | ✅ Live |
 | **Proof-Chain DAG** | Multi-step proof validation: cycle detection, input continuity, single root | ✅ Live |
 | **On-Chain Anchoring** | 4 smart contracts on Casper testnet | ✅ Live |
@@ -117,7 +117,7 @@ graph TB
         API[32 REST Endpoints]
         MK[Merkle Builder]
         ZK[Groth16 Verifier<br/>gnark BN254]
-        PQ[PQ Crypto<br/>SPHINCS+ · ML-DSA]
+        PQ[PQ Crypto<br/>ML-DSA-65 · Lamport]
         AG[Batch Aggregator]
         PC[Proof Chain<br/>DAG Validator]
         INF[Inference Service]
@@ -332,7 +332,7 @@ Extended infrastructure — real code, wired to the API:
 | Smart contracts | Rust / Casper 2.x |
 | Proof engine | Go 1.22 |
 | ZK proofs | gnark (BN254 Groth16) |
-| PQ crypto | cloudflare/circl (ML-DSA-65), SPHINCS+ |
+| PQ crypto | cloudflare/circl (ML-DSA-65), Lamport OTS |
 | API | Go HTTP server + PostgreSQL |
 | Frontend | Vite + TypeScript + Tailwind |
 | SDK | Go client (32 methods) |
