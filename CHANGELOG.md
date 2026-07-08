@@ -6,10 +6,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — 2026-07-07
+## [1.2.0] — 2026-07-08
+
+*Wallet integration, UX overhaul, stake-slashing contract, CI fix*
+
+### Added
+- **stake-slashing** contract deployed on testnet — 20% CSPR slash + permissionless bounty
+- **defi-mock** contract redeployed with hardened `is_whitelisted(user: ByteArray32)` signature
+- CSPR.click wallet integration (Casper Wallet, Ledger, MetaMask Snap, Google SSO)
+- On-chain proof anchoring via wallet signing (`casper-js-sdk ^5.0.12`)
+- Real Groth16 ZK-SNARK proofs via gnark (BN254 pairing-based cryptography)
+- ML-DSA-65 post-quantum signing (FIPS 204, cloudflare/circl) + Lamport OTS
+- 10 interactive Lab pages with sticky header, toast system, demo/live mode
+- SectionIntro blocks, click-to-copy, search/filter, confirm modals
+- Mobile-responsive menu
+- Proof Pipeline merged into Playground
 
 ### Changed
-- **DeFi Mock contract redeployed** at `fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef` (package `54757fa72e6ca1898f3a8bc6e5af1d643b120a8c8605e0b1581fdcc3b76f9a04`), replacing the previous `b9b11a97...b81d3` deployment. New contract has the hardened `is_whitelisted(user: ByteArray32)` signature (see `docs/KNOWN_LIMITATIONS.md`). The original deployer account (`anna-stolbovskaja`) could not redeploy for reasons never fully root-caused; a dedicated new key was generated, funded, and used for this deployment instead — see `docs/KNOWN_LIMITATIONS.md` for the full investigation.
+- API expanded to 32 endpoints, SDK to 34 methods, MCP to 32 tools
+- Agent field max length increased to 128 for wallet public keys
+
+### Fixed
+- SDK build: `Model` → `ModelID` in MCP server (CI was broken)
+- Table refresh before wallet signing
+- Revoke without X-Public-Key header
+- Toast ordering: wallet popup before success toast
 
 ---
 
@@ -19,15 +40,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-#### Smart Contracts (Rust/Odra)
-- **ProofOfInference** (409 LOC) — individual proof anchoring with Merkle root on-chain verification
-- **ProofAggregation** (346 LOC) — batch-aggregated proofs for gas-efficient on-chain anchoring
-- **ModelRegistry** (278 LOC) — on-chain registry of approved AI models with version tracking
+#### Smart Contracts (Rust/Wasm)
+- **ProofOfInference** (498 LOC) — individual proof anchoring with Merkle root on-chain verification
+- **ProofAggregation** (179 LOC) — batch-aggregated proofs for gas-efficient on-chain anchoring
+- **ModelRegistry** (372 LOC) — on-chain registry of approved AI models with version tracking
 
 #### Backend Modules (Go)
-- **Model Registry** (`engine/internal/model/registry.go`, 266 LOC) — model CRUD, versioning, metadata management, and framework validation
-- **Complexity Analyzer** (`engine/internal/prover/complexity.go`, 162 LOC) — proof complexity estimation based on model parameters and input size
-- **Distributed Worker** (`engine/internal/worker/distributed.go`, 431 LOC) — task distribution, worker pool management, and fault-tolerant scheduling
+- **Model Registry** (`engine/internal/model/registry.go`, 283 LOC) — model CRUD, versioning, metadata management, and framework validation
+- **Complexity Analyzer** (`engine/internal/prover/complexity.go`, 186 LOC) — proof complexity estimation based on model parameters and input size
+- **Distributed Worker** (`engine/internal/worker/distributed.go`, 438 LOC) — task distribution, worker pool management, and fault-tolerant scheduling
 
 #### MCP Server
 - Expanded from 15 to 23 tools — new tools for model registry, complexity analysis, and distributed task management
@@ -79,8 +100,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Planned
-- Mainnet deployment
-- zk-SNARK proof type (Groth16)
-- Batch proof submission
-- Grafana/Prometheus metrics lab
+- Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts to mainnet
+- Full model-inference ZK circuit (beyond MiMC preimage)
+- STARK recursive aggregation
+- Grafana/Prometheus metrics
 - Proof expiry and rotation policies

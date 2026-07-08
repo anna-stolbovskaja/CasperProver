@@ -1,25 +1,25 @@
-# security
+# Security
 
-## reporting
+## Reporting
 
-report security issues via [github security advisories](https://github.com/anna-stolbovskaja/CasperProver/security/advisories/new) or email anna.stolbovskaja@gmail.com.
+Report security issues via [GitHub Security Advisories](https://github.com/anna-stolbovskaja/CasperProver/security/advisories/new).
 
-do not open public issues for vulnerabilities.
+Do not open public issues for vulnerabilities.
 
-## status
+## Status
 
-testnet prototype. internal audit completed (18 findings, risk 2/10). no external audit.
+Testnet prototype. Internal audit completed. No external audit.
 
-## scope
+## Scope
 
-- contracts: proof-registry, verifier-gate, defi-mock
-- engine: hasher, prover, verifier, submitter
-- sdk: client.go, python_client.py, mcp_server.go
+- **Contracts:** proof-registry, verifier-gate, defi-mock, stake-slashing, proof-of-inference, model-registry, proof-aggregation
+- **Engine:** hasher, prover, verifier, submitter, ZK (gnark), PQ crypto (ML-DSA-65, Lamport)
+- **SDK:** client.go, python_client.py, mcp_server.go
 
-## keys
+## Keys
 
-never commit deployer secrets. `.env.example` has placeholders only. testnet keys are disposable.
+Never commit deployer secrets. `.env.example` has placeholders only. Testnet keys are disposable.
 
-## limitations
+## Limitations
 
-see [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
+See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
