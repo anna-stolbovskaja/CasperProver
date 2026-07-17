@@ -47,7 +47,7 @@ fn next_id() -> u64 {
         .into_uref()
         .unwrap_or_revert();
     let c: u64 = storage::read(u).unwrap_or_revert().unwrap_or(0);
-    let n = c + 1;
+    let n = c.checked_add(1).unwrap_or_else(|| runtime::revert(ApiError::User(99)));
     storage::write(u, n);
     n
 }
@@ -98,7 +98,8 @@ pub extern "C" fn submit_proof() {
     let proofs = dict(PROOFS_DICT);
     storage::dictionary_put(proofs, &pid, rec);
 
-    let updated: AgentRec = ((aid, owner, amh), (total + 1, verified, failed), (score, reg));
+    let new_total = total.checked_add(1).unwrap_or(total);
+    let updated: AgentRec = ((aid, owner, amh), (new_total, verified, failed), (score, reg));
     storage::dictionary_put(agents, &caller.to_string(), updated);
 
     runtime::ret(CLValue::from_t(pid).unwrap_or_revert());
