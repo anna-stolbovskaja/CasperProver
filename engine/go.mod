@@ -8,7 +8,7 @@ require (
 	github.com/cloudflare/circl v1.6.1
 	github.com/consensys/gnark v0.12.0
 	github.com/consensys/gnark-crypto v0.15.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.12.3
 )
 
 require (
