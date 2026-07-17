@@ -12,7 +12,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/prover-api/:path*", "destination": "https://casperprover-api.onrender.com/:path*" },
+    { "source": "/prover-api/:path*", "destination": "https://casperprover-api-ylsh.onrender.com/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

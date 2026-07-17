@@ -9,7 +9,7 @@ info:
   license:
     name: MPL-2.0
 servers:
-  - url: https://casperprover-api.onrender.com
+  - url: https://casperprover-api-ylsh.onrender.com
     description: Production (Casper testnet)
   - url: http://localhost:9090
     description: Local development
