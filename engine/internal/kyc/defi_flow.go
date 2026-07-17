@@ -2,6 +2,7 @@ package kyc
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 )
@@ -21,7 +22,7 @@ func (f *DeFiFlow) RunDemo(agentID string) error {
 	model := []byte("kyc-model-v1")
 
 	p := f.eng.Generate(agentID, input, output, model, "kyc")
-	fmt.Printf("proof generated: %s\n", p.ID)
+	slog.Info("proof generated", "proof_id", p.ID)
 
 	_, err := f.demo.GrantAccess("alice", p.ID)
 	if err != nil {
@@ -29,6 +30,6 @@ func (f *DeFiFlow) RunDemo(agentID string) error {
 	}
 
 	ok := f.demo.IsWhitelisted("alice")
-	fmt.Printf("alice whitelisted: %v\n", ok)
+	slog.Info("KYC demo completed", "user", "alice", "whitelisted", ok)
 	return nil
 }

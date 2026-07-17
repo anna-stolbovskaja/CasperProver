@@ -129,7 +129,7 @@ pub extern "C" fn record_stake() {
 
     let stakes = dict(STAKES_DICT);
     let current = read_stake(stakes, &caller.to_string());
-    let updated = current + amount;
+    let updated = current.checked_add(amount).unwrap_or_else(|| runtime::revert(ApiError::User(99)));
     storage::dictionary_put(stakes, &caller.to_string(), updated);
 }
 
@@ -141,11 +141,8 @@ pub extern "C" fn unstake() {
 
     let stakes = dict(STAKES_DICT);
     let current = read_stake(stakes, &caller.to_string());
-    if amount > current {
-        runtime::revert(ApiError::User(ERR_INSUFFICIENT_STAKE));
-    }
-
-    let remaining = current - amount;
+    let remaining = current.checked_sub(amount)
+        .unwrap_or_else(|| runtime::revert(ApiError::User(ERR_INSUFFICIENT_STAKE)));
     storage::dictionary_put(stakes, &caller.to_string(), remaining);
 
     system::transfer_from_purse_to_account(contract_purse(), caller, amount, None)
