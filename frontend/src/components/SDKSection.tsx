@@ -20,7 +20,7 @@ export default function SDKSection() {
             </div>
             <pre className="p-5 text-xs font-mono text-gray-300 overflow-x-auto leading-relaxed"><code>{`import "github.com/anna-stolbovskaja/CasperProver/sdk"
 
-client := sdk.New("https://casperprover-api.onrender.com")
+client := sdk.New("https://casperprover-api-ylsh.onrender.com")
 
 // Generate & verify proof
 proof, _ := client.SubmitProof(ctx, sdk.ProofInput{
@@ -51,7 +51,7 @@ sig, _ := client.HybridSign(ctx, "message")`}</code></pre>
       "command": "casper-prover-mcp",
       "env": {
         "CASPERPROVER_API_URL":
-          "https://casperprover-api.onrender.com"
+          "https://casperprover-api-ylsh.onrender.com"
       }
     }
   }

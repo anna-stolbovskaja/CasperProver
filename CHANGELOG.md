@@ -82,7 +82,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **DeFi Mock contract** ([b9b11a97...b81d3](https://testnet.cspr.live/contract/b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3)) — sample vault gated by verifier-gate, demonstrating KYC-gated DeFi flow
 - **Merkle tree builder** in Go engine — SHA-256 leaf hashing over `{H(input), H(output), H(model)}` triplets, binary tree construction, path serialization
 - **Four proof types supported**: `merkle-inclusion`, `kyc-eligibility`, `balance-range`, `transaction-membership`
-- **REST API** at `https://casperprover-api.onrender.com` — endpoints: `POST /api/v1/proof/submit`, `POST /api/v1/proof/verify`, `GET /api/v1/proofs`, `GET /api/v1/stats`
+- **REST API** at `https://casperprover-api-ylsh.onrender.com` — endpoints: `POST /api/v1/proof/submit`, `POST /api/v1/proof/verify`, `GET /api/v1/proofs`, `GET /api/v1/stats`
 - **Lab** at `casperprover.xyz/lab` — 72 live proofs registered on testnet, proof type breakdown, verification status badges
 - **Go SDK** (`sdk/`) — `client.go` with submit/verify helpers, Python client (`python_client.py`)
 - **MCP server** (`sdk/mcp_server.go`) — Model Context Protocol adapter so AI frameworks (Claude, LangChain) can call CasperProver as a tool

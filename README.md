@@ -173,7 +173,7 @@ go run ./engine/cmd/...
 
 **Submit a proof:**
 ```bash
-curl https://casperprover-api.onrender.com/proofs \
+curl https://casperprover-api-ylsh.onrender.com/proofs \
   -H "Content-Type: application/json" \
   -d '{
     "agent": "agent-alpha",
@@ -185,14 +185,14 @@ curl https://casperprover-api.onrender.com/proofs \
 
 **Real ZK proof:**
 ```bash
-curl https://casperprover-api.onrender.com/zk/groth16-real/prove \
+curl https://casperprover-api-ylsh.onrender.com/zk/groth16-real/prove \
   -H "Content-Type: application/json" \
   -d '{"secret": 42}'
 ```
 
 **Post-quantum hybrid sign:**
 ```bash
-curl https://casperprover-api.onrender.com/pq/hybrid-sign \
+curl https://casperprover-api-ylsh.onrender.com/pq/hybrid-sign \
   -H "Content-Type: application/json" \
   -d '{"message": "signed with Ed25519 + ML-DSA-65"}'
 ```
@@ -272,7 +272,7 @@ The `stake-slashing` contract adds real economic consequences for dishonest agen
 ```go
 import "github.com/anna-stolbovskaja/CasperProver/sdk"
 
-client := sdk.New("https://casperprover-api.onrender.com")
+client := sdk.New("https://casperprover-api-ylsh.onrender.com")
 proof, _ := client.SubmitProof(ctx, sdk.ProofInput{...})
 zkProof, _ := client.Groth16RealProve(ctx, 42)
 sig, _ := client.HybridSign(ctx, "message")
@@ -282,7 +282,7 @@ chain, _ := client.ValidateProofChain(ctx, dag)
 ### MCP Server (32 tools)
 
 ```bash
-CASPERPROVER_API_URL=https://casperprover-api.onrender.com go run ./sdk/cmd/mcpserver
+CASPERPROVER_API_URL=https://casperprover-api-ylsh.onrender.com go run ./sdk/cmd/mcpserver
 ```
 
 Every tool maps 1:1 to a live API endpoint. Categories: proofs (7), inference (4), ZK (6), aggregation (5), PQ crypto (4), KYC (3), models (2), proof-chain (1).

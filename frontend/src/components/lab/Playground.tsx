@@ -518,7 +518,7 @@ const Playground: React.FC = () => {
       <SectionIntro
         title="Playground"
         description="Two interactive environments for testing CasperProver. API Playground lets you call any of the 32 endpoints individually. Agent Playground runs the full proof lifecycle pipeline (6 steps) in sequence, showing each API response side-by-side."
-        dataSource="All requests hit the live CasperProver API (casperprover-api.onrender.com). Every result is real."
+        dataSource="All requests hit the live CasperProver API (casperprover-api-ylsh.onrender.com). Every result is real."
         badge="Live API"
         badgeColor="blue"
       />
