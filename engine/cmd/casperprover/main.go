@@ -56,9 +56,7 @@ func demoProve(eng *prover.ProofEngine) {
 	model := []byte("model-v1")
 
 	p := eng.Generate("demo-agent", input, output, model, "kyc")
-	fmt.Printf("id:   %s\n", p.ID)
-	fmt.Printf("hash: %s\n", p.PH)
-	fmt.Printf("root: %s\n", p.Root)
+	slog.Info("proof generated", "id", p.ID, "hash", p.PH, "root", p.Root)
 }
 
 func demoVerify(eng *prover.ProofEngine) {
@@ -74,7 +72,6 @@ func demoVerify(eng *prover.ProofEngine) {
 		os.Exit(1)
 	}
 	slog.Info("verification passed", "proof_id", p.ID)
-	fmt.Printf("OK: proof %s verified\n", p.ID)
 }
 
 func demoFlow(eng *prover.ProofEngine) {
