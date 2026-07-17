@@ -83,8 +83,9 @@ func ComputeModelHash(architecture, weights, hyperparams []byte) string {
 func genID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		// Fallback: should never happen
-		panic("crypto/rand failed: " + err.Error())
+		// crypto/rand failure is extremely unlikely but must not crash the process.
+		// Fall back to a timestamp-based ID — unique enough for in-memory registry.
+		return fmt.Sprintf("%x", time.Now().UnixNano())
 	}
 	return hex.EncodeToString(b)
 }
