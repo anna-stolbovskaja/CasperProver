@@ -40,8 +40,17 @@ export default function Footer() {
             <p className="text-xs text-gray-600">7 smart contracts (4 deployed on Casper testnet). Proof storage, verification, staking, and DeFi registry.</p>
           </div>
         </div>
-        <div className="border-t border-gray-800/50 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-gray-600">&copy; 2026 CasperProver. MPL-2.0 License.</p>
+        <div className="border-t border-gray-800/50 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4 text-xs text-gray-600">
+            <p>&copy; 2026 CasperProver. MPL-2.0 License.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <a href="https://t.me/casperprover" target="_blank" rel="noreferrer" className="text-gray-500 hover:text-purple-400 transition-colors text-sm" title="Telegram community">Telegram</a>
+            <span className="text-gray-700">·</span>
+            <a href="https://x.com/casperprover" target="_blank" rel="noreferrer" className="text-gray-500 hover:text-purple-400 transition-colors text-sm" title="X (Twitter)">X</a>
+            <span className="text-gray-700">·</span>
+            <a href="https://github.com/anna-stolbovskaja/CasperProver" target="_blank" rel="noreferrer" className="text-gray-500 hover:text-purple-400 transition-colors text-sm">GitHub</a>
+          </div>
           <p className="text-xs text-gray-600">Casper Agentic Buildathon 2026</p>
         </div>
       </div>
