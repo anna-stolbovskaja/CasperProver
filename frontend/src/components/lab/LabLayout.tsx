@@ -290,7 +290,7 @@ const LabLayout: React.FC = () => {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <main className="p-4 bg-[#13131d] border border-[#222235] rounded-lg shadow-lg min-h-[calc(100vh-200px)]">
-          <ErrorBoundary>
+          <ErrorBoundary key={location.pathname}>
             <Outlet />
           </ErrorBoundary>
         </main>
