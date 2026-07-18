@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ErrorBoundary from './ErrorBoundary';
+import Breadcrumbs from './Breadcrumbs';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useWallet } from '../../lib/CsprClickProvider';
 import { shortKey } from '../../lib/wallet';
@@ -294,6 +295,7 @@ const LabLayout: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <Breadcrumbs />
         <main className="p-4 bg-[#13131d] border border-[#222235] rounded-lg shadow-lg min-h-[calc(100vh-200px)]">
           <ErrorBoundary key={location.pathname}>
             <Outlet />
