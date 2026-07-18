@@ -3,8 +3,8 @@
  *
  * When a Casper wallet is connected, write operations (submit_proof,
  * register_agent) can be signed and submitted directly by the user's wallet
- * instead of the backend's server key. This mirrors the AgentEscrow402
- * pattern: build a ContractCallBuilder tx → clickRef.send() → wallet popup
+ * instead of the backend's server key. Standard CSPR.click flow:
+ * build a ContractCallBuilder tx → clickRef.send() → wallet popup
  * → user signs → tx submitted to Casper testnet.
  *
  * Contract: proof_registry (deployed on casper-test)

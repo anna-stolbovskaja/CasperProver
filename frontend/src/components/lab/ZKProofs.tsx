@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Loader2, AlertTriangle, KeyRound, Search, Zap, List } from 'lucide-react';
+import { ShieldCheck, Loader2, AlertTriangle, KeyRound, Search, Zap, List, X } from 'lucide-react';
 import {
   zkGroth16RealProve,
   zkGroth16RealVerify,
@@ -23,7 +23,7 @@ const Modal: React.FC<{
       <div className="bg-[#1a1a2a] rounded-lg border border-[#222235] max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-gray-100">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-100">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-100"><X size={18} /></button>
         </div>
         {children}
       </div>
