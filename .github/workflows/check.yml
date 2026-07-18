@@ -4,7 +4,7 @@ jobs:
   go-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
@@ -13,7 +13,7 @@ jobs:
   go-vet:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
@@ -22,7 +22,7 @@ jobs:
   go-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
@@ -33,7 +33,7 @@ jobs:
   sdk-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
@@ -44,7 +44,7 @@ jobs:
   sdk-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version: "1.22"
@@ -55,7 +55,7 @@ jobs:
   build-contracts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2025-01-15
@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-contracts
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2025-01-15
