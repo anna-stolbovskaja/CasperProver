@@ -86,7 +86,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, reqBody, re
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

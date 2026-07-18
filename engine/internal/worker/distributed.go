@@ -152,7 +152,7 @@ func (p *Pool) SubmitTask(agent string, input, output, model []byte, useCase str
 	h.Write(input)
 	h.Write([]byte(agent))
 	h.Write([]byte(useCase))
-	h.Write([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	_, _ = fmt.Fprintf(h, "%d", time.Now().UnixNano())
 	id := hex.EncodeToString(h.Sum(nil))[:16]
 
 	t := &Task{

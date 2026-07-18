@@ -93,7 +93,7 @@ func Open() (*PG, error) {
 
 func (s *PG) Close() {
 	if s != nil && s.db != nil {
-		s.db.Close()
+		_ = s.db.Close()
 	}
 }
 
@@ -106,7 +106,7 @@ func (s *PG) Load(eng *prover.ProofEngine) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("pg load query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	count := 0
 	for rows.Next() {
@@ -171,7 +171,7 @@ func (s *PG) LoadKYC() ([]KYCEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pg load kyc query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []KYCEntry
 	for rows.Next() {
@@ -277,7 +277,7 @@ func (s *PG) LoadAggBatches() ([]AggBatchRow, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pg load agg batches: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []AggBatchRow
 	for rows.Next() {
