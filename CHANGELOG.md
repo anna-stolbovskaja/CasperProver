@@ -6,6 +6,34 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+*Frontend polish, DoraHacks submission prep, docs hardening.*
+
+### Added
+- Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
+- `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
+- `CopyButton` with checkmark feedback and legacy-browser fallback.
+- Full favicon set: `favicon.ico` (multi-size) + `favicon-16x16.png` + `favicon-32x32.png` + `apple-touch-icon.png`.
+- Sitemap.xml expanded to every public Lab and Docs route.
+- Verify / Secret Scan / Contracts / Proofs / PQ status badges in README.
+- Telegram + X + GitHub social links row in footer.
+- `docs/SUBMISSION_CHECKLIST.tmp` — DoraHacks submission tracker.
+- `docs/RED_TEAM.tmp` — 18-vector red-team self-audit.
+- `docs/API.tmp` — curl-first API reference for all 32 endpoints.
+
+### Changed
+- All 20 `console.error` calls in Lab components guarded by `import.meta.env.DEV`; only `ErrorBoundary` (line 18) and `toast` fallback (line 122) keep unconditional logging by design.
+- Main marketing navbar auto-hides on `/lab/*` routes (Lab has its own sticky top bar).
+- `ErrorBoundary` auto-resets on route change via `key={location.pathname}` — no stale error screens across nav.
+- Mobile Lab sidebar auto-closes on route change.
+- `README.md` badges regrouped: CI status row + capability row.
+
+### Fixed
+- Vite env types wired via `src/vite-env.d.ts` so `import.meta.env.DEV` type-checks under `strict`.
+
+---
+
 ## [1.2.0] — 2026-07-08
 
 *Wallet integration, UX overhaul, stake-slashing contract, CI fix*
