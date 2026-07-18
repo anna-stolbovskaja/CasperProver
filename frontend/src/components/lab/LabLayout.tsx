@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 import Breadcrumbs from './Breadcrumbs';
+import KeyboardHelpModal from './KeyboardHelpModal';
+import { useKeyboardShortcuts } from '../../lib/useKeyboardShortcuts';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useWallet } from '../../lib/CsprClickProvider';
 import { shortKey } from '../../lib/wallet';
@@ -104,7 +106,10 @@ const LabLayout: React.FC = () => {
   const { publicKey, connected: isConnected, signIn, signOut } = useWallet();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoInfoOpen, setDemoInfoOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const location = useLocation();
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  useKeyboardShortcuts(openShortcuts);
 
   // Auto-close mobile menu on route change
   useEffect(() => {
@@ -292,6 +297,7 @@ const LabLayout: React.FC = () => {
 
       {/* Demo mode info popup */}
       {demoInfoOpen && <DemoModeInfo onClose={() => setDemoInfoOpen(false)} />}
+      <KeyboardHelpModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
