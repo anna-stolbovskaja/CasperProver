@@ -163,6 +163,7 @@ const Overview: React.FC = () => {
         dataSource="Live CasperProver API (/stats + /health endpoints). Contract addresses verified on Casper testnet."
         badge="Live data"
         badgeColor="green"
+        helpText="Numbers refresh on every page load. If /health is down, cards fall back to zeros."
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {renderCard('Total Proofs', stats?.total_proofs ?? 0, Activity, 'text-red-500')}
