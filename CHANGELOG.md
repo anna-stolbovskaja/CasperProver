@@ -32,6 +32,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Vite env types wired via `src/vite-env.d.ts` so `import.meta.env.DEV` type-checks under `strict`.
 
+### Planned
+- Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts to mainnet
+- Full model-inference ZK circuit (beyond MiMC preimage)
+- STARK recursive aggregation
+- Grafana/Prometheus metrics
+- Proof expiry and rotation policies
+
 ---
 
 ## [1.2.0] — 2026-07-08
@@ -123,13 +130,4 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Frontend hosted on Vercel
 - CI via GitHub Actions (`check.yml`)
 
----
 
-## [Unreleased]
-
-### Planned
-- Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts to mainnet
-- Full model-inference ZK circuit (beyond MiMC preimage)
-- STARK recursive aggregation
-- Grafana/Prometheus metrics
-- Proof expiry and rotation policies
