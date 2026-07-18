@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useWallet } from '../../lib/CsprClickProvider';
@@ -104,6 +104,11 @@ const LabLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [demoInfoOpen, setDemoInfoOpen] = useState(false);
   const location = useLocation();
+
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-[#0b0b10] text-gray-100 font-sans">
