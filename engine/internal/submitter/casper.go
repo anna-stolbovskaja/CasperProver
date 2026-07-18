@@ -49,7 +49,7 @@ func (s *CasperSubmitter) rpcCall(body []byte) (*http.Response, error) {
 				return resp, nil
 			}
 			if resp != nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 			slog.Warn("NOWNodes unavailable, falling back to default node", "err", err)
 		}
@@ -92,7 +92,7 @@ func (s *CasperSubmitter) Submit(p *prover.Proof) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Result struct {
@@ -133,7 +133,7 @@ func (s *CasperSubmitter) Revoke(pid, reason string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Result struct {
@@ -186,7 +186,7 @@ func (s *CasperSubmitter) SubmitModelRegistration(modelID, modelHash, verifierCo
 	if err != nil {
 		return "", fmt.Errorf("post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result struct {
 		Result struct {

@@ -14,7 +14,7 @@ func SaveBundle(dir string, bundle *ProofBundle) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	return json.NewEncoder(f).Encode(bundle)
 }
 
@@ -23,7 +23,7 @@ func LoadBundle(path string) (*ProofBundle, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var b ProofBundle
 	if err := json.NewDecoder(f).Decode(&b); err != nil {
 		return nil, err

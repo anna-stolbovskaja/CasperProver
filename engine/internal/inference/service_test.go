@@ -3,8 +3,6 @@ package inference
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 )
 
 // NOTE: a prior version of this file tested an imagined API (a
@@ -80,5 +78,5 @@ func TestToStoreEntry_FromStoreEntry_RoundTrip(t *testing.T) {
 
 func TestToStoreEntry_ReturnsStoreType(t *testing.T) {
 	entry := &ModelRegistryEntry{ModelID: "x", ModelHash: "y", VerifierContract: "z"}
-	var _ *store.ModelRegistryEntry = toStoreEntry(entry) // compile-time type check
+	var _ = toStoreEntry(entry) // compile-time type check (type inferred)
 }

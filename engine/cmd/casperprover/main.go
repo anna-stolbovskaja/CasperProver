@@ -92,17 +92,17 @@ func serve(eng *prover.ProofEngine) {
 			if err == nil {
 				keyPath := tmpFile.Name()
 				if _, err := tmpFile.Write(decoded); err == nil {
-					tmpFile.Close()
+					_ = tmpFile.Close()
 					if chmodErr := os.Chmod(keyPath, 0600); chmodErr != nil {
 						slog.Warn("failed to restrict deployer key file permissions", "path", keyPath, "error", chmodErr)
 					}
-					os.Setenv("DEPLOYER_KEY_PATH", keyPath)
+					_ = os.Setenv("DEPLOYER_KEY_PATH", keyPath)
 					slog.Info("deployer key written from env", "path", keyPath)
 					// Schedule cleanup on exit
-					defer os.Remove(keyPath)
+					defer func() { _ = os.Remove(keyPath) }()
 				} else {
-					tmpFile.Close()
-					os.Remove(keyPath)
+					_ = tmpFile.Close()
+					_ = os.Remove(keyPath)
 				}
 			}
 		}
