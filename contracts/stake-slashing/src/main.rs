@@ -51,11 +51,13 @@ const ERR_NOT_REVOKED: u16 = 3;
 const ERR_AGENT_MISMATCH: u16 = 4;
 const ERR_INSUFFICIENT_STAKE: u16 = 5;
 const ERR_INPUT_TOO_LONG: u16 = 6;
+const ERR_NO_MATCHING_TRANSFER: u16 = 7;
 
 const PROOF_REGISTRY_HASH: &str = "proof_registry_hash";
 const STAKES_DICT: &str = "stakes";
 const SLASHED_DICT: &str = "slashed_proofs";
 const CONTRACT_PURSE: &str = "contract_purse";
+const KEY_TOTAL_RECORDED: &str = "total_recorded";
 const MAX_PROOF_ID_LEN: usize = 128;
 
 // Slash 20% of the agent's current stake per confirmed revocation, paid to
@@ -81,6 +83,22 @@ fn contract_purse() -> URef {
         .unwrap_or_revert()
         .into_uref()
         .unwrap_or_revert()
+}
+
+fn get_uref(name: &str) -> URef {
+    runtime::get_key(name)
+        .unwrap_or_revert()
+        .into_uref()
+        .unwrap_or_revert()
+}
+
+// Decrease the bookkeeping total when funds leave the contract purse
+// (unstake, slash payout) so `available` in record_stake reflects the
+// purse's real remaining balance instead of drifting to zero forever.
+fn decrease_total_recorded(amount: U512) {
+    let total_uref = get_uref(KEY_TOTAL_RECORDED);
+    let total_recorded: U512 = storage::read(total_uref).unwrap_or_revert().unwrap_or(U512::zero());
+    storage::write(total_uref, total_recorded.saturating_sub(amount));
 }
 
 fn validate_proof_id(pid: &str) {
@@ -115,22 +133,38 @@ pub extern "C" fn get_purse() {
 }
 
 /// Records that `amount` of CSPR was just deposited into this contract's
-/// purse on behalf of the caller. Must only be invoked as the second half of
-/// the atomic stake-slashing-session deploy (transfer, then this call) -
-/// calling it alone with no matching transfer just inflates the caller's
-/// *recorded* stake without backing funds, which report_and_slash would then
-/// try to pay out of the shared contract purse; that's a real risk if this
-/// entry point is ever called out of band, so if you build a different
-/// front-end for staking, keep the transfer+record atomic in one deploy.
+/// purse on behalf of the caller. Intended to be invoked as the second half
+/// of the atomic stake-slashing-session deploy (transfer, then this call).
+/// See the hardening note below: an out-of-band call with no real transfer
+/// behind it can no longer inflate the caller's recorded stake.
 #[unsafe(no_mangle)]
 pub extern "C" fn record_stake() {
+    // 2026-07-18 hardening: previously trusted the caller's claimed `amount`
+    // with no check that a matching purse transfer ever happened — calling
+    // this directly (skipping stake-slashing-session) let anyone inflate
+    // their own recorded stake with unbacked amounts. A contract can't pull
+    // funds from the caller's purse itself (get_main_purse() only works in
+    // session context, which is why the session exists), so instead we make
+    // record_stake self-verifying: it can never credit more, in total across
+    // all callers, than has actually landed in the contract purse. Any
+    // out-of-band call with no real transfer behind it is capped at 0.
     let caller = runtime::get_caller();
-    let amount: U512 = runtime::get_named_arg("amount");
+    let claimed: U512 = runtime::get_named_arg("amount");
+
+    let total_uref = get_uref(KEY_TOTAL_RECORDED);
+    let total_recorded: U512 = storage::read(total_uref).unwrap_or_revert().unwrap_or(U512::zero());
+    let actual_balance = system::get_purse_balance(contract_purse()).unwrap_or_revert();
+    let available = actual_balance.saturating_sub(total_recorded);
+    let credit = if claimed > available { available } else { claimed };
+    if credit.is_zero() {
+        runtime::revert(ApiError::User(ERR_NO_MATCHING_TRANSFER));
+    }
 
     let stakes = dict(STAKES_DICT);
     let current = read_stake(stakes, &caller.to_string());
-    let updated = current.checked_add(amount).unwrap_or_else(|| runtime::revert(ApiError::User(99)));
+    let updated = current.checked_add(credit).unwrap_or_else(|| runtime::revert(ApiError::User(99)));
     storage::dictionary_put(stakes, &caller.to_string(), updated);
+    storage::write(total_uref, total_recorded.saturating_add(credit));
 }
 
 /// Withdraw up to your current recorded stake back to your own account.
@@ -147,6 +181,7 @@ pub extern "C" fn unstake() {
 
     system::transfer_from_purse_to_account(contract_purse(), caller, amount, None)
         .unwrap_or_revert();
+    decrease_total_recorded(amount);
 }
 
 /// Permissionlessly claim a slash reward for an agent whose proof has
@@ -188,6 +223,7 @@ pub extern "C" fn report_and_slash() {
         let caller = runtime::get_caller();
         system::transfer_from_purse_to_account(contract_purse(), caller, slash_amount, None)
             .unwrap_or_revert();
+        decrease_total_recorded(slash_amount);
     }
 }
 
@@ -207,12 +243,14 @@ pub extern "C" fn call() {
     let stakes = storage::new_dictionary(STAKES_DICT).unwrap_or_revert();
     let slashed = storage::new_dictionary(SLASHED_DICT).unwrap_or_revert();
     let purse = system::create_purse();
+    let total_recorded = storage::new_uref(U512::zero());
 
     let mut nk = NamedKeys::new();
     nk.insert(PROOF_REGISTRY_HASH.into(), proof_registry);
     nk.insert(STAKES_DICT.into(), stakes.into());
     nk.insert(SLASHED_DICT.into(), slashed.into());
     nk.insert(CONTRACT_PURSE.into(), purse.into());
+    nk.insert(KEY_TOTAL_RECORDED.into(), total_recorded.into());
 
     let mut ep = EntryPoints::new();
     ep.add_entry_point(EntityEntryPoint::new(
