@@ -1,14 +1,12 @@
 module github.com/anna-stolbovskaja/CasperProver/engine
 
-go 1.22.0
-
-toolchain go1.22.12
+go 1.24.0
 
 require (
-	github.com/cloudflare/circl v1.6.1
+	github.com/cloudflare/circl v1.6.4
 	github.com/consensys/gnark v0.12.0
 	github.com/consensys/gnark-crypto v0.15.0
-	github.com/lib/pq v1.10.9
+	github.com/lib/pq v1.12.3
 )
 
 require (
@@ -24,9 +22,9 @@ require (
 	github.com/ronanh/intcomp v1.1.0 // indirect
 	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
