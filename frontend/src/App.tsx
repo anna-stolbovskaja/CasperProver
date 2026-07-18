@@ -60,6 +60,8 @@ function Landing() {
 export default function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const closeMobile = useCallback(() => setMobileOpen(false), [])
+  const location = useLocation()
+  const isLabRoute = location.pathname.startsWith('/lab')
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
@@ -71,7 +73,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <ScrollProgress />
       <ScrollToTop />
-      <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      {!isLabRoute && <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}
       <main className="flex-1" onClick={mobileOpen ? closeMobile : undefined}>
         <Routes>
           <Route path="/" element={<Landing />} />
