@@ -18,6 +18,7 @@ import {
   Code2,
   Cpu,
   Info,
+  Lightbulb,
 } from 'lucide-react';
 
 const tabs = [
@@ -91,10 +92,13 @@ const DemoModeInfo: React.FC<{ onClose: () => void }> = ({ onClose }) => (
         </div>
 
         <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-3">
-          <p className="text-green-300 text-xs leading-relaxed">
-            💡 <strong>Bottom line:</strong> Everything you see is real data from a running cryptographic
-            engine and real smart contracts on Casper testnet. "Demo" only refers to who signs the
-            on-chain transactions.
+          <p className="text-green-300 text-xs leading-relaxed flex items-start gap-2">
+            <Lightbulb className="w-4 h-4 shrink-0 mt-0.5 text-green-300" aria-hidden="true" />
+            <span>
+              <strong>Bottom line:</strong> Everything you see is real data from a running cryptographic
+              engine and real smart contracts on Casper testnet. "Demo" only refers to who signs the
+              on-chain transactions.
+            </span>
           </p>
         </div>
       </div>
