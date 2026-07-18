@@ -46,7 +46,7 @@ const KYC: React.FC = () => {
     } catch (err) {
       setCheckKycError('An unexpected error occurred.');
       toast.error('An unexpected error occurred.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsCheckingKyc(false);
     }
@@ -70,7 +70,7 @@ const KYC: React.FC = () => {
     } catch (err) {
       setGrantKycError('An unexpected error occurred.');
       toast.error('An unexpected error occurred.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsGrantingKyc(false);
     }
@@ -93,7 +93,7 @@ const KYC: React.FC = () => {
     } catch (err) {
       setWhitelistError('An unexpected error occurred.');
       toast.error('An unexpected error occurred.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsViewingWhitelist(false);
     }

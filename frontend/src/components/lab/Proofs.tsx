@@ -112,7 +112,7 @@ const Proofs: React.FC = () => {
     } catch (err) {
       setError('An unexpected error occurred.');
       toast.error('An unexpected error occurred.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ const Proofs: React.FC = () => {
       }
     } catch (err) {
       toast.error('Verification error.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsVerifying(null);
     }
@@ -198,7 +198,7 @@ const Proofs: React.FC = () => {
       }
     } catch (err) {
       toast.error('Revocation error.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsRevoking(null);
     }
@@ -224,7 +224,7 @@ const Proofs: React.FC = () => {
       }
     } catch (err) {
       toast.error('Export error.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsExporting(null);
     }

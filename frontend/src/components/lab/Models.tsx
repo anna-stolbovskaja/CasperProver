@@ -80,7 +80,7 @@ const Models: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during model registration.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsRegistering(false);
     }
@@ -108,7 +108,7 @@ const Models: React.FC = () => {
     } catch (err) {
       setSearchError('An unexpected error occurred during model search.');
       toast.error('An unexpected error occurred during model search.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsSearchingModel(false);
     }

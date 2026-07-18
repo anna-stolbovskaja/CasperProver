@@ -49,7 +49,7 @@ const PQCrypto: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during SPHINCS+ signing.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsSigningSphincs(false);
     }
@@ -74,7 +74,7 @@ const PQCrypto: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during SPHINCS+ verification.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsVerifyingSphincs(false);
     }
@@ -101,7 +101,7 @@ const PQCrypto: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during Hybrid signing.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsSigningHybrid(false);
     }
@@ -128,7 +128,7 @@ const PQCrypto: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during Hybrid verification.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsVerifyingHybrid(false);
     }

@@ -30,7 +30,7 @@ async function fetcher<T>(
 
     return { success: true, data };
   } catch (error) {
-    console.error(`API call to ${endpoint} failed:`, error);
+    if (import.meta.env.DEV) console.error(`API call to ${endpoint} failed:`, error);
     return { success: false, error: (error as Error).message || 'Network error' };
   }
 }

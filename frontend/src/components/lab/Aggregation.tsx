@@ -92,7 +92,7 @@ const Aggregation: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during batch creation.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsCreatingBatch(false);
     }
@@ -124,7 +124,7 @@ const Aggregation: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred while adding proof.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsAddingProof(false);
     }
@@ -149,7 +149,7 @@ const Aggregation: React.FC = () => {
       }
     } catch (err) {
       toast.error('Verification error');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsVerifyingBatch(false);
     }
@@ -173,7 +173,7 @@ const Aggregation: React.FC = () => {
       }
     } catch (err) {
       toast.error('An unexpected error occurred during batch finalization.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsFinalizing(false);
     }
@@ -205,7 +205,7 @@ const Aggregation: React.FC = () => {
     } catch (err) {
       setSearchError('An unexpected error occurred during batch search.');
       toast.error('An unexpected error occurred during batch search.');
-      console.error(err);
+      if (import.meta.env.DEV) console.error(err);
     } finally {
       setIsSearchingBatch(false);
     }

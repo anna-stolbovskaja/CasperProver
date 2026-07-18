@@ -29,7 +29,7 @@ const Overview: React.FC = () => {
         }
       } catch (err) {
         setError('An unexpected error occurred while fetching data.');
-        console.error(err);
+        if (import.meta.env.DEV) console.error(err);
       } finally {
         setLoading(false);
       }
