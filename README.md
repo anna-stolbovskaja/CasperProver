@@ -9,10 +9,16 @@
 *Prove what an agent computed. Verify it on-chain. No replay needed.*
 
 [![CI](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml)
+[![Verify](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml)
+[![Secret Scan](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/secret-scan.yml)
 [![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![Casper 2.x](https://img.shields.io/badge/Casper-2.x-FF0000.svg?style=flat-square)](https://casper.network)
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
+
+![Contracts](https://img.shields.io/badge/contracts-4%20deployed-brightgreen)
+![Proofs](https://img.shields.io/badge/proofs-102%2B-blue)
+![PQ Ready](https://img.shields.io/badge/post--quantum-ready-purple)
 
 [**Live Demo →**](https://casperprover.xyz/lab) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [Status & Roadmap](docs/KNOWN_LIMITATIONS.md)
 
