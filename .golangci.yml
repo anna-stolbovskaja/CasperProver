@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 3m
 
@@ -8,11 +10,6 @@ linters:
     - staticcheck
     - unused
     - ineffassign
-    - gosimple
-
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-
-issues:
-  exclude-use-default: true
+  settings:
+    errcheck:
+      check-type-assertions: true
