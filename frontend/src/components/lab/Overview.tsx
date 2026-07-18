@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, CheckCircle, XCircle, Users, Clock, HeartPulse, HardHat } from 'lucide-react';
 import { getStats, getHealth, StatsResponse, HealthResponse } from '../../lib/api';
 import SectionIntro from './SectionIntro';
+import { CardSkeleton } from '../ui/Skeleton';
 
 const Overview: React.FC = () => {
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -137,9 +138,10 @@ const Overview: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="text-center p-8 text-gray-400">
-        <Activity className="animate-spin mx-auto mb-4" size={32} />
-        Loading overview data...
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <CardSkeleton key={i} />
+        ))}
       </div>
     );
   }

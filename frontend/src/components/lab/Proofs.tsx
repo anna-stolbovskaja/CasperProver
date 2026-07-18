@@ -25,6 +25,7 @@ import {
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
 import ConfirmModal from './ConfirmModal';
+import { TableSkeleton } from '../ui/Skeleton';
 import { useWallet } from '../../lib/CsprClickProvider';
 import { submitProofOnChain, revokeProofOnChain } from '../../lib/liveTx';
 import { shortKey } from '../../lib/wallet';
@@ -291,12 +292,7 @@ const Proofs: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="text-center p-8 text-gray-400">
-        <Loader2 className="animate-spin mx-auto mb-4" size={32} />
-        Loading proofs...
-      </div>
-    );
+    return <TableSkeleton rows={6} />;
   }
 
   if (error) {
