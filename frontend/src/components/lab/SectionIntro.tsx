@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info } from 'lucide-react';
+import StatusBadge, { StatusBadgeColor } from './StatusBadge';
 
 interface SectionIntroProps {
   title: string;
@@ -7,14 +8,8 @@ interface SectionIntroProps {
   dataSource: string;
   /** e.g. "Live API data" or "Real testnet contracts" */
   badge?: string;
-  badgeColor?: 'green' | 'blue' | 'yellow';
+  badgeColor?: StatusBadgeColor;
 }
-
-const colors = {
-  green: 'bg-green-900/30 text-green-400 border-green-700/40',
-  blue: 'bg-blue-900/30 text-blue-400 border-blue-700/40',
-  yellow: 'bg-yellow-900/30 text-yellow-400 border-yellow-700/40',
-};
 
 const SectionIntro: React.FC<SectionIntroProps> = ({
   title,
@@ -29,9 +24,7 @@ const SectionIntro: React.FC<SectionIntroProps> = ({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${colors[badgeColor]}`}>
-            {badge}
-          </span>
+          <StatusBadge label={badge} color={badgeColor} />
         </div>
         <p className="text-xs text-gray-400 leading-relaxed">{description}</p>
         <p className="text-[11px] text-gray-500">
