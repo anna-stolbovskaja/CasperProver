@@ -1,7 +1,11 @@
+// Package submitter builds and signs Casper 2.0 (Condor) TransactionV1
+// payloads using the official casper-go-sdk/v2 and submits them to a
+// Casper node via JSON-RPC.
 package submitter
 
 import (
-	"bytes"
+	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -9,192 +13,163 @@ import (
 	"os"
 	"time"
 
+	"github.com/make-software/casper-go-sdk/v2/casper"
+	"github.com/make-software/casper-go-sdk/v2/rpc"
+	"github.com/make-software/casper-go-sdk/v2/types"
+	"github.com/make-software/casper-go-sdk/v2/types/clvalue"
+	"github.com/make-software/casper-go-sdk/v2/types/key"
+	"github.com/make-software/casper-go-sdk/v2/types/keypair"
+
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 )
 
-const nownodesURL = "https://casper.nownodes.io/rpc"
+const (
+	defaultTTL       = 30 * time.Minute
+	defaultGasAmount = 3_000_000_000 // 3 CSPR
+)
 
+// CasperSubmitter signs and submits TransactionV1 calls to on-chain
+// CasperProver contracts via the casper-go-sdk RPC client.
 type CasperSubmitter struct {
-	nodeURL      string
-	chain        string
-	keyPath      string
-	nownodesKey  string
-	client       *http.Client
+	chain  string
+	keys   keypair.PrivateKey
+	client rpc.Client
 }
 
+// New creates a CasperSubmitter. keyPath must point to a PEM file
+// (ED25519 or SECP256K1) whose corresponding account is the contract
+// deployer / has the named keys for the target contracts.
 func New(nodeURL, chain, keyPath string) *CasperSubmitter {
-	key := os.Getenv("NOWNODES_API_KEY")
-	if key != "" {
-		slog.Info("NOWNodes RPC configured as primary provider")
-	}
-	return &CasperSubmitter{
-		nodeURL:     nodeURL,
-		chain:       chain,
-		keyPath:     keyPath,
-		nownodesKey: key,
-		client:      &http.Client{Timeout: 30 * time.Second},
-	}
-}
-
-// rpcCall sends a JSON-RPC request, trying NOWNodes first with automatic
-// fallback to the default node URL when NOWNodes is unavailable.
-func (s *CasperSubmitter) rpcCall(body []byte) (*http.Response, error) {
-	if s.nownodesKey != "" {
-		req, err := http.NewRequest("POST", nownodesURL, bytes.NewReader(body))
-		if err == nil {
-			req.Header.Set("Content-Type", "application/json")
-			req.Header.Set("api-key", s.nownodesKey)
-			resp, err := s.client.Do(req)
-			if err == nil && resp.StatusCode < 500 {
-				return resp, nil
-			}
-			if resp != nil {
-				_ = resp.Body.Close()
-			}
-			slog.Warn("NOWNodes unavailable, falling back to default node", "err", err)
+	// Try secp256k1 first (the project's deployer keys are secp256k1),
+	// then fall back to ed25519.
+	keys, err := casper.NewSECP256k1PrivateKeyFromPEMFile(keyPath)
+	if err != nil {
+		keys, err = casper.NewED25519PrivateKeyFromPEMFile(keyPath)
+		if err != nil {
+			slog.Error("failed to load deployer key", "path", keyPath, "err", err)
+			return nil
 		}
+		slog.Info("submitter loaded ED25519 key", "path", keyPath)
+	} else {
+		slog.Info("submitter loaded SECP256K1 key", "path", keyPath)
 	}
-	return s.client.Post(s.nodeURL+"/rpc", "application/json", bytes.NewReader(body))
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	rpcClient := rpc.NewClient(rpc.NewHttpHandler(nodeURL+"/rpc", httpClient))
+
+	return &CasperSubmitter{
+		chain:  chain,
+		keys:   keys,
+		client: rpcClient,
+	}
 }
 
+// putTransaction builds, signs, and submits a TransactionV1 that calls
+// the given entry point on a contract identified by its hex-encoded hash.
+func (s *CasperSubmitter) putTransaction(contractHash, entryPoint string, args *types.Args) (string, error) {
+	pubKey := s.keys.PublicKey()
+
+	hashBytes, err := hex.DecodeString(contractHash)
+	if err != nil {
+		return "", fmt.Errorf("decode contract hash: %w", err)
+	}
+	var hash key.Hash
+	copy(hash[:], hashBytes)
+
+	ep := entryPoint
+	payload, err := types.NewTransactionV1Payload(
+		types.InitiatorAddr{PublicKey: &pubKey},
+		types.Timestamp(time.Now().UTC()),
+		types.Duration(defaultTTL),
+		s.chain,
+		types.PricingMode{
+			Limited: &types.LimitedMode{
+				GasPriceTolerance: 1,
+				StandardPayment:   true,
+				PaymentAmount:     defaultGasAmount,
+			},
+		},
+		types.NewNamedArgs(args),
+		types.TransactionTarget{
+			Stored: &types.StoredTarget{
+				ID:      types.TransactionInvocationTarget{ByHash: &hash},
+				Runtime: types.NewVmCasperV1TransactionRuntime(),
+			},
+		},
+		types.TransactionEntryPoint{Custom: &ep},
+		types.TransactionScheduling{Standard: &struct{}{}},
+	)
+	if err != nil {
+		return "", fmt.Errorf("build payload: %w", err)
+	}
+
+	tx, err := types.MakeTransactionV1(payload)
+	if err != nil {
+		return "", fmt.Errorf("make transaction: %w", err)
+	}
+
+	if err := tx.Sign(s.keys); err != nil {
+		return "", fmt.Errorf("sign transaction: %w", err)
+	}
+
+	res, err := s.client.PutTransactionV1(context.Background(), *tx)
+	if err != nil {
+		return "", fmt.Errorf("put transaction: %w", err)
+	}
+
+	txHash := res.TransactionHash.TransactionV1.ToHex()
+	slog.Info("transaction submitted", "hash", txHash, "entry_point", entryPoint)
+	return txHash, nil
+}
+
+// Submit anchors a proof to the on-chain proof_registry contract.
+// The contract hash is read from CONTRACT_PROOF_REGISTRY env var.
 func (s *CasperSubmitter) Submit(p *prover.Proof) (string, error) {
-	args := map[string]interface{}{
-		"proof_hash":  p.PH,
-		"input_hash":  p.IH,
-		"output_hash": p.OH,
-		"model_hash":  p.MH,
-		"use_case":    p.UseCase,
+	contractHash := os.Getenv("CONTRACT_PROOF_REGISTRY")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_PROOF_REGISTRY env var not set")
 	}
 
-	deploy := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "account_put_deploy",
-		"params": map[string]interface{}{
-			"deploy": map[string]interface{}{
-				"session": map[string]interface{}{
-					"StoredContractByName": map[string]interface{}{
-						"name":        "proof_registry",
-						"entry_point": "submit_proof",
-						"args":        args,
-					},
-				},
-			},
-		},
-	}
+	args := &types.Args{}
+	args.AddArgument("proof_hash", *clvalue.NewCLString(p.PH)).
+		AddArgument("input_hash", *clvalue.NewCLString(p.IH)).
+		AddArgument("output_hash", *clvalue.NewCLString(p.OH)).
+		AddArgument("model_hash", *clvalue.NewCLString(p.MH))
 
-	body, err := json.Marshal(deploy)
-	if err != nil {
-		return "", fmt.Errorf("marshal: %w", err)
-	}
-
-	resp, err := s.rpcCall(body)
-	if err != nil {
-		return "", fmt.Errorf("post: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Result struct {
-			DeployHash string `json:"deploy_hash"`
-		} `json:"result"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode: %w", err)
-	}
-
-	return result.Result.DeployHash, nil
+	return s.putTransaction(contractHash, "submit_proof", args)
 }
 
+// Revoke marks a proof as revoked on-chain.
 func (s *CasperSubmitter) Revoke(pid, reason string) (string, error) {
-	deploy := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "account_put_deploy",
-		"params": map[string]interface{}{
-			"deploy": map[string]interface{}{
-				"session": map[string]interface{}{
-					"StoredContractByName": map[string]interface{}{
-						"name":        "proof_registry",
-						"entry_point": "revoke_proof",
-						"args":        map[string]string{"proof_id": pid, "reason": reason},
-					},
-				},
-			},
-		},
+	contractHash := os.Getenv("CONTRACT_PROOF_REGISTRY")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_PROOF_REGISTRY env var not set")
 	}
 
-	body, err := json.Marshal(deploy)
-	if err != nil {
-		return "", err
-	}
+	args := &types.Args{}
+	args.AddArgument("proof_id", *clvalue.NewCLString(pid)).
+		AddArgument("reason", *clvalue.NewCLString(reason))
 
-	resp, err := s.rpcCall(body)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Result struct {
-			DeployHash string `json:"deploy_hash"`
-		} `json:"result"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-	return result.Result.DeployHash, nil
+	return s.putTransaction(contractHash, "revoke_proof", args)
 }
 
-// SubmitModelRegistration submits a register_model deploy to the on-chain
-// model-registry contract, binding a model_id to its content hash and the
-// verifier contract that should be used to check proofs against it.
+// SubmitModelRegistration registers a model on the model_registry contract.
 func (s *CasperSubmitter) SubmitModelRegistration(modelID, modelHash, verifierContract string, metadata map[string]string) (string, error) {
+	contractHash := os.Getenv("CONTRACT_MODEL_REGISTRY")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_MODEL_REGISTRY env var not set")
+	}
+
 	metaJSON, err := json.Marshal(metadata)
 	if err != nil {
 		return "", fmt.Errorf("marshal metadata: %w", err)
 	}
 
-	deploy := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "account_put_deploy",
-		"params": map[string]interface{}{
-			"deploy": map[string]interface{}{
-				"session": map[string]interface{}{
-					"StoredContractByName": map[string]interface{}{
-						"name":        "model_registry",
-						"entry_point": "register_model",
-						"args": map[string]interface{}{
-							"model_id":           modelID,
-							"model_hash":         modelHash,
-							"verifier_contract":  verifierContract,
-							"metadata":           string(metaJSON),
-						},
-					},
-				},
-			},
-		},
-	}
+	args := &types.Args{}
+	args.AddArgument("model_id", *clvalue.NewCLString(modelID)).
+		AddArgument("model_hash", *clvalue.NewCLString(modelHash)).
+		AddArgument("verifier_contract", *clvalue.NewCLString(verifierContract)).
+		AddArgument("metadata", *clvalue.NewCLString(string(metaJSON)))
 
-	body, err := json.Marshal(deploy)
-	if err != nil {
-		return "", fmt.Errorf("marshal: %w", err)
-	}
-
-	resp, err := s.rpcCall(body)
-	if err != nil {
-		return "", fmt.Errorf("post: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var result struct {
-		Result struct {
-			DeployHash string `json:"deploy_hash"`
-		} `json:"result"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-	return result.Result.DeployHash, nil
+	return s.putTransaction(contractHash, "register_model", args)
 }
