@@ -39,16 +39,30 @@ bold "═══ CasperProver Verification ═══"
 echo ""
 bold "1. On-chain contracts (Casper testnet)"
 
-CONTRACTS=(
-  "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
-  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
-  "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
-  "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
-)
+# Load contract manifest — root canonical is deploy-out/onchain.json
+# (see docs/MANIFEST.md and scripts/generate_manifest.py). Never edit hashes
+# in this script directly; regenerate the manifest instead.
+MANIFEST="$(dirname "$0")/deploy-out/onchain.json"
+if [ ! -f "$MANIFEST" ]; then
+  red "Root manifest missing at $MANIFEST — run: python scripts/generate_manifest.py"
+  exit 2
+fi
+
+# Extract contract entries as name:hash pairs from the root manifest.
+# jq output format: "pretty_name<TAB>contract_hash"
+readarray -t CONTRACTS < <(jq -r '
+  .contracts | to_entries[]
+  | (.key | gsub("_"; " ") | ascii_downcase | split(" ") | map(. as $w | (.[0:1] | ascii_upcase) + $w[1:]) | join(" ")) + ":" + .value.contract_hash
+' "$MANIFEST")
+
+if [ ${#CONTRACTS[@]} -eq 0 ]; then
+  red "Root manifest contained zero contracts — regenerate: python scripts/generate_manifest.py"
+  exit 2
+fi
 
 verify_contract() {
-  local hash="${1%%:*}"
-  local name="${1##*:}"
+  local name="${1%%:*}"
+  local hash="${1##*:}"
   local resp
   resp=$(curl -sf "https://node.testnet.casper.network/rpc" \
     -H "Content-Type: application/json" \

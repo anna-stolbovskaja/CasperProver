@@ -1,10 +1,17 @@
 {
+  "$schema": "./onchain.schema.json",
   "network": "casper-test",
   "chain_name": "casper-test",
   "project": "CasperProver",
   "deployer": "0203975636c0c327297c67916f65009f1bc8bcaec34231994450a6f4fb43060fa123",
   "explorer": "https://testnet.cspr.live",
   "cspr_cloud": "https://testnet.cspr.cloud",
+  "manifest_version": "1.0",
+  "canonical_source": "deploy-out/onchain.json",
+  "regenerate_command": "python scripts/generate_manifest.py",
+  "notes": "This is the SINGLE SOURCE OF TRUTH for contract deployments. Do not hand-edit hashes anywhere else in the repo. verify.sh, frontend/public/onchain.json, README explorer links, and API responses must be derived from this file. See scripts/generate_manifest.py for the generator and docs/MANIFEST.md for the schema.",
+  "generated_at": "2026-07-19T21:00:08Z",
+  "generator_version": "1.0.0",
   "contracts": {
     "proof_registry": {
       "contract_hash": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
@@ -19,7 +26,12 @@
         "revoke_proof",
         "register_agent",
         "get_reputation"
-      ]
+      ],
+      "_validated": {
+        "ok": true,
+        "detail": "on-chain",
+        "at": "2026-07-19T21:00:08Z"
+      }
     },
     "verifier_gate": {
       "contract_hash": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
@@ -32,7 +44,12 @@
         "verify",
         "is_valid",
         "batch_check"
-      ]
+      ],
+      "_validated": {
+        "ok": true,
+        "detail": "on-chain",
+        "at": "2026-07-19T21:00:08Z"
+      }
     },
     "defi_mock": {
       "contract_hash": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
@@ -46,7 +63,12 @@
         "grant_access",
         "revoke_access",
         "is_whitelisted"
-      ]
+      ],
+      "_validated": {
+        "ok": true,
+        "detail": "on-chain",
+        "at": "2026-07-19T21:00:08Z"
+      }
     },
     "stake_slashing": {
       "contract_hash": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
@@ -62,7 +84,12 @@
         "report_and_slash",
         "get_stake"
       ],
-      "notes": "Hardened redeploy \u2014 checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit)."
+      "notes": "Hardened redeploy \u2014 checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit).",
+      "_validated": {
+        "ok": true,
+        "detail": "on-chain",
+        "at": "2026-07-19T21:00:08Z"
+      }
     }
   },
   "undeployed_contracts": {
