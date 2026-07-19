@@ -60,16 +60,33 @@ jobs:
         with:
           toolchain: nightly-2025-01-15
           targets: wasm32-unknown-unknown
+      # Deployed contracts (live on testnet)
       - run: cd contracts/proof-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/verifier-gate && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/defi-mock && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/stake-slashing && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/stake-slashing-session && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      # Undeployed contracts (built to prevent bit-rot; roadmap items per
+      # docs/KNOWN_LIMITATIONS.md)
+      - run: cd contracts/proof-of-inference && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/model-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/proof-aggregation && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      # Size report + hard ceiling. Fails CI if any .wasm >200KB (blocks
+      # deploy) or if any wasm is missing. Emits table + JSON artifact.
+      - name: contract size report
+        run: |
+          ./scripts/contract-size-report.sh
+          ./scripts/contract-size-report.sh --json > contract-sizes.json
       - uses: actions/upload-artifact@v4
         with:
           name: contract-wasms
           path: contracts/target/wasm32-unknown-unknown/release/*.wasm
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contract-sizes
+          path: contract-sizes.json
+          retention-days: 30
 
   test-contracts:
     runs-on: ubuntu-latest
