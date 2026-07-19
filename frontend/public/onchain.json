@@ -34,13 +34,14 @@
       "entry_points": ["check_kyc", "grant_access", "revoke_access", "is_whitelisted"]
     },
     "stake_slashing": {
-      "contract_hash": "cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1",
-      "contract_package_hash": "23f3e6d0c31ee2520ad944d2a4f9466355c23134f57ee4707ea538d78a0ffce2",
-      "deploy_hash": "cb72ab7c2d63d90d9d15f279d8cf8a465c2ff2a1a04f73b13e514c2ea255946f",
-      "version": 1,
-      "deployed_at": "2026-07-07T09:41:11Z",
+      "contract_hash": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
+      "contract_package_hash": "e33812f9c9c88e0d3202fdd7a7718cce686cbd21bc673c216b6dbf23c26e2947",
+      "deploy_hash": "ac4712a3ecc29c058330df88781d488f61c3993b7ee2720c2024fc2a231d2532",
+      "version": 2,
+      "deployed_at": "2026-07-19T07:33:00Z",
       "source": "contracts/stake-slashing/src/main.rs",
-      "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"]
+      "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"],
+      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit)."
     }
   },
   "undeployed_contracts": {

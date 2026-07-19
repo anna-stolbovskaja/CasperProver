@@ -225,7 +225,7 @@ curl https://casperprover-api-ylsh.onrender.com/pq/hybrid-sign \
 | **proof-registry** | [`96e97c4d...a10708`](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708) | Immutable proof store | 2026-06-29 |
 | **verifier-gate** | [`a37f9cde...9f77d3`](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) | Merkle inclusion checker | 2026-06-29 |
 | **defi-mock** | [`fe0c45f6...0b39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | KYC-gated DeFi vault | 2026-07-07 |
-| **stake-slashing** | [`cf70e1fe...d9bd1`](https://testnet.cspr.live/contract/cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1) | Economic penalties | 2026-07-07 |
+| **stake-slashing** | [`1ad1b3d9...983d52`](https://testnet.cspr.live/contract/1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52) | Economic penalties (hardened redeploy) | 2026-07-19 |
 
 **Additionally written** (not yet deployed): `proof-of-inference`, `model-registry`, `proof-aggregation` — ready for mainnet.
 
