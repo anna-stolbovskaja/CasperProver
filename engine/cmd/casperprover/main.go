@@ -146,6 +146,10 @@ func serve(eng *prover.ProofEngine) {
 			port = p
 		}
 	}
+	if err := api.ValidateStartupConfig(); err != nil {
+		slog.Error("startup config invalid", "error", err)
+		os.Exit(2)
+	}
 	srv := api.New(eng, port, db)
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
