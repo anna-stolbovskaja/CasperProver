@@ -50,7 +50,7 @@ fn call_is_valid(pid: &str) -> bool {
     let vg = runtime::get_key(VERIFIER_HASH).unwrap_or_revert();
     let mut args = casper_types::RuntimeArgs::new();
     args.insert("proof_id", pid.to_string()).unwrap_or_revert();
-    runtime::call_contract(vg.into_hash_addr().unwrap_or_revert().into(), "is_valid", args)
+    runtime::call_contract(vg.into_entity_hash_addr().unwrap_or_revert().into(), "is_valid", args)
 }
 
 /// Verify KYC status without modifying state. Public read-only.

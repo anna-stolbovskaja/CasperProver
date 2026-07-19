@@ -111,8 +111,10 @@ fn get_proof_from_registry(pid: &str) -> ProofRec {
     let registry = runtime::get_key(PROOF_REGISTRY_HASH).unwrap_or_revert();
     let mut args = RuntimeArgs::new();
     args.insert("proof_id", pid.to_string()).unwrap_or_revert();
+    // into_entity_hash_addr handles Key::Hash (legacy), Key::AddressableEntity
+    // (Casper 2.0), and Key::Account — into_hash_addr only handled Key::Hash.
     runtime::call_contract(
-        registry.into_hash_addr().unwrap_or_revert().into(),
+        registry.into_entity_hash_addr().unwrap_or_revert().into(),
         "get_proof",
         args,
     )
