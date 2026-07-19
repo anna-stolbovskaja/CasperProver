@@ -58,6 +58,7 @@ type Server struct {
 	log       *slog.Logger
 	start     time.Time
 	apiKey    string
+	keys      apiKeyStore // nil → use s.db; overridable in tests
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
