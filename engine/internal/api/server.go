@@ -286,26 +286,60 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// authMiddleware requires a matching X-API-Key header on every mutating
-// request (anything other than GET/HEAD/OPTIONS) once API_KEY is configured.
-// Read-only endpoints (health, listing proofs, checking whitelist status,
-// etc.) stay public - this is a demo/hackathon API, not a multi-tenant
-// product, so a single shared secret is intentionally simple rather than
-// per-agent keys/JWTs. If API_KEY is unset, every request is allowed through
-// (documented in KNOWN_LIMITATIONS.md as the local-dev/demo default).
+// isPublicRoute returns true for the routes we explicitly designate as
+// public: no X-API-Key needed even when the server is configured with
+// one. See authMiddleware below for the rationale.
+//
+// The rule set is:
+//   - All GET/HEAD/OPTIONS (read-only surface, incl. docs/status/whitelist)
+//   - POST /proofs ("submit_proof") — explicitly public per API split
+//   - POST /verify                    — read-only crypto check, no state
+//   - GET  /health                    — already GET but listed for clarity
+//
+// Everything else that mutates state is admin-gated (kyc/*, aggregation
+// finalize, model registration, key issuance, etc.).
+func isPublicRoute(method, path string) bool {
+	if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
+		return true
+	}
+	switch method + " " + path {
+	case "POST /proofs":
+		return true
+	case "POST /verify":
+		return true
+	}
+	return false
+}
+
+// authMiddleware enforces the public/admin API split.
+//
+// If API_KEY is empty the middleware is a no-op (local dev / demo
+// mode — documented in KNOWN_LIMITATIONS.md).
+//
+// Otherwise:
+//   - Public routes (see isPublicRoute) require no header.
+//   - Admin-gated routes require X-API-Key. A missing header returns
+//     401 Unauthorized; a present-but-wrong header returns 403 Forbidden.
+//     Both use a clear JSON error body — never a silent failure or a
+//     panic. The comparison uses subtle.ConstantTimeCompare so probing
+//     the key one byte at a time doesn't work.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.apiKey == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		if isPublicRoute(r.Method, r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		got := r.Header.Get("X-API-Key")
-		if got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
-			s.jsonError(w, "missing or invalid X-API-Key", http.StatusUnauthorized)
+		if got == "" {
+			s.jsonError(w, "missing X-API-Key header (admin-gated route)", http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
+			s.jsonError(w, "invalid X-API-Key (admin scope required)", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)

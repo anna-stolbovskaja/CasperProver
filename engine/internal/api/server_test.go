@@ -44,33 +44,46 @@ func TestAuthMiddleware_NoKeyConfigured_AllowsAll(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware_KeyConfigured_RejectsMissingOrWrongKey(t *testing.T) {
+func TestAuthMiddleware_KeyConfigured_AdminRoutes(t *testing.T) {
 	s := newTestServer("secret123")
 	handler := s.authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
+	// Admin-gated routes:
+	// - no header             → 401 (missing)
+	// - wrong header value    → 403 (invalid / forbidden)
+	// - correct header        → 200 (passes through)
 	cases := []struct {
 		name   string
 		header string
 		want   int
 	}{
 		{"missing header", "", http.StatusUnauthorized},
-		{"wrong key", "wrong", http.StatusUnauthorized},
+		{"wrong key", "wrong", http.StatusForbidden},
 		{"correct key", "secret123", http.StatusOK},
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/kyc/grant", nil)
-			if c.header != "" {
-				req.Header.Set("X-API-Key", c.header)
-			}
-			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, req)
-			if rec.Code != c.want {
-				t.Fatalf("%s: expected %d, got %d", c.name, c.want, rec.Code)
-			}
-		})
+	adminRoutes := []struct{ method, path string }{
+		{http.MethodPost, "/kyc/grant"},
+		{http.MethodPost, "/kyc/check"},
+		{http.MethodPost, "/inference/register-model"},
+		{http.MethodPost, "/aggregation/finalize"},
+	}
+	for _, route := range adminRoutes {
+		for _, c := range cases {
+			t.Run(c.name+":"+route.method+" "+route.path, func(t *testing.T) {
+				req := httptest.NewRequest(route.method, route.path, nil)
+				if c.header != "" {
+					req.Header.Set("X-API-Key", c.header)
+				}
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, req)
+				if rec.Code != c.want {
+					t.Fatalf("%s %s [%s]: expected %d, got %d",
+						route.method, route.path, c.name, c.want, rec.Code)
+				}
+			})
+		}
 	}
 }
 
@@ -85,6 +98,73 @@ func TestAuthMiddleware_KeyConfigured_GetAlwaysAllowed(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET should bypass auth even with a key configured, got %d", rec.Code)
+	}
+}
+
+// TestAuthMiddleware_PublicRoutes_NoAuthRequired verifies that the
+// explicit-public POST endpoints (submit_proof, verify) pass through
+// without X-API-Key even when the server has one configured.
+func TestAuthMiddleware_PublicRoutes_NoAuthRequired(t *testing.T) {
+	s := newTestServer("secret123")
+	handler := s.authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	cases := []struct{ method, path string }{
+		{http.MethodPost, "/proofs"},
+		{http.MethodPost, "/verify"},
+	}
+	for _, c := range cases {
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			req := httptest.NewRequest(c.method, c.path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s %s expected 200 (public), got %d", c.method, c.path, rec.Code)
+			}
+		})
+	}
+}
+
+// TestAuthMiddleware_ErrorBodyIsJSON verifies that both 401 and 403
+// responses carry a machine-readable JSON error body — not empty, not
+// HTML, not an unhandled panic.
+func TestAuthMiddleware_ErrorBodyIsJSON(t *testing.T) {
+	s := newTestServer("secret123")
+	handler := s.authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	cases := []struct {
+		name   string
+		header string
+		want   int
+	}{
+		{"401 missing", "", http.StatusUnauthorized},
+		{"403 invalid", "wrong", http.StatusForbidden},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/kyc/grant", nil)
+			if c.header != "" {
+				req.Header.Set("X-API-Key", c.header)
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != c.want {
+				t.Fatalf("expected %d, got %d", c.want, rec.Code)
+			}
+			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+				t.Fatalf("expected JSON error body, Content-Type=%q", ct)
+			}
+			var body map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("body is not valid JSON: %v (raw=%q)", err, rec.Body.String())
+			}
+			if body["error"] == nil {
+				t.Fatalf("expected error field in body, got %v", body)
+			}
+		})
 	}
 }
 
