@@ -31,6 +31,7 @@ const tabs = [
   { name: 'Contracts', path: 'contracts' },
   { name: 'Playground', path: 'playground' },
   { name: 'KYC', path: 'kyc' },
+  { name: 'Attack Evidence', path: 'attack-evidence' },
 ];
 
 const externalLinks = [
@@ -82,6 +83,7 @@ const DemoModeInfo: React.FC<{ onClose: () => void }> = ({ onClose }) => (
               ['Aggregation', 'Live batch operations via proof_aggregation engine (session-scoped)'],
               ['KYC', 'Privacy-preserving KYC verification through zero-knowledge proofs'],
               ['Playground', 'API Playground (32 endpoints) + Agent Playground (full pipeline demo)'],
+              ['Attack Evidence', 'Live tampering demos — 5 attacks executed against the real verifier'],
             ].map(([section, desc]) => (
               <div key={section} className="flex gap-2">
                 <span className="text-green-400 text-xs font-mono w-28 shrink-0">{section}</span>
