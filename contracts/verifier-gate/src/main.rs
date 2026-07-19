@@ -51,7 +51,7 @@ fn fetch_proof(pid: &str) -> ProofRec {
     let reg = runtime::get_key(REGISTRY_HASH).unwrap_or_revert();
     let mut args = casper_types::RuntimeArgs::new();
     args.insert("proof_id", pid.to_string()).unwrap_or_revert();
-    runtime::call_contract(reg.into_hash_addr().unwrap_or_revert().into(), "get_proof", args)
+    runtime::call_contract(reg.into_entity_hash_addr().unwrap_or_revert().into(), "get_proof", args)
 }
 
 #[unsafe(no_mangle)]
