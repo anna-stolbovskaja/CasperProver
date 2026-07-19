@@ -148,6 +148,36 @@ verify_frontend() {
 }
 check verify_frontend
 
+# ── 4b. Stake-slashing tombstone invariant (contract named_keys) ─────
+
+echo ""
+bold "4b. Stake-slashing tombstone (on-chain dictionary)"
+
+verify_stake_slashing_tombstone() {
+  # The redeployed stake-slashing contract (1ad1b3d9…83d52) MUST
+  # expose a `slashed_proofs` named key — this is the tombstone
+  # dictionary that prevents a single proof_id from being slashed
+  # twice (be4e490 fix: reject zero-value slash tombstones + one-shot
+  # tombstone). Contract source: contracts/stake-slashing/src/main.rs
+  # line 60 (const SLASHED_DICT) + call() entry point. If this key is
+  # absent, either the old contract is still live under a shadow name
+  # or the redeploy silently failed.
+  local slashing_hash="1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52"
+  local resp
+  resp=$(curl -sf "https://node.testnet.casper.network/rpc" \
+    -H "Content-Type: application/json" \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query_global_state\",\"params\":{\"state_identifier\":null,\"key\":\"hash-${slashing_hash}\",\"path\":[]}}" \
+    2>/dev/null || echo "FAIL")
+  if echo "$resp" | jq -e '.result.stored_value.Contract.named_keys[] | select(.name == "slashed_proofs")' > /dev/null 2>&1; then
+    green "stake_slashing.slashed_proofs dictionary present (one-shot tombstone armed)"
+    return 0
+  else
+    red "stake_slashing.slashed_proofs NOT FOUND — tombstone MISSING on live contract"
+    return 1
+  fi
+}
+check verify_stake_slashing_tombstone
+
 # ── 5. ZK and PQ crypto ─────────────────────────────────────────────────
 
 echo ""
