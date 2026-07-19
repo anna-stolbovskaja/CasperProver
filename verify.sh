@@ -87,6 +87,49 @@ verify_health() {
 }
 check verify_health
 
+# ── 2b. Auth posture ────────────────────────────────────────────────────────
+#
+# Reports whether the running server enforces API_KEY on writes and
+# whether CP_STRICT is enabled. verify.sh does not FAIL the run if
+# auth is disabled -- the hosted demo may deliberately allow anonymous
+# writes -- but a mismatch (strict on + no key) is a hard failure
+# because it means api.New's fail-close contract was bypassed.
+#
+# See CP_AGENT_SPEC v2 Gate 1.2 and engine/internal/api/apikey_failclosed_test.go.
+
+verify_auth() {
+  local resp mode enforced strict
+  resp=$(curl -sf "${API}/health" 2>/dev/null || echo "FAIL")
+  if ! echo "$resp" | jq -e '.auth' > /dev/null 2>&1; then
+    yellow "API /health does not expose auth block (older backend version)"
+    WARN=$((WARN + 1))
+    return 0
+  fi
+
+  mode=$(echo "$resp" | jq -r '.auth.mode')
+  enforced=$(echo "$resp" | jq -r '.auth.enforced')
+  strict=$(echo "$resp" | jq -r '.auth.strict')
+
+  if [ "$strict" = "true" ] && [ "$enforced" = "false" ]; then
+    # This should be impossible -- api.New refuses to boot in this
+    # config -- but if we ever observe it in the wild, that means
+    # the fail-close gate is broken. Hard fail.
+    red "CP_STRICT=1 but auth is disabled (fail-close bypass; refusing to accept run)"
+    return 1
+  fi
+
+  if [ "$enforced" = "true" ] && [ "$strict" = "true" ]; then
+    green "Auth: enforced (API_KEY set) AND strict (CP_STRICT=1 fail-close active)"
+  elif [ "$enforced" = "true" ]; then
+    green "Auth: enforced (API_KEY set); CP_STRICT=0 (silent fallbacks allowed)"
+  else
+    yellow "Auth: DISABLED (no API_KEY) — fine for demo, not for a real deployment"
+    WARN=$((WARN + 1))
+  fi
+  return 0
+}
+check verify_auth
+
 # ── 3. Proof round-trip ──────────────────────────────────────────────────
 
 echo ""
