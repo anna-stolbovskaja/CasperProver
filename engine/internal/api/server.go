@@ -92,6 +92,28 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+// ValidateStartupConfig checks environment variables for unsafe combinations
+// that MUST refuse to start the server. Called from main.go before New().
+// Kept separate from New() so unit tests can exercise the validation path
+// without spinning up an HTTP server.
+//
+// Rules (extend here, never inline in main.go):
+//   - CP_STRICT=1 + empty API_KEY → refuse: strict production must not
+//     expose unauthenticated write endpoints.
+//
+// Returns nil when the environment is safe to boot.
+func ValidateStartupConfig() error {
+	strict := os.Getenv("CP_STRICT") == "1"
+	apiKey := os.Getenv("API_KEY")
+	if strict && apiKey == "" {
+		return fmt.Errorf(
+			"CP_STRICT=1 requires API_KEY to be set; refusing to start " +
+				"unauthenticated in strict mode. Set API_KEY or CP_STRICT=0.",
+		)
+	}
+	return nil
+}
+
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	contracts := contractHashes{
 		ProofRegistry: envOrDefault("CONTRACT_PROOF_REGISTRY", "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"),
@@ -126,8 +148,14 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 
 	strict := os.Getenv("CP_STRICT") == "1"
 	apiKey := os.Getenv("API_KEY")
+	// ValidateStartupConfig should have been called by main.go before us; if a
+	// caller ignored it we still warn but never silently accept the unsafe mix.
 	if apiKey == "" {
-		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
+		if strict {
+			slog.Error("CP_STRICT=1 with empty API_KEY - health will report degraded; writes remain unauthenticated")
+		} else {
+			slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
+		}
 	} else {
 		slog.Info("API_KEY configured - write endpoints require X-API-Key header")
 	}
@@ -344,8 +372,27 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	st := s.eng.GetStats()
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":       "ok",
+
+	// Compute status: OK when we can serve the mode we advertise; degraded when
+	// strict mode is on but a strict-required capability is missing (no
+	// authenticated writes, no on-chain submitter). Never fails the endpoint —
+	// operators still need to reach /health to diagnose.
+	degradedReasons := make([]string, 0, 2)
+	if s.strict {
+		if s.apiKey == "" {
+			degradedReasons = append(degradedReasons, "strict_mode_without_api_key")
+		}
+		if s.sub == nil {
+			degradedReasons = append(degradedReasons, "strict_mode_without_onchain_submitter")
+		}
+	}
+	status := "ok"
+	if len(degradedReasons) > 0 {
+		status = "degraded"
+	}
+
+	resp := map[string]interface{}{
+		"status":       status,
 		"version":      "0.2.0",
 		"uptime_s":     int(time.Since(s.start).Seconds()),
 		"total_proofs": st.Total,
@@ -362,7 +409,11 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 			"defi_mock":      s.contracts.DefiMock,
 			"stake_slashing": s.contracts.StakeSlashing,
 		},
-	})
+	}
+	if len(degradedReasons) > 0 {
+		resp["degraded_reasons"] = degradedReasons
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (s *Server) listProofs(w http.ResponseWriter, r *http.Request) {
