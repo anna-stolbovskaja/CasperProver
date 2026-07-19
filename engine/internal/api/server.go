@@ -58,6 +58,7 @@ type Server struct {
 	log       *slog.Logger
 	start     time.Time
 	apiKey    string
+	strict    bool // fail closed for requested on-chain operations
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
@@ -123,6 +124,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		realZK = nil
 	}
 
+	strict := os.Getenv("CP_STRICT") == "1"
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
 		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
@@ -157,6 +159,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		log:    slog.Default(),
 		start:  time.Now(),
 		apiKey: apiKey,
+		strict: strict,
 
 		aggBatches: make(map[string]*aggBatch),
 	}
@@ -347,6 +350,12 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 		"uptime_s":     int(time.Since(s.start).Seconds()),
 		"total_proofs": st.Total,
 		"chain":        "casper-test",
+		"strict":       s.strict,
+		"capabilities": map[string]bool{
+			"authenticated_writes": s.apiKey != "",
+			"onchain_submit":       s.sub != nil,
+			"real_groth16":         s.realZK != nil,
+		},
 		"contracts": map[string]string{
 			"proof_registry": s.contracts.ProofRegistry,
 			"verifier_gate":  s.contracts.VerifierGate,
@@ -439,20 +448,29 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 		mode = "local"
 	}
 
+	if mode == "anchored" && s.strict && s.sub == nil {
+		s.jsonError(w, "anchored mode unavailable: deployer key is not configured", http.StatusServiceUnavailable)
+		return
+	}
 	p := s.eng.GenerateWithKey(req.Agent, pubKey, []byte(req.Input), []byte(req.Output), []byte(req.Model), req.UseCase, mode)
 
 	if mode == "anchored" {
-		if s.sub != nil {
+		if s.sub == nil {
+			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+		} else {
 			deployHash, err := s.sub.Submit(p)
 			if err != nil {
+				if s.strict {
+					s.log.Error("strict on-chain submit failed", "id", p.ID, "err", err)
+					s.jsonError(w, "on-chain submission failed", http.StatusBadGateway)
+					return
+				}
 				s.log.Warn("on-chain submit failed, using computed hash", "id", p.ID, "err", err)
 				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 			} else {
 				p.Deploy = deployHash
 				s.log.Info("proof anchored on-chain", "id", p.ID, "deploy", deployHash)
 			}
-		} else {
-			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 		}
 	}
 
@@ -492,6 +510,10 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 		mode = "local"
 	}
 
+	if mode == "anchored" && s.strict && s.sub == nil {
+		s.jsonError(w, "anchored mode unavailable: deployer key is not configured", http.StatusServiceUnavailable)
+		return
+	}
 	results := make([]*prover.Proof, 0, len(req.Proofs))
 	for _, pr := range req.Proofs {
 		if pr.Agent == "" || pr.Input == "" || pr.Output == "" || pr.Model == "" {
@@ -499,15 +521,19 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 		}
 		p := s.eng.GenerateWithKey(pr.Agent, pubKey, []byte(pr.Input), []byte(pr.Output), []byte(pr.Model), pr.UseCase, mode)
 		if mode == "anchored" {
-			if s.sub != nil {
+			if s.sub == nil {
+				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+			} else {
 				dh, err := s.sub.Submit(p)
 				if err != nil {
+					if s.strict {
+						s.jsonError(w, "on-chain submission failed", http.StatusBadGateway)
+						return
+					}
 					p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 				} else {
 					p.Deploy = dh
 				}
-			} else {
-				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
 			}
 		}
 		s.persist(p)
