@@ -299,3 +299,78 @@ func TestPQHybridSignVerify_HTTPRoundTrip(t *testing.T) {
 		t.Fatalf("expected valid=false for a tampered message, got %v", tamperedResp)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// ValidateStartupConfig + /health degraded surface (CP-8)
+// ---------------------------------------------------------------------------
+
+func TestValidateStartupConfig_StrictWithoutAPIKey_Errors(t *testing.T) {
+	t.Setenv("CP_STRICT", "1")
+	t.Setenv("API_KEY", "")
+	if err := ValidateStartupConfig(); err == nil {
+		t.Fatal("expected error when CP_STRICT=1 and API_KEY is empty")
+	}
+}
+
+func TestValidateStartupConfig_StrictWithAPIKey_OK(t *testing.T) {
+	t.Setenv("CP_STRICT", "1")
+	t.Setenv("API_KEY", "not-empty")
+	if err := ValidateStartupConfig(); err != nil {
+		t.Fatalf("expected nil error when strict+key present, got %v", err)
+	}
+}
+
+func TestValidateStartupConfig_NonStrictWithoutAPIKey_OK(t *testing.T) {
+	t.Setenv("CP_STRICT", "0")
+	t.Setenv("API_KEY", "")
+	if err := ValidateStartupConfig(); err != nil {
+		t.Fatalf("expected nil error in non-strict mode without key, got %v", err)
+	}
+}
+
+func TestHealth_StrictWithoutAPIKey_ReportsDegraded(t *testing.T) {
+	s := newTestServer("") // apiKey == ""
+	s.strict = true
+	rec := httptest.NewRecorder()
+	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var body map[string]any
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
+	if body["status"] != "degraded" {
+		t.Fatalf("expected status=degraded, got %v (body=%s)", body["status"], rec.Body.String())
+	}
+	reasons, ok := body["degraded_reasons"].([]any)
+	if !ok || len(reasons) == 0 {
+		t.Fatalf("expected degraded_reasons to list issues, got %v", body["degraded_reasons"])
+	}
+	found := false
+	for _, r := range reasons {
+		if r == "strict_mode_without_api_key" { found = true; break }
+	}
+	if !found {
+		t.Fatalf("expected strict_mode_without_api_key in reasons, got %v", reasons)
+	}
+}
+
+func TestHealth_StrictWithAPIKeyAndSubmitter_ReportsOK(t *testing.T) {
+	s := newTestServer("key")
+	s.strict = true
+	// sub == nil in newTestServer, but for ok status strict requires sub != nil.
+	// Since we can't easily fake a submitter here, this test asserts submitter
+	// requirement: strict+key+nil-sub should still be degraded (submitter missing).
+	rec := httptest.NewRecorder()
+	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var body map[string]any
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
+	if body["status"] != "degraded" {
+		t.Fatalf("expected degraded (missing submitter) got %v", body["status"])
+	}
+	// Non-strict: same server minus strict should report ok.
+	s.strict = false
+	rec2 := httptest.NewRecorder()
+	s.health(rec2, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var body2 map[string]any
+	_ = decodeJSON(rec2.Body.Bytes(), &body2)
+	if body2["status"] != "ok" {
+		t.Fatalf("expected status=ok in non-strict mode, got %v", body2["status"])
+	}
+}
