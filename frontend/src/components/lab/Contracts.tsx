@@ -42,7 +42,7 @@ const CONTRACTS: ContractInfo[] = [
   },
   {
     name: 'stake-slashing',
-    address: 'cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1',
+    address: '1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52',
     purpose: 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters. Cross-contract call to proof-registry.',
     icon: Swords,
     deployed: true,
