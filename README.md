@@ -11,7 +11,7 @@
 [![CI](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml)
 [![Verify](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml)
 [![Secret Scan](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/secret-scan.yml)
-[![Go 1.22+](https://img.shields.io/badge/Go-1.22+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://go.dev)
+[![Go 1.24+](https://img.shields.io/badge/Go-1.24+-00ADD8.svg?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![Casper 2.x](https://img.shields.io/badge/Casper-2.x-FF0000.svg?style=flat-square)](https://casper.network)
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
@@ -20,7 +20,7 @@
 ![Proofs](https://img.shields.io/badge/proofs-102%2B-blue)
 ![PQ Ready](https://img.shields.io/badge/post--quantum-ready-purple)
 
-[**Live Demo →**](https://casperprover.xyz/lab) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [Status & Roadmap](docs/KNOWN_LIMITATIONS.md)
+[**Live Demo →**](https://casperprover.xyz/lab) · [Judge Verification](docs/JUDGE_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [Status & Roadmap](docs/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -168,7 +168,7 @@ graph TB
 
 ## Quickstart
 
-**Prerequisites:** Go 1.22+, access to Casper testnet node
+**Prerequisites:** Go 1.24+, access to Casper testnet node
 
 ```bash
 git clone https://github.com/anna-stolbovskaja/CasperProver
@@ -336,7 +336,7 @@ Extended infrastructure — real code, wired to the API:
 | Layer | Technology |
 |---|---|
 | Smart contracts | Rust / Casper 2.x |
-| Proof engine | Go 1.22 |
+| Proof engine | Go 1.24 |
 | ZK proofs | gnark (BN254 Groth16) |
 | PQ crypto | cloudflare/circl (ML-DSA-65), Lamport OTS |
 | API | Go HTTP server + PostgreSQL |
