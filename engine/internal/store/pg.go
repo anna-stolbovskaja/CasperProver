@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS aggregation_batches (
 	individual_proof_hashes text[] NOT NULL DEFAULT '{}',
 	proof_count integer NOT NULL DEFAULT 0
 );
+
+-- Per-wallet API keys. Store only the sha256(key) — the plaintext
+-- 'sk_live_<random32>' is returned exactly once at issuance and is
+-- unrecoverable afterwards. Uniqueness is enforced on key_hash so
+-- lookups can hit a proper index.
+CREATE TABLE IF NOT EXISTS api_keys (
+	id          text PRIMARY KEY,
+	key_hash    text NOT NULL UNIQUE,
+	wallet_addr text NOT NULL,
+	scope       text NOT NULL DEFAULT 'user',
+	created_at  bigint NOT NULL,
+	revoked     boolean NOT NULL DEFAULT false,
+	revoked_at  bigint NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS api_keys_wallet_idx ON api_keys(wallet_addr);
 `
 
 // Open connects to PostgreSQL using DATABASE_URL. Returns nil,nil if unset.
@@ -290,6 +305,91 @@ func (s *PG) LoadAggBatches() ([]AggBatchRow, error) {
 		b.ProofHashes = []string(ph)
 		b.IndividualProofHashes = []string(iph)
 		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// APIKeyRecord is the persisted row for a per-wallet API key.
+// KeyHash is sha256(plaintext_key) — the plaintext key itself is
+// never stored anywhere and is only returned to the caller once at
+// issuance time.
+type APIKeyRecord struct {
+	ID         string
+	KeyHash    string
+	Wallet     string
+	Scope      string
+	CreatedAt  int64
+	Revoked    bool
+	RevokedAt  int64
+}
+
+// InsertAPIKey persists a new API key record. Returns an error if the
+// row cannot be inserted (typically a hash collision — astronomically
+// unlikely for 256-bit hashes of 32-byte random secrets, but surfaced
+// rather than silently overwriting).
+func (s *PG) InsertAPIKey(ctx context.Context, rec *APIKeyRecord) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO api_keys
+		(id, key_hash, wallet_addr, scope, created_at, revoked, revoked_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		rec.ID, rec.KeyHash, rec.Wallet, rec.Scope, rec.CreatedAt, rec.Revoked, rec.RevokedAt)
+	if err != nil {
+		return fmt.Errorf("pg insert api_key: %w", err)
+	}
+	return nil
+}
+
+// LookupAPIKeyByHash fetches the record for a given sha256(key). Used
+// by the auth middleware to validate an incoming X-API-Key without
+// ever holding the plaintext. Returns (nil, nil) if no row matches.
+func (s *PG) LookupAPIKeyByHash(ctx context.Context, keyHash string) (*APIKeyRecord, error) {
+	var r APIKeyRecord
+	err := s.db.QueryRowContext(ctx, `SELECT id, key_hash, wallet_addr, scope,
+		created_at, revoked, revoked_at FROM api_keys WHERE key_hash=$1`, keyHash).
+		Scan(&r.ID, &r.KeyHash, &r.Wallet, &r.Scope, &r.CreatedAt, &r.Revoked, &r.RevokedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("pg lookup api_key: %w", err)
+	}
+	return &r, nil
+}
+
+// RevokeAPIKey marks the key with the given id as revoked. Returns
+// sql.ErrNoRows-wrapped-in-fmt-error if the id doesn't exist, so the
+// caller can distinguish "already revoked / gone" from "DB failure".
+func (s *PG) RevokeAPIKey(ctx context.Context, id string, revokedAt int64) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE api_keys SET revoked=TRUE, revoked_at=$2
+		WHERE id=$1 AND revoked=FALSE`, id, revokedAt)
+	if err != nil {
+		return fmt.Errorf("pg revoke api_key: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("pg revoke api_key: no unrevoked row with id=%s", id)
+	}
+	return nil
+}
+
+// ListAPIKeysByWallet returns non-revoked keys for a wallet address
+// (metadata only — never the plaintext, which is unrecoverable).
+func (s *PG) ListAPIKeysByWallet(ctx context.Context, wallet string) ([]APIKeyRecord, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, key_hash, wallet_addr, scope,
+		created_at, revoked, revoked_at FROM api_keys
+		WHERE wallet_addr=$1 ORDER BY created_at DESC`, wallet)
+	if err != nil {
+		return nil, fmt.Errorf("pg list api_keys: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []APIKeyRecord
+	for rows.Next() {
+		var r APIKeyRecord
+		if err := rows.Scan(&r.ID, &r.KeyHash, &r.Wallet, &r.Scope,
+			&r.CreatedAt, &r.Revoked, &r.RevokedAt); err != nil {
+			return out, fmt.Errorf("pg list api_keys scan: %w", err)
+		}
+		out = append(out, r)
 	}
 	return out, rows.Err()
 }
