@@ -35,19 +35,29 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 )
 
+// contractHashes holds on-chain contract hashes, configurable via env vars
+// so redeployed contracts don't require a code change.
+type contractHashes struct {
+	ProofRegistry string
+	VerifierGate  string
+	DefiMock      string
+	StakeSlashing string
+}
+
 type Server struct {
-	eng    *prover.ProofEngine
-	ver    *verifier.LocalVerifier
-	kyc    *kyc.DemoKYC
-	db     *store.PG
-	sub    *submitter.CasperSubmitter
-	inf    *inference.InferenceService
-	zk     *zkverifier.Groth16Verifier
-	realZK *gnarkzk.Setup
-	port   int
-	log    *slog.Logger
-	start  time.Time
-	apiKey string
+	eng       *prover.ProofEngine
+	ver       *verifier.LocalVerifier
+	kyc       *kyc.DemoKYC
+	db        *store.PG
+	sub       *submitter.CasperSubmitter
+	inf       *inference.InferenceService
+	zk        *zkverifier.Groth16Verifier
+	realZK    *gnarkzk.Setup
+	contracts contractHashes
+	port      int
+	log       *slog.Logger
+	start     time.Time
+	apiKey    string
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
@@ -74,7 +84,21 @@ type aggBatch struct {
 	Pack *aggregator.STARKPack
 }
 
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
+	contracts := contractHashes{
+		ProofRegistry: envOrDefault("CONTRACT_PROOF_REGISTRY", "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"),
+		VerifierGate:  envOrDefault("CONTRACT_VERIFIER_GATE", "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3"),
+		DefiMock:      envOrDefault("CONTRACT_DEFI_MOCK", "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef"),
+		StakeSlashing: envOrDefault("CONTRACT_STAKE_SLASHING", "cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1"),
+	}
+
 	nodeURL := os.Getenv("CASPER_NODE_URL")
 	if nodeURL == "" {
 		nodeURL = "https://rpc.testnet.casperlabs.io"
@@ -124,11 +148,12 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		ver:    verifier.New(),
 		kyc:    demoKYC,
 		db:     db,
-		sub:    sub,
-		inf:    inference.New(eng, db, sub),
-		zk:     zkverifier.NewGroth16Verifier(),
-		realZK: realZK,
-		port:   port,
+		sub:       sub,
+		inf:       inference.New(eng, db, sub),
+		zk:        zkverifier.NewGroth16Verifier(),
+		realZK:    realZK,
+		contracts: contracts,
+		port:      port,
 		log:    slog.Default(),
 		start:  time.Now(),
 		apiKey: apiKey,
@@ -323,10 +348,10 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 		"total_proofs": st.Total,
 		"chain":        "casper-test",
 		"contracts": map[string]string{
-			"proof_registry": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
-			"verifier_gate":  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
-			"defi_mock":      "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
-			"stake_slashing": "cf70e1fedf52f250a807e2bece5eccaa3ae12c58115e40393f3d3f77246d9bd1",
+			"proof_registry": s.contracts.ProofRegistry,
+			"verifier_gate":  s.contracts.VerifierGate,
+			"defi_mock":      s.contracts.DefiMock,
+			"stake_slashing": s.contracts.StakeSlashing,
 		},
 	})
 }
@@ -594,7 +619,7 @@ func (s *Server) exportProof(w http.ResponseWriter, r *http.Request) {
 		"version":    "1.0",
 		"exported":   time.Now().Unix(),
 		"proof":      p,
-		"contract":   "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
+		"contract":   s.contracts.ProofRegistry,
 		"chain":      "casper-test",
 		"verify_url": "https://casperprover-api-ylsh.onrender.com/verify",
 	}
