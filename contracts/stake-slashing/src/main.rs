@@ -52,6 +52,8 @@ const ERR_AGENT_MISMATCH: u16 = 4;
 const ERR_INSUFFICIENT_STAKE: u16 = 5;
 const ERR_INPUT_TOO_LONG: u16 = 6;
 const ERR_NO_MATCHING_TRANSFER: u16 = 7;
+const ERR_NO_SLASHABLE_STAKE: u16 = 8;
+const ERR_ARITHMETIC_OVERFLOW: u16 = 9;
 
 const PROOF_REGISTRY_HASH: &str = "proof_registry_hash";
 const STAKES_DICT: &str = "stakes";
@@ -211,12 +213,18 @@ pub extern "C" fn report_and_slash() {
 
     let stakes = dict(STAKES_DICT);
     let current = read_stake(stakes, &agent.to_string());
-    let slash_amount = current * U512::from(SLASH_BPS) / U512::from(10_000u64);
-    let remaining = if slash_amount > current {
-        U512::zero()
-    } else {
-        current - slash_amount
-    };
+    // Reject zero-value slashes: without this, a dust/empty stake could burn
+    // the proof's one-shot tombstone while paying no economic penalty.
+    let slash_amount = current
+        .checked_mul(U512::from(SLASH_BPS))
+        .unwrap_or_else(|| runtime::revert(ApiError::User(ERR_ARITHMETIC_OVERFLOW)))
+        / U512::from(10_000u64);
+    if slash_amount.is_zero() {
+        runtime::revert(ApiError::User(ERR_NO_SLASHABLE_STAKE));
+    }
+    let remaining = current
+        .checked_sub(slash_amount)
+        .unwrap_or_else(|| runtime::revert(ApiError::User(ERR_ARITHMETIC_OVERFLOW)));
 
     storage::dictionary_put(stakes, &agent.to_string(), remaining);
     storage::dictionary_put(slashed, &pid, 1u64);
