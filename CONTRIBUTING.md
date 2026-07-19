@@ -2,7 +2,7 @@
 
 ## requirements
 
-- go 1.22+
+- go 1.24+
 - rust nightly (for edition 2024 contracts)
 - `wasm32-unknown-unknown` target
 
