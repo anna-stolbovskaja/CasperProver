@@ -30,6 +30,31 @@ func newTestServer(apiKey string) *Server {
 	return s
 }
 
+func TestSubmitProof_StrictAnchoredWithoutSubmitterFailsClosed(t *testing.T) {
+	s := newTestServer("")
+	s.strict = true
+	req := httptest.NewRequest(http.MethodPost, "/proofs", jsonBody(`{"agent":"a","input":"i","output":"o","model":"m","mode":"anchored"}`))
+	rec := httptest.NewRecorder()
+	s.submitProof(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected strict anchored request to fail 503, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHealth_ExposesStrictCapabilities(t *testing.T) {
+	s := newTestServer("key")
+	s.strict = true
+	rec := httptest.NewRecorder()
+	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var body map[string]any
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
+	if body["strict"] != true { t.Fatalf("expected strict=true, got %v", body["strict"]) }
+	caps, ok := body["capabilities"].(map[string]any)
+	if !ok || caps["authenticated_writes"] != true || caps["onchain_submit"] != false {
+		t.Fatalf("unexpected capabilities: %v", body["capabilities"])
+	}
+}
+
 func TestAuthMiddleware_NoKeyConfigured_AllowsAll(t *testing.T) {
 	s := newTestServer("")
 	handler := s.authMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
