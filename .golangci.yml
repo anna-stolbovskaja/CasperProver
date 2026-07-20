@@ -13,3 +13,7 @@ linters:
   settings:
     errcheck:
       check-type-assertions: true
+      # These stdlib Close() calls are always safe to ignore per Go convention.
+      exclude-functions:
+        - (*net/http.Response).Body.Close
+        - (io.Closer).Close
