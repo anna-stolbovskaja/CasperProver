@@ -69,7 +69,7 @@ func doPost(t *testing.T, url string, body any) (*http.Response, []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(resp.Body); err != nil {
 		t.Fatal(err)
@@ -101,7 +101,7 @@ func TestJudgeHandler_RejectsBadJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status: got %d want 400", resp.StatusCode)
 	}
