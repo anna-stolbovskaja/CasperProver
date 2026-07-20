@@ -12,6 +12,9 @@ go.work.sum
 target/
 *.wasm
 .env
+.env.local
+.env.*.local
+.envrc
 .idea/
 .vscode/
 *.swp
