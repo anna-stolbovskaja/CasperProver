@@ -8,7 +8,9 @@ import (
 	"strconv"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/llm"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
@@ -147,6 +149,18 @@ func serve(eng *prover.ProofEngine) {
 		}
 	}
 	srv := api.New(eng, port, db)
+
+	// Wire the multi-provider judge if any LLM keys are configured. Absence is
+	// not fatal — the /inference/judge endpoint will just 503 until keys land.
+	if providers := llm.BuildProvidersFromEnv(0); len(providers) > 0 {
+		cfg := llm.LoadConfig()
+		runner := llm.NewRunner(providers, nil, cfg)
+		srv.SetJudge(judge.NewFacetJudge(runner))
+		slog.Info("judge wired", "providers", len(providers))
+	} else {
+		slog.Warn("judge NOT wired — no LLM provider keys in env; /inference/judge will 503")
+	}
+
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)
