@@ -73,10 +73,7 @@ func (j *FacetJudge) decideFacet(
 	user := buildFacetUserPrompt(task.Input, facet)
 
 	req := llm.Request{
-		Messages: []llm.Message{
-			{Role: llm.RoleSystem, Content: sys},
-			{Role: llm.RoleUser, Content: user},
-		},
+		Messages: buildFacetMessages(sys, user),
 		Temperature: 0.0, // determinism matters for facet agreement.
 		MaxTokens:   64,  // categorical answers are short.
 	}
@@ -174,6 +171,28 @@ func aggregateOverall(facets map[string]*FacetResult) Verdict {
 	default:
 		return VerdictAgree
 	}
+}
+
+// buildFacetMessages assembles the llm.Message pair from the strict
+// system message and user prompt. Exported callers must use this to keep
+// FixtureProvider key derivation aligned with what decideFacet actually sends.
+func buildFacetMessages(sys, user string) []llm.Message {
+	return []llm.Message{
+		{Role: llm.RoleSystem, Content: sys},
+		{Role: llm.RoleUser, Content: user},
+	}
+}
+
+// BuildFacetSystemPrompt is the exported counterpart of buildFacetSystemPrompt.
+// External corpora (see internal/judge/pifixture) use it to construct fixture
+// tables keyed on the exact bytes the judge will send at eval time.
+func BuildFacetSystemPrompt(userSys string, facet Facet) string {
+	return buildFacetSystemPrompt(userSys, facet)
+}
+
+// BuildFacetUserPrompt is the exported counterpart of buildFacetUserPrompt.
+func BuildFacetUserPrompt(input string, facet Facet) string {
+	return buildFacetUserPrompt(input, facet)
 }
 
 // buildFacetSystemPrompt constructs the strict-format system message.
