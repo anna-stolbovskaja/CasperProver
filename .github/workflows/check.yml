@@ -65,6 +65,24 @@ jobs:
       - run: cd contracts/defi-mock && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/stake-slashing && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/stake-slashing-session && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      # Undeployed (compiled + archived; deploy path is a Gate 2 decision).
+      - run: cd contracts/proof-of-inference && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/model-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/proof-aggregation && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - name: WASM artifact size report
+        run: |
+          echo '## Contract WASM sizes' >> "$GITHUB_STEP_SUMMARY"
+          echo '| Contract | Size (bytes) | Size (KB) | Deployed |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---:|---:|:--:|' >> "$GITHUB_STEP_SUMMARY"
+          DEPLOYED='proof-registry verifier-gate defi-mock stake-slashing stake-slashing-session'
+          for f in contracts/target/wasm32-unknown-unknown/release/*.wasm; do
+            name=$(basename "$f" .wasm)
+            bytes=$(stat -c%s "$f")
+            kb=$(awk -v b="$bytes" 'BEGIN{printf "%.1f", b/1024}')
+            flag='no'
+            for d in $DEPLOYED; do [ "$d" = "$name" ] && flag='yes'; done
+            echo "| $name | $bytes | $kb | $flag |" >> "$GITHUB_STEP_SUMMARY"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: contract-wasms
