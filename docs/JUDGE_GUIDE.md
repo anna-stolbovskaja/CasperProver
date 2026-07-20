@@ -32,13 +32,15 @@ The key is never embedded in the script, URL, repository, or shell history examp
 
 ## 3. Claim boundary
 
-| Label | What CasperProver actually does |
-|---|---|
-| **REAL CRYPTO** | gnark/BN254 Groth16 for a MiMC preimage circuit; ML-DSA-65 and Ed25519 hybrid signatures; Lamport OTS education path |
-| **ON-CHAIN** | Casper testnet contracts store/validate proof metadata, hashes, access state and stake/slashing state |
-| **SIMULATION** | Legacy conceptual Groth16/STARK-style hash flows, kept for comparison and explicitly labeled |
+| Label | What CasperProver actually does | Endpoints |
+|---|---|---|
+| **REAL CRYPTO** — PRIMARY | gnark/BN254 Groth16 for a MiMC preimage circuit (real R1CS + trusted setup + pairing verification); ML-DSA-65 and Ed25519 hybrid signatures; Lamport OTS education path | `POST /zk/groth16-real/prove`, `POST /zk/groth16-real/verify`, `/pq/*` |
+| **ON-CHAIN** | Casper testnet contracts store/validate proof metadata, hashes, access state and stake/slashing state | Casper testnet, see `docs/DEPLOYMENTS.md` |
+| **`[sim]` SIMULATION** — DEPRECATED | Legacy conceptual Groth16 hash flow, kept for comparison. Responses carry `simulation:true, deprecated:true, use:"/zk/groth16-real/verify"` plus `Warning`/`Deprecation`/`Sunset` headers | `POST /zk/verify-groth16-sim` (alias `/zk/verify-groth16`), `POST /zk/batch-verify-sim` (alias `/zk/batch-verify`) |
 
 CasperProver does **not** claim a Casper-native pairing verifier or a ZK proof of arbitrary ML inference. The current real Groth16 circuit proves knowledge of a MiMC preimage.
+
+**Which endpoint to hit for a real check:** always `/zk/groth16-real/*`. The `/zk/verify-groth16{,-sim}` and `/zk/batch-verify{,-sim}` endpoints are hash-based simulations kept only for legacy demos and self-mark their responses as `simulation:true, deprecated:true`.
 
 ## 4. Failure behavior
 
