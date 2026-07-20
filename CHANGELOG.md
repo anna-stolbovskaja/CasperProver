@@ -11,6 +11,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 *Frontend polish, DoraHacks submission prep, docs hardening.*
 
 ### Added
+- **Gate 4 — ZK primary path.** `/zk/groth16-real/*` (gnark BN254, real R1CS + trusted setup + pairing verification) promoted to the canonical ZK path in the router, README, `docs/KNOWN_LIMITATIONS.md` and `docs/JUDGE_GUIDE.md`. Hash-based `/zk/verify-groth16` and `/zk/batch-verify` are marked as `[sim]` — responses now carry `simulation:true, deprecated:true, use:"/zk/groth16-real/verify"` plus `Warning`, `Deprecation` and `Sunset` HTTP headers. Canonical simulation spellings `/zk/verify-groth16-sim` / `/zk/batch-verify-sim` added; the older paths remain as deprecated aliases for backwards compatibility. 3 new tests in `engine/internal/api/zk_gate4_test.go` (sim banner + real round-trip; passes with `-race`).
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
 - `CopyButton` with checkmark feedback and legacy-browser fallback.
