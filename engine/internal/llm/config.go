@@ -120,8 +120,11 @@ func LoadConfig() Config {
 		// Force fixture mode: caller may inspect this via ForceFixture().
 		c.forceFixture = true
 	}
-	if c.TotalBudget < c.PerProviderTimeout {
-		c.TotalBudget = c.PerProviderTimeout
+	// PerProviderTimeout must never exceed TotalBudget (see runner.go); clamp
+	// per-provider down rather than budget up so a misconfigured operator
+	// can't accidentally extend the total budget.
+	if c.PerProviderTimeout > c.TotalBudget {
+		c.PerProviderTimeout = c.TotalBudget
 	}
 	return c
 }
