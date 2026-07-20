@@ -22,6 +22,14 @@ import {
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
+import { getCachedManifest } from '../../lib/onchain';
+
+// Fallback verifier_gate hash (used only if /onchain.json is not yet loaded
+// when this demo step runs). See lib/onchain.ts / Gate 1.5 canonical manifest.
+const VERIFIER_GATE_FALLBACK = 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3';
+function verifierGateHash(): string {
+  return getCachedManifest()?.contracts.verifier_gate?.contract_hash ?? VERIFIER_GATE_FALLBACK;
+}
 
 const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
 
@@ -72,7 +80,7 @@ const AgentDemo: React.FC = () => {
         const res = await registerModel({
           model_id: mid,
           model_hash: genId('hash'),
-          verifier_contract: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
+          verifier_contract: verifierGateHash(),
           metadata: { type: 'decision-box', version: '1.0' },
         });
         if (res.success && res.data) {

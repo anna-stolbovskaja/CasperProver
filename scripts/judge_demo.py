@@ -1,18 +1,91 @@
 #!/usr/bin/env python3
-"""Read-only CasperProver judge demo; live writes require explicit opt-in."""
+"""Read-only CasperProver judge demo; live writes require explicit opt-in.
+
+Contract hashes, API URL, and frontend URL are loaded from the canonical
+on-chain manifest at ``deploy-out/onchain.json`` (Gate 1.5). Falls back to
+last-known values only if the manifest is not present next to the script.
+"""
 from __future__ import annotations
 import argparse, json, os, sys, urllib.error, urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 
-DEFAULT_API = "https://casperprover-api-ylsh.onrender.com"
-DEFAULT_SITE = "https://casperprover.xyz"
-RPC = "https://node.testnet.casper.network/rpc"
-CONTRACTS = {
+_FALLBACK_CONTRACTS = {
     "Proof Registry": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
     "Verifier Gate": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
     "DeFi Mock": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
     "Stake Slashing": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
 }
+_FALLBACK_API = "https://casperprover-api-ylsh.onrender.com"
+_FALLBACK_SITE = "https://casperprover.xyz"
+RPC = "https://node.testnet.casper.network/rpc"
+
+_MANIFEST_KEYS = {
+    "Proof Registry": "proof_registry",
+    "Verifier Gate": "verifier_gate",
+    "DeFi Mock": "defi_mock",
+    "Stake Slashing": "stake_slashing",
+}
+
+
+def _load_manifest() -> dict | None:
+    override = os.environ.get("CP_MANIFEST_PATH")
+    candidates: list[Path] = []
+    if override:
+        candidates.append(Path(override))
+    here = Path(__file__).resolve()
+    for base in (here.parent.parent, here.parent, Path.cwd()):
+        candidates.append(base / "deploy-out" / "onchain.json")
+    for c in candidates:
+        try:
+            with c.open("r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            continue
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+_MANIFEST = _load_manifest()
+
+
+def _contracts_from_manifest() -> dict[str, str]:
+    if not _MANIFEST:
+        return dict(_FALLBACK_CONTRACTS)
+    resolved: dict[str, str] = {}
+    for label, key in _MANIFEST_KEYS.items():
+        entry = _MANIFEST.get("contracts", {}).get(key)
+        if entry and isinstance(entry.get("contract_hash"), str):
+            resolved[label] = entry["contract_hash"]
+        else:
+            resolved[label] = _FALLBACK_CONTRACTS[label]
+    return resolved
+
+
+def _api_from_manifest() -> str:
+    if _MANIFEST:
+        v = _MANIFEST.get("verification", {}) or {}
+        h = v.get("api_health")
+        if isinstance(h, str) and h.endswith("/health"):
+            return h[: -len("/health")]
+        if isinstance(h, str):
+            return h.rstrip("/")
+    return _FALLBACK_API
+
+
+def _site_from_manifest() -> str:
+    if _MANIFEST:
+        v = _MANIFEST.get("verification", {}) or {}
+        f = v.get("frontend")
+        if isinstance(f, str) and f:
+            return f.rstrip("/")
+    return _FALLBACK_SITE
+
+
+DEFAULT_API = _api_from_manifest()
+DEFAULT_SITE = _site_from_manifest()
+CONTRACTS = _contracts_from_manifest()
 
 @dataclass
 class Result:
