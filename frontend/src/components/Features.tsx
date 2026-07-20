@@ -3,12 +3,12 @@ import { Lock, Eye, Fingerprint, Zap, GitBranch, Server, Shield, Layers, Cpu, Ke
 
 const features = [
   { icon: Lock, title: 'Cryptographic Proofs', desc: 'SHA-256 hashing and Merkle trees ensure every proof is tamper-evident. Change one bit of input and the proof breaks.' },
-  { icon: Eye, title: 'Verifiable by Anyone', desc: 'Proofs are public. Any party can verify an AI decision was made with specific inputs and model — without seeing the raw data.' },
+  { icon: Eye, title: 'Verifiable by Anyone', desc: 'Merkle roots are public and on-chain. Anyone holding the original input/output can verify inclusion; the on-chain state itself stores only hashes.' },
   { icon: Fingerprint, title: 'Model Fingerprinting', desc: 'Each proof includes a hash of the model used. Track which model version made which decision across time.' },
   { icon: Zap, title: 'Sub-Second Generation', desc: 'Proof generation takes milliseconds. No GPU required. No heavy computation. Just cryptographic hashing.' },
   { icon: GitBranch, title: 'Merkle Path Verification', desc: 'Each proof includes its Merkle path for independent verification. Reconstruct the root from any leaf.' },
   { icon: Server, title: 'Casper Anchoring', desc: 'Proof hashes and Merkle roots are stored in 7 smart contracts (4 deployed) on Casper Network. Immutable, timestamped records.' },
-  { icon: Shield, title: 'Real ZK Proofs (Groth16)', desc: 'BN254 Groth16 via gnark — real R1CS circuits, trusted setup, pairing-based verification. Not simulation.' },
+  { icon: Shield, title: 'Real ZK Proofs (Groth16, off-chain)', desc: 'BN254 Groth16 via gnark — real R1CS circuits, trusted setup, pairing-based verification run in the engine (not simulation). On-chain Casper verifier for Groth16 is roadmap.' },
   { icon: Layers, title: 'Batch Aggregation', desc: 'Aggregate multiple proofs into a single batch with hash-chain verification and Postgres persistence.' },
   { icon: Cpu, title: 'Post-Quantum Ready', desc: 'SPHINCS+, ML-DSA-65 (FIPS 204), and hybrid Ed25519+ML-DSA signing. Future-proof against quantum attacks.' },
   { icon: Key, title: 'Proof Chain DAG', desc: 'Validate chains of dependent proofs with cycle detection, input continuity checks, and single-root enforcement.' },
