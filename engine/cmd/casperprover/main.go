@@ -36,6 +36,8 @@ func main() {
 		demoVerify(eng)
 	case "demo":
 		demoFlow(eng)
+	case "gate3":
+		runGate3Demo()
 	case "serve":
 		serve(eng)
 	default:
@@ -50,6 +52,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  prove   Generate a demo proof\n")
 	fmt.Fprintf(os.Stderr, "  verify  Verify a demo proof\n")
 	fmt.Fprintf(os.Stderr, "  demo    Run full KYC demo flow\n")
+	fmt.Fprintf(os.Stderr, "  gate3   Run the Gate 3 agentic vertical slice: approve + abstain + malicious + conflict paths, no network I/O\n")
 	fmt.Fprintf(os.Stderr, "  serve   Start API server\n")
 }
 
