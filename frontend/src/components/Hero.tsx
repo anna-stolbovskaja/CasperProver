@@ -141,7 +141,7 @@ export default function Hero() {
           </h1>
 
           <p className="text-lg text-gray-400 mb-10 leading-relaxed max-w-lg">
-            CasperProver generates cryptographic proofs for AI agent decisions and anchors them on Casper Network. Verifiable. Private. Trustless.
+            CasperProver commits cryptographic Merkle hashes of AI agent decisions (input, output, model) to Casper Network. Publicly verifiable, tamper-evident, on-chain.
           </p>
 
           <div className="bg-black/60 backdrop-blur rounded-xl border border-gray-800 p-5 mb-10 max-w-xl">
