@@ -95,7 +95,7 @@ func TestZAI_Basics(t *testing.T) {
 func TestOpenAICompat_500Retryable(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, `{"error":"boom"}`)
+		_, _ = fmt.Fprint(w, `{"error":"boom"}`)
 	}))
 	defer srv.Close()
 

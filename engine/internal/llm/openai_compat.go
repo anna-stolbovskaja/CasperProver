@@ -121,7 +121,7 @@ func (p *OpenAICompatProvider) Complete(ctx context.Context, req Request) (*Resp
 	if err != nil {
 		return nil, &ProviderError{Provider: p.id, Cause: err, Retryable: true}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
