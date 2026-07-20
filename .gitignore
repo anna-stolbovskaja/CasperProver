@@ -30,3 +30,5 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+frontend/tsconfig.tsbuildinfo
