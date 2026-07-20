@@ -91,5 +91,16 @@
     "api_health": "https://casperprover-api-ylsh.onrender.com/health",
     "frontend": "https://casperprover.xyz",
     "verify_script": "./verify.sh"
+  },
+  "$schema": "./onchain.schema.json",
+  "generator": {
+    "version": "1.0.0",
+    "sources_of_truth": [
+      "deploy-out/onchain.json"
+    ],
+    "generated_copies": [
+      "frontend/public/onchain.json"
+    ],
+    "description": "Canonical on-chain deployment manifest. Regenerate frontend/public/onchain.json via scripts/gen-manifest.mjs. Do NOT hand-edit generated copies."
   }
 }
