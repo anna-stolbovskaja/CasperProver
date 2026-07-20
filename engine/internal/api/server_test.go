@@ -47,8 +47,12 @@ func TestHealth_ExposesStrictCapabilities(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	var body map[string]any
-	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
-	if body["strict"] != true { t.Fatalf("expected strict=true, got %v", body["strict"]) }
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["strict"] != true {
+		t.Fatalf("expected strict=true, got %v", body["strict"])
+	}
 	caps, ok := body["capabilities"].(map[string]any)
 	if !ok || caps["authenticated_writes"] != true || caps["onchain_submit"] != false {
 		t.Fatalf("unexpected capabilities: %v", body["capabilities"])
@@ -96,6 +100,46 @@ func TestAuthMiddleware_KeyConfigured_RejectsMissingOrWrongKey(t *testing.T) {
 				t.Fatalf("%s: expected %d, got %d", c.name, c.want, rec.Code)
 			}
 		})
+	}
+}
+
+func TestCORSMiddleware_AllowsAPIKeyHeader(t *testing.T) {
+	s := newTestServer("secret123")
+	handler := s.corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodOptions, "/proofs", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 for preflight, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Header().Get("Access-Control-Allow-Headers"), "X-API-Key") {
+		t.Fatalf("CORS must allow X-API-Key, got %q", rec.Header().Get("Access-Control-Allow-Headers"))
+	}
+}
+
+func TestSubmitProof_NonStrictFallbackDoesNotMasqueradeAsDeploy(t *testing.T) {
+	s := newTestServer("key")
+	s.strict = false
+	req := httptest.NewRequest(http.MethodPost, "/proofs", jsonBody(`{"agent":"a","input":"i","output":"o","model":"m","mode":"anchored"}`))
+	rec := httptest.NewRecorder()
+	s.submitProof(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["deploy_hash"] != nil && body["deploy_hash"] != "" {
+		t.Fatalf("computed fallback must not populate deploy_hash, got %v", body["deploy_hash"])
+	}
+	if body["anchoring_status"] != "computed_fallback" {
+		t.Fatalf("expected computed_fallback status, got %v", body["anchoring_status"])
+	}
+	if body["anchor_hash"] == nil || body["anchor_hash"] == "" {
+		t.Fatal("expected explicit anchor_hash for computed fallback")
 	}
 }
 
@@ -334,7 +378,9 @@ func TestHealth_StrictWithoutAPIKey_ReportsDegraded(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	var body map[string]any
-	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
 	if body["status"] != "degraded" {
 		t.Fatalf("expected status=degraded, got %v (body=%s)", body["status"], rec.Body.String())
 	}
@@ -344,7 +390,10 @@ func TestHealth_StrictWithoutAPIKey_ReportsDegraded(t *testing.T) {
 	}
 	found := false
 	for _, r := range reasons {
-		if r == "strict_mode_without_api_key" { found = true; break }
+		if r == "strict_mode_without_api_key" {
+			found = true
+			break
+		}
 	}
 	if !found {
 		t.Fatalf("expected strict_mode_without_api_key in reasons, got %v", reasons)
@@ -360,7 +409,9 @@ func TestHealth_StrictWithAPIKeyAndSubmitter_ReportsOK(t *testing.T) {
 	rec := httptest.NewRecorder()
 	s.health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	var body map[string]any
-	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil { t.Fatal(err) }
+	if err := decodeJSON(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
 	if body["status"] != "degraded" {
 		t.Fatalf("expected degraded (missing submitter) got %v", body["status"])
 	}
