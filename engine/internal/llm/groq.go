@@ -108,7 +108,7 @@ func (g *GroqProvider) Complete(ctx context.Context, req Request) (*Response, er
 		// runner may retry against another provider.
 		return nil, &ProviderError{Provider: g.ID(), Cause: err, Retryable: true}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {

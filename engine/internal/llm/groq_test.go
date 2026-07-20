@@ -119,7 +119,7 @@ func TestGroq_RateLimit_RestsKey(t *testing.T) {
 		hits++
 		w.Header().Set("Retry-After", "10")
 		w.WriteHeader(http.StatusTooManyRequests)
-		fmt.Fprint(w, `{"error":"rate_limited"}`)
+		_, _ = fmt.Fprint(w, `{"error":"rate_limited"}`)
 	}))
 	defer srv.Close()
 
@@ -189,7 +189,7 @@ func TestGroq_RateLimit_RestsKey(t *testing.T) {
 func TestGroq_AuthFailure_RestsKey(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprint(w, `{"error":"invalid_api_key"}`)
+		_, _ = fmt.Fprint(w, `{"error":"invalid_api_key"}`)
 	}))
 	defer srv.Close()
 
@@ -238,7 +238,7 @@ func TestGroq_ContextCancel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(500 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{}`)
+		_, _ = fmt.Fprint(w, `{}`)
 	}))
 	defer srv.Close()
 

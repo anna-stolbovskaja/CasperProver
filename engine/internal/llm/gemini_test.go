@@ -91,7 +91,7 @@ func TestGemini_HappyPath(t *testing.T) {
 func TestGemini_RateLimit_RestsKey(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		fmt.Fprint(w, `{"error":"quota"}`)
+		_, _ = fmt.Fprint(w, `{"error":"quota"}`)
 	}))
 	defer srv.Close()
 	ring := NewKeyRing([]string{"k"}, time.Second)

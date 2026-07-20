@@ -125,7 +125,7 @@ func (g *GeminiProvider) Complete(ctx context.Context, req Request) (*Response, 
 	if err != nil {
 		return nil, &ProviderError{Provider: g.ID(), Cause: err, Retryable: true}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -86,13 +86,6 @@ type aggBatch struct {
 	Pack *aggregator.STARKPack
 }
 
-func envOrDefault(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
-}
-
 // manifestHashOrEnv returns env override first, then the canonical manifest,
 // then an empty string. A hardcoded fallback here would silently outlive a
 // redeploy (Gate 1.5 forbids it).
