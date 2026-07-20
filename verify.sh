@@ -2,7 +2,11 @@
 # verify.sh — single-command proof that CasperProver is real
 #
 # Usage:  ./verify.sh [--api URL]
-# Default API: https://casperprover-api-ylsh.onrender.com
+#
+# Contract hashes, API URL and frontend URL are loaded from the canonical
+# on-chain manifest at deploy-out/onchain.json (Gate 1.5). Overrideable via
+# CP_MANIFEST_PATH env var. Falls back to hardcoded last-known values only
+# if the manifest cannot be read (which we surface as a warning).
 #
 # Checks:
 #   1. All 4 contracts exist on Casper testnet (via RPC)
@@ -14,8 +18,44 @@
 # Requirements: curl, jq
 set -euo pipefail
 
-API="${1:-https://casperprover-api-ylsh.onrender.com}"
-FRONTEND="https://casperprover.xyz"
+# ── Manifest resolution ──────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANIFEST="${CP_MANIFEST_PATH:-$SCRIPT_DIR/deploy-out/onchain.json}"
+
+FALLBACK_API="https://casperprover-api-ylsh.onrender.com"
+FALLBACK_FRONTEND="https://casperprover.xyz"
+FALLBACK_CONTRACTS=(
+  "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
+  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
+  "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
+  "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
+)
+
+read_manifest_api() {
+  if [[ -r "$MANIFEST" ]]; then
+    local h
+    h=$(jq -r '.verification.api_health // empty' "$MANIFEST" 2>/dev/null || true)
+    if [[ -n "$h" ]]; then
+      echo "${h%/health}"
+      return 0
+    fi
+  fi
+  echo "$FALLBACK_API"
+}
+read_manifest_frontend() {
+  if [[ -r "$MANIFEST" ]]; then
+    local f
+    f=$(jq -r '.verification.frontend // empty' "$MANIFEST" 2>/dev/null || true)
+    if [[ -n "$f" ]]; then
+      echo "$f"
+      return 0
+    fi
+  fi
+  echo "$FALLBACK_FRONTEND"
+}
+
+API="${1:-$(read_manifest_api)}"
+FRONTEND="$(read_manifest_frontend)"
 PASS=0
 FAIL=0
 WARN=0
@@ -39,12 +79,31 @@ bold "═══ CasperProver Verification ═══"
 echo ""
 bold "1. On-chain contracts (Casper testnet)"
 
-CONTRACTS=(
-  "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
-  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
-  "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
-  "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
-)
+if [[ -r "$MANIFEST" ]]; then
+  CONTRACTS=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && CONTRACTS+=("$line")
+  done < <(jq -r '
+    .contracts | to_entries[] |
+    select(.key | IN("proof_registry","verifier_gate","defi_mock","stake_slashing")) |
+    "\(.value.contract_hash):\(
+      if   .key == "proof_registry" then "Proof Registry"
+      elif .key == "verifier_gate"  then "Verifier Gate"
+      elif .key == "defi_mock"      then "DeFi Mock"
+      elif .key == "stake_slashing" then "Stake Slashing"
+      else "" end
+    )"
+  ' "$MANIFEST" 2>/dev/null || true)
+  if [[ ${#CONTRACTS[@]} -lt 4 ]]; then
+    yellow "Manifest at $MANIFEST is incomplete; falling back to bundled contract hashes."
+    WARN=$((WARN + 1))
+    CONTRACTS=("${FALLBACK_CONTRACTS[@]}")
+  fi
+else
+  yellow "Manifest not found at $MANIFEST; falling back to bundled contract hashes."
+  WARN=$((WARN + 1))
+  CONTRACTS=("${FALLBACK_CONTRACTS[@]}")
+fi
 
 verify_contract() {
   local hash="${1%%:*}"
