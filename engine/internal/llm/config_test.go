@@ -141,8 +141,14 @@ func TestLoadConfig_BudgetClamping(t *testing.T) {
 	t.Setenv("LLM_TOTAL_BUDGET_MS", "1000")
 	t.Setenv("LLM_FIXTURE_MODE", "")
 	c := LoadConfig()
-	if c.TotalBudget < c.PerProviderTimeout {
-		t.Errorf("TotalBudget=%v must be clamped to >= PerProviderTimeout=%v",
-			c.TotalBudget, c.PerProviderTimeout)
+	// PerProviderTimeout must be clamped DOWN to TotalBudget so a single
+	// provider can’t exceed the total budget.
+	if c.PerProviderTimeout > c.TotalBudget {
+		t.Errorf("PerProviderTimeout=%v must be clamped to <= TotalBudget=%v",
+			c.PerProviderTimeout, c.TotalBudget)
+	}
+	if c.PerProviderTimeout != c.TotalBudget {
+		t.Errorf("expected PerProviderTimeout == TotalBudget after clamp, got %v vs %v",
+			c.PerProviderTimeout, c.TotalBudget)
 	}
 }
