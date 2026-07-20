@@ -1,7 +1,7 @@
 # Undeployed contracts — status & deploy path
 
 > **Honest positioning:** these three Casper contracts are fully implemented
-> and build cleanly against `nightly-2025-01-15` / `wasm32-unknown-unknown`, but
+> and build cleanly against `nightly-2025-01-01` / `wasm32-unknown-unknown`, but
 > they are **not yet deployed** to Casper testnet. They are archived from every
 > CI run and available as build artifacts.
 
@@ -33,8 +33,7 @@ already-deployed contracts (`stake-slashing`, `defi-mock`, `verifier-gate`,
 ## Why they are not live yet
 
 - **Wallet gate.** Deploy MUST be signed by the CasperProver deployer key
-  (`alexbelij` / Anna, per project rules). The current session does not hold
-  that key material.
+  (Anna / CasperProver wallet only, per project isolation rules).
 - **Judge boundary.** Publishing an unverified contract just to have a live
   address would put a claim ("on-chain") on something we cannot fully audit
   in the deadline window. We would rather ship compiled artifacts + a clear
@@ -47,9 +46,9 @@ already-deployed contracts (`stake-slashing`, `defi-mock`, `verifier-gate`,
 ## Reproducing the build
 
 ```bash
-rustup toolchain install nightly-2025-01-15 --target wasm32-unknown-unknown
+rustup toolchain install nightly-2025-01-01 --target wasm32-unknown-unknown
 for c in proof-of-inference model-registry proof-aggregation; do
-  (cd contracts/$c && cargo +nightly-2025-01-15 build --release \
+  (cd contracts/$c && cargo +nightly-2025-01-01 build --release \
      --target wasm32-unknown-unknown --no-default-features)
 done
 ls -la contracts/target/wasm32-unknown-unknown/release/*.wasm
