@@ -82,7 +82,24 @@ func demoFlow(eng *prover.ProofEngine) {
 	}
 }
 
+// preflightProduction enforces Gate 1 DoD: in strict/production mode (CP_STRICT=1)
+// the API must refuse to start with unauthenticated write endpoints. Calling this
+// before api.New lets us fail-loud with a clean exit code (2) instead of silently
+// booting an open server. Kept in main.go so api.New stays test-friendly (tests
+// construct servers without API_KEY on purpose).
+func preflightProduction() {
+	if os.Getenv("CP_STRICT") != "1" {
+		return
+	}
+	if os.Getenv("API_KEY") == "" {
+		slog.Error("API_KEY is required when CP_STRICT=1 (production). Refusing to start with unauthenticated write endpoints.")
+		os.Exit(2)
+	}
+}
+
 func serve(eng *prover.ProofEngine) {
+	preflightProduction()
+
 	// write deployer key from env to temp file if provided
 	if keyB64 := os.Getenv("DEPLOYER_KEY_B64"); keyB64 != "" {
 		decoded, err := base64.StdEncoding.DecodeString(keyB64)

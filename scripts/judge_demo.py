@@ -7,12 +7,45 @@ from dataclasses import dataclass
 DEFAULT_API = "https://casperprover-api-ylsh.onrender.com"
 DEFAULT_SITE = "https://casperprover.xyz"
 RPC = "https://node.testnet.casper.network/rpc"
-CONTRACTS = {
-    "Proof Registry": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
-    "Verifier Gate": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
-    "DeFi Mock": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
-    "Stake Slashing": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
+
+# Canonical on-chain contract manifest lives at deploy-out/onchain.json in repo
+# root (Gate 1). Load it dynamically so hashes are never duplicated in scripts.
+# Falls back to a pinned map only if the manifest is missing (e.g. a stripped
+# archive) — logged loudly so nobody ships against a stale fallback silently.
+_MANIFEST_LABELS = {
+    "proof_registry": "Proof Registry",
+    "verifier_gate": "Verifier Gate",
+    "defi_mock": "DeFi Mock",
+    "stake_slashing": "Stake Slashing",
 }
+
+
+def _load_contracts() -> dict[str, str]:
+    here = os.path.dirname(os.path.abspath(__file__))
+    manifest = os.path.join(here, "..", "deploy-out", "onchain.json")
+    try:
+        with open(manifest, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        contracts = data.get("contracts", {})
+        out = {}
+        for key, entry in contracts.items():
+            label = _MANIFEST_LABELS.get(key, key.replace("_", " ").title())
+            h = entry.get("contract_hash")
+            if h:
+                out[label] = h
+        if out:
+            return out
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"[judge_demo] WARNING: manifest load failed ({exc}); using pinned fallback", file=sys.stderr)
+    return {
+        "Proof Registry": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
+        "Verifier Gate": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
+        "DeFi Mock": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
+        "Stake Slashing": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
+    }
+
+
+CONTRACTS = _load_contracts()
 
 @dataclass
 class Result:

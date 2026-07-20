@@ -1,0 +1,74 @@
+{
+  "network": "casper-test",
+  "chain_name": "casper-test",
+  "project": "CasperProver",
+  "deployer": "0203975636c0c327297c67916f65009f1bc8bcaec34231994450a6f4fb43060fa123",
+  "explorer": "https://testnet.cspr.live",
+  "cspr_cloud": "https://testnet.cspr.cloud",
+  "contracts": {
+    "proof_registry": {
+      "contract_hash": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
+      "contract_package_hash": "894d167e22c70462af9b265c23fb14126af30b91644ca696f4a6a2f3311e5309",
+      "deploy_hash": "d64299b651750b6996595d81b812038750c353f5220b5e61cd6c129e90a07d56",
+      "version": 1,
+      "deployed_at": "2026-06-29T09:33:43Z",
+      "source": "contracts/proof-registry/src/main.rs",
+      "entry_points": ["submit_proof", "get_proof", "revoke_proof", "register_agent", "get_reputation"]
+    },
+    "verifier_gate": {
+      "contract_hash": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
+      "contract_package_hash": "bd6b2ff66e2416c6b532932d328402d3ed648dde0c6ff9d556f2b2635fbe6115",
+      "deploy_hash": "c1320d182c0323e671183cb7aef603f1bb19b86f97637e3a386ae14dd28422ff",
+      "version": 1,
+      "deployed_at": "2026-06-29T09:39:01Z",
+      "source": "contracts/verifier-gate/src/main.rs",
+      "entry_points": ["verify", "is_valid", "batch_check"]
+    },
+    "defi_mock": {
+      "contract_hash": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
+      "contract_package_hash": "54757fa72e6ca1898f3a8bc6e5af1d643b120a8c8605e0b1581fdcc3b76f9a04",
+      "deploy_hash": "7e590fb94fb0c3e41cd01e44e14157c3e537f4766a546d1dedbe5b137210625e",
+      "version": 1,
+      "deployed_at": "2026-07-07T13:19:48Z",
+      "source": "contracts/defi-mock/src/main.rs",
+      "entry_points": ["check_kyc", "grant_access", "revoke_access", "is_whitelisted"]
+    },
+    "stake_slashing": {
+      "contract_hash": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
+      "contract_package_hash": "e33812f9c9c88e0d3202fdd7a7718cce686cbd21bc673c216b6dbf23c26e2947",
+      "deploy_hash": "ac4712a3ecc29c058330df88781d488f61c3993b7ee2720c2024fc2a231d2532",
+      "version": 2,
+      "deployed_at": "2026-07-19T07:33:00Z",
+      "source": "contracts/stake-slashing/src/main.rs",
+      "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"],
+      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit)."
+    }
+  },
+  "undeployed_contracts": {
+    "model_registry": {
+      "source": "contracts/model-registry/src/main.rs",
+      "status": "compiled",
+      "reason": "WASM >65KB limit"
+    },
+    "proof_aggregation": {
+      "source": "contracts/proof-aggregation/src/main.rs",
+      "status": "compiled",
+      "reason": "WASM >65KB limit"
+    },
+    "proof_of_inference": {
+      "source": "contracts/proof-of-inference/src/main.rs",
+      "status": "compiled",
+      "reason": "WASM >65KB limit"
+    },
+    "stake_slashing_session": {
+      "source": "contracts/stake-slashing-session/src/main.rs",
+      "status": "compiled",
+      "reason": "session-code helper for purse transfer"
+    }
+  },
+  "verification": {
+    "api_health": "https://casperprover-api-ylsh.onrender.com/health",
+    "frontend": "https://casperprover.xyz",
+    "verify_script": "./verify.sh"
+  }
+}

@@ -24,3 +24,5 @@ landing/
 Cargo.lock
 *.bak
 .vercel
+__pycache__/
+*.pyc

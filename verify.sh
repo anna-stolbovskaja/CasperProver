@@ -39,12 +39,33 @@ bold "═══ CasperProver Verification ═══"
 echo ""
 bold "1. On-chain contracts (Casper testnet)"
 
-CONTRACTS=(
-  "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
-  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
-  "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
-  "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
-)
+# Contracts are loaded from the canonical manifest at deploy-out/onchain.json
+# (Gate 1: no hardcoded hashes in scripts). If jq is missing, fall back to the
+# pinned list so verify.sh keeps working in minimal environments — but log it.
+MANIFEST="$(dirname "$0")/deploy-out/onchain.json"
+CONTRACTS=()
+if command -v jq >/dev/null 2>&1 && [ -f "$MANIFEST" ]; then
+  # Map internal keys → human-readable labels used in the verification output.
+  declare -A LABELS=(
+    [proof_registry]="Proof Registry"
+    [verifier_gate]="Verifier Gate"
+    [defi_mock]="DeFi Mock"
+    [stake_slashing]="Stake Slashing"
+  )
+  while IFS=$'\t' read -r key hash; do
+    label="${LABELS[$key]:-$key}"
+    CONTRACTS+=("$hash:$label")
+  done < <(jq -r '.contracts | to_entries[] | "\(.key)\t\(.value.contract_hash)"' "$MANIFEST" 2>/dev/null)
+fi
+if [ ${#CONTRACTS[@]} -eq 0 ]; then
+  echo "[verify.sh] WARNING: manifest missing or jq unavailable — using pinned fallback list" >&2
+  CONTRACTS=(
+    "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
+    "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
+    "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
+    "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
+  )
+fi
 
 verify_contract() {
   local hash="${1%%:*}"
