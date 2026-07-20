@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/config"
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
@@ -92,12 +93,27 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+// manifestHashOrEnv returns env override first, then the canonical manifest,
+// then an empty string. A hardcoded fallback here would silently outlive a
+// redeploy (Gate 1.5 forbids it).
+func manifestHashOrEnv(envKey, manifestKey string) string {
+	if v := os.Getenv(envKey); v != "" {
+		return v
+	}
+	h, err := config.ContractHash(manifestKey)
+	if err != nil {
+		slog.Warn("onchain manifest not readable; contract hash will be empty until redeploy manifest is provisioned", "env_key", envKey, "manifest_key", manifestKey, "err", err)
+		return ""
+	}
+	return h
+}
+
 func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	contracts := contractHashes{
-		ProofRegistry: envOrDefault("CONTRACT_PROOF_REGISTRY", "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"),
-		VerifierGate:  envOrDefault("CONTRACT_VERIFIER_GATE", "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3"),
-		DefiMock:      envOrDefault("CONTRACT_DEFI_MOCK", "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef"),
-		StakeSlashing: envOrDefault("CONTRACT_STAKE_SLASHING", "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52"),
+		ProofRegistry: manifestHashOrEnv("CONTRACT_PROOF_REGISTRY", "proof_registry"),
+		VerifierGate:  manifestHashOrEnv("CONTRACT_VERIFIER_GATE", "verifier_gate"),
+		DefiMock:      manifestHashOrEnv("CONTRACT_DEFI_MOCK", "defi_mock"),
+		StakeSlashing: manifestHashOrEnv("CONTRACT_STAKE_SLASHING", "stake_slashing"),
 	}
 
 	nodeURL := os.Getenv("CASPER_NODE_URL")
@@ -641,13 +657,21 @@ func (s *Server) exportProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	verifyURL := ""
+	if m, err := config.Load(); err == nil {
+		verifyURL = m.Verification.APIHealth
+		// APIHealth ends in /health; the verify surface is a sibling.
+		if verifyURL != "" {
+			verifyURL = verifyURL[:len(verifyURL)-len("/health")] + "/verify"
+		}
+	}
 	bundle := map[string]interface{}{
 		"version":    "1.0",
 		"exported":   time.Now().Unix(),
 		"proof":      p,
 		"contract":   s.contracts.ProofRegistry,
 		"chain":      "casper-test",
-		"verify_url": "https://casperprover-api-ylsh.onrender.com/verify",
+		"verify_url": verifyURL,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

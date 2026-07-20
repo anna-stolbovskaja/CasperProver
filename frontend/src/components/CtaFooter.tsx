@@ -1,29 +1,55 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { getCachedManifest, loadManifest } from '../lib/onchain'
 
-const lines = [
-  { delay: 0, prefix: '$ ', text: 'casper-prover prove --agent loan-bot --model gpt-4o', color: 'text-green-400' },
-  { delay: 1200, prefix: '', text: 'hashing inputs...        SHA-256  OK', color: 'text-gray-500' },
-  { delay: 1800, prefix: '', text: 'building merkle tree...   depth=2 OK', color: 'text-gray-500' },
-  { delay: 2400, prefix: '', text: 'generating proof...       P-42    OK', color: 'text-gray-500' },
-  { delay: 3000, prefix: '', text: 'anchoring on-chain...     deploy  OK', color: 'text-gray-500' },
-  { delay: 3600, prefix: '', text: '', color: '' },
-  { delay: 3700, prefix: '  ', text: 'proof_hash   3d807fab6719562d774058d32cb4fb2319...', color: 'text-red-400' },
-  { delay: 4000, prefix: '  ', text: 'merkle_root  85fcc3dd7145066239ddc90f67b92bc041...', color: 'text-orange-300' },
-  { delay: 4300, prefix: '  ', text: 'deploy_hash  96e97c4d564fe7374ba4e938355fb89f5b...', color: 'text-yellow-300' },
-  { delay: 4600, prefix: '  ', text: 'status       VERIFIED', color: 'text-green-400' },
-  { delay: 5200, prefix: '', text: '', color: '' },
-  { delay: 5400, prefix: '$ ', text: 'echo "Your AI is now accountable."', color: 'text-green-400' },
-]
+// Fallback deploy-hash prefix for the typewriter demo. Real value comes from
+// the canonical /onchain.json (Gate 1.5). This is a visual demo, not a clickable
+// on-chain link, so a stale fallback only ever changes the terminal aesthetic.
+const FALLBACK_DEPLOY_HASH_PREFIX = '96e97c4d564fe7374ba4e938355fb89f5b'
+
+function buildLines(deployHashPrefix: string) {
+  return [
+    { delay: 0, prefix: '$ ', text: 'casper-prover prove --agent loan-bot --model gpt-4o', color: 'text-green-400' },
+    { delay: 1200, prefix: '', text: 'hashing inputs...        SHA-256  OK', color: 'text-gray-500' },
+    { delay: 1800, prefix: '', text: 'building merkle tree...   depth=2 OK', color: 'text-gray-500' },
+    { delay: 2400, prefix: '', text: 'generating proof...       P-42    OK', color: 'text-gray-500' },
+    { delay: 3000, prefix: '', text: 'anchoring on-chain...     deploy  OK', color: 'text-gray-500' },
+    { delay: 3600, prefix: '', text: '', color: '' },
+    { delay: 3700, prefix: '  ', text: 'proof_hash   3d807fab6719562d774058d32cb4fb2319...', color: 'text-red-400' },
+    { delay: 4000, prefix: '  ', text: 'merkle_root  85fcc3dd7145066239ddc90f67b92bc041...', color: 'text-orange-300' },
+    { delay: 4300, prefix: '  ', text: `deploy_hash  ${deployHashPrefix}...`, color: 'text-yellow-300' },
+    { delay: 4600, prefix: '  ', text: 'status       VERIFIED', color: 'text-green-400' },
+    { delay: 5200, prefix: '', text: '', color: '' },
+    { delay: 5400, prefix: '$ ', text: 'echo "Your AI is now accountable."', color: 'text-green-400' },
+  ]
+}
 
 export default function CtaFooter() {
   const [visible, setVisible] = useState(0)
+  const [deployPrefix, setDeployPrefix] = useState<string>(() => {
+    const h = getCachedManifest()?.contracts.proof_registry?.contract_hash
+    return h ? h.slice(0, 34) : FALLBACK_DEPLOY_HASH_PREFIX
+  })
+
+  useEffect(() => {
+    let alive = true
+    loadManifest()
+      .then((m) => {
+        if (!alive) return
+        const h = m.contracts.proof_registry?.contract_hash
+        if (h) setDeployPrefix(h.slice(0, 34))
+      })
+      .catch(() => { /* keep fallback */ })
+    return () => { alive = false }
+  }, [])
+
+  const lines = useMemo(() => buildLines(deployPrefix), [deployPrefix])
 
   useEffect(() => {
     const timers = lines.map((l, i) =>
       setTimeout(() => setVisible(i + 1), l.delay)
     )
     return () => timers.forEach(clearTimeout)
-  }, [])
+  }, [lines])
 
   return (
     <section className="py-16 relative">
