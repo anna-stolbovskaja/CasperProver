@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
-	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
@@ -30,6 +29,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier/gnarkzk"
+	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -174,20 +174,20 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	}
 
 	srv := &Server{
-		eng:    eng,
-		ver:    verifier.New(),
-		kyc:    demoKYC,
-		db:     db,
+		eng:       eng,
+		ver:       verifier.New(),
+		kyc:       demoKYC,
+		db:        db,
 		sub:       sub,
 		inf:       inference.New(eng, db, sub),
 		zk:        zkverifier.NewGroth16Verifier(),
 		realZK:    realZK,
 		contracts: contracts,
 		port:      port,
-		log:    slog.Default(),
-		start:  time.Now(),
-		apiKey: apiKey,
-		strict: strict,
+		log:       slog.Default(),
+		start:     time.Now(),
+		apiKey:    apiKey,
+		strict:    strict,
 
 		aggBatches: make(map[string]*aggBatch),
 	}
@@ -347,7 +347,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Public-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Public-Key, X-API-Key")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -507,7 +507,8 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 
 	if mode == "anchored" {
 		if s.sub == nil {
-			p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+			p.AnchorHash = hasher.HexHash([]byte(p.Root + p.ID))
+			p.AnchoringStatus = "computed_fallback"
 		} else {
 			deployHash, err := s.sub.Submit(p)
 			if err != nil {
@@ -516,13 +517,18 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 					s.jsonError(w, "on-chain submission failed", http.StatusBadGateway)
 					return
 				}
-				s.log.Warn("on-chain submit failed, using computed hash", "id", p.ID, "err", err)
-				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+				s.log.Warn("on-chain submit failed, recording computed fallback", "id", p.ID, "err", err)
+				p.AnchorHash = hasher.HexHash([]byte(p.Root + p.ID))
+				p.AnchoringStatus = "computed_fallback"
 			} else {
 				p.Deploy = deployHash
-				s.log.Info("proof anchored on-chain", "id", p.ID, "deploy", deployHash)
+				p.AnchorHash = deployHash
+				p.AnchoringStatus = "submitted"
+				s.log.Info("proof submitted on-chain", "id", p.ID, "deploy", deployHash)
 			}
 		}
+	} else {
+		p.AnchoringStatus = "local"
 	}
 
 	s.persist(p)
@@ -573,7 +579,8 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 		p := s.eng.GenerateWithKey(pr.Agent, pubKey, []byte(pr.Input), []byte(pr.Output), []byte(pr.Model), pr.UseCase, mode)
 		if mode == "anchored" {
 			if s.sub == nil {
-				p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+				p.AnchorHash = hasher.HexHash([]byte(p.Root + p.ID))
+				p.AnchoringStatus = "computed_fallback"
 			} else {
 				dh, err := s.sub.Submit(p)
 				if err != nil {
@@ -581,11 +588,16 @@ func (s *Server) batchProofs(w http.ResponseWriter, r *http.Request) {
 						s.jsonError(w, "on-chain submission failed", http.StatusBadGateway)
 						return
 					}
-					p.Deploy = hasher.HexHash([]byte(p.Root + p.ID))
+					p.AnchorHash = hasher.HexHash([]byte(p.Root + p.ID))
+					p.AnchoringStatus = "computed_fallback"
 				} else {
 					p.Deploy = dh
+					p.AnchorHash = dh
+					p.AnchoringStatus = "submitted"
 				}
 			}
+		} else {
+			p.AnchoringStatus = "local"
 		}
 		s.persist(p)
 		results = append(results, p)
@@ -1498,11 +1510,11 @@ func (s *Server) proofChainValidate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"valid":          true,
-		"chain_id":       chain.ID,
-		"total_steps":    chain.TotalSteps,
-		"depth":          chain.Depth,
-		"root_proof_id":  chain.RootProofID,
-		"status":         "fully_verified",
+		"valid":         true,
+		"chain_id":      chain.ID,
+		"total_steps":   chain.TotalSteps,
+		"depth":         chain.Depth,
+		"root_proof_id": chain.RootProofID,
+		"status":        "fully_verified",
 	})
 }
