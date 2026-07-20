@@ -289,6 +289,86 @@ func sortAttemptsByStart(a []providerAttempt) []providerAttempt {
 	return a
 }
 
+// PollResult is one provider's response for Runner.Poll.
+type PollResult struct {
+	// Provider is the provider ID ("groq", "gemini", ...).
+	Provider string
+
+	// Resp is the successful response, or nil on failure.
+	Resp *Response
+
+	// Attempt is the full attempt trace (latency, error, key index).
+	Attempt providerAttempt
+}
+
+// Poll calls EVERY registered provider (fast + reliability) in parallel and
+// returns one PollResult per provider. Unlike Complete (winner-take-all),
+// Poll waits for all providers to answer or the TotalBudget to expire.
+//
+// This is the entry point used by the facet-based judge: every provider
+// gets an independent shot at the same prompt, and the judge aggregates
+// their votes into AGREE / DISAGREE / ABSTAIN.
+//
+// If EnableFixtureFallback is set AND zero providers answered successfully,
+// the fixture is invoked once and appended as an extra result. Otherwise
+// the fixture is not polled — a judge with real answers should NOT be
+// influenced by fixture data.
+func (r *Runner) Poll(ctx context.Context, req Request) []PollResult {
+	all := make([]Provider, 0, len(r.fast)+len(r.reliability))
+	all = append(all, r.fast...)
+	all = append(all, r.reliability...)
+
+	ctx, cancel := context.WithTimeout(ctx, r.cfg.TotalBudget)
+	defer cancel()
+
+	if r.cfg.ForceFixture() && r.fixture != nil {
+		resp, err := r.fixture.Complete(ctx, req)
+		att := providerAttempt{Provider: r.fixture.ID()}
+		if err != nil {
+			att.Err = err.Error()
+		} else {
+			att.Success = true
+		}
+		return []PollResult{{Provider: r.fixture.ID(), Resp: resp, Attempt: att}}
+	}
+
+	results := make([]PollResult, len(all))
+	var wg sync.WaitGroup
+	for i, p := range all {
+		wg.Add(1)
+		go func(idx int, prov Provider) {
+			defer wg.Done()
+			resp, att := r.callOne(ctx, prov, req)
+			results[idx] = PollResult{Provider: prov.ID(), Resp: resp, Attempt: att}
+		}(i, p)
+	}
+	wg.Wait()
+
+	// Count real successes.
+	liveCount := 0
+	for _, res := range results {
+		if res.Resp != nil {
+			liveCount++
+		}
+	}
+
+	// Fixture fallback only when zero real providers answered.
+	if liveCount == 0 && r.cfg.EnableFixtureFallback && r.fixture != nil {
+		fxCtx, fxCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer fxCancel()
+		resp, err := r.fixture.Complete(fxCtx, req)
+		att := providerAttempt{Provider: r.fixture.ID()}
+		if err != nil {
+			att.Err = err.Error()
+		} else {
+			att.Success = true
+		}
+		results = append(results, PollResult{Provider: r.fixture.ID(), Resp: resp, Attempt: att})
+	}
+
+	return results
+}
+
 // String returns a compact multi-line dump of the report — handy for logs.
 func (r *RunReport) String() string {
 	var b []byte
