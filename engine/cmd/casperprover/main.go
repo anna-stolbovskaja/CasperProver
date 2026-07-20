@@ -9,6 +9,7 @@ import (
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/llm"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
@@ -160,6 +161,18 @@ func serve(eng *prover.ProofEngine) {
 	} else {
 		slog.Warn("judge NOT wired — no LLM provider keys in env; /inference/judge will 503")
 	}
+
+	// Wire HITL sinks from env (HITL_SINKS=slack,telegram,noop). Missing config
+	// falls back to NoopSink so the server always boots; misconfigured sinks
+	// fail loud at startup.
+	hitlCfg := hitl.ConfigFromEnv()
+	hitlSink, err := hitlCfg.Build()
+	if err != nil {
+		slog.Error("HITL sink config invalid", "error", err, "kinds", hitlCfg.Kinds)
+		os.Exit(1)
+	}
+	srv.SetHITLSink(hitlSink)
+	slog.Info("HITL sink wired", "kinds", hitlCfg.Kinds)
 
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
