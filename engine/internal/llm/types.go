@@ -169,6 +169,11 @@ type Config struct {
 	// FixtureContent overrides the canned fixture text. Empty = use the
 	// package default.
 	FixtureContent string
+
+	// forceFixture (private) is set by LoadConfig when LLM_FIXTURE_MODE=1.
+	// The runner skips real providers when true. Callers read it via
+	// Config.ForceFixture().
+	forceFixture bool
 }
 
 // DefaultConfig returns sensible defaults for demo/hackathon workloads.
