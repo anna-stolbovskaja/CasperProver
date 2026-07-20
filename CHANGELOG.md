@@ -10,6 +10,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 *Frontend polish, DoraHacks submission prep, docs hardening.*
 
+### Added — Gate 1 hardening (2026-07-20)
+- `GET /onchain.json` API endpoint — canonical contract manifest served over HTTP with 60s in-memory cache and mtime invalidation (`engine/internal/api/onchain.go`, 4 tests).
+- Root `deploy-out/onchain.json` promoted to canonical single-source-of-truth for on-chain contract addresses; served verbatim by `/onchain.json`.
+- `scripts/sync-onchain-manifest.sh` and `make sync-onchain` — one-liner that copies the canonical manifest into `frontend/public/onchain.json`; wired into frontend `prebuild` + `predev` hooks so the SPA can never drift from the API.
+- `scripts/judge_demo.py` — reads contract hashes from the canonical manifest (with a loud stderr fallback) instead of hardcoding them.
+- `verify.sh` — loads contract addresses from `deploy-out/onchain.json` via `jq`; pinned list retained only as a fallback for stripped environments.
+- `CP_STRICT=1` production preflight in `cmd/casperprover/serve` — refuses to start with `API_KEY=""`; unauthenticated writes are only permitted in dev mode.
+
 ### Added
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).

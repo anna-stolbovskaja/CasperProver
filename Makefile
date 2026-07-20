@@ -1,4 +1,4 @@
-.PHONY: build test lint clean contracts contracts-test sdk-test
+.PHONY: build test lint clean contracts contracts-test sdk-test sync-onchain
 
 build:
 	cd engine && go build -o ../bin/casperprover ./cmd/casperprover
@@ -26,3 +26,8 @@ contracts-test:
 
 clean:
 	rm -rf bin/ target/
+
+# Sync canonical on-chain manifest from deploy-out/onchain.json into consumer
+# surfaces (frontend/public/onchain.json). Run after every redeploy.
+sync-onchain:
+	./scripts/sync-onchain-manifest.sh

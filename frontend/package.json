@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "bash ../scripts/sync-onchain-manifest.sh",
+    "predev": "bash ../scripts/sync-onchain-manifest.sh"
   },
   "dependencies": {
     "@make-software/csprclick-core-client": "^1.11.0",
