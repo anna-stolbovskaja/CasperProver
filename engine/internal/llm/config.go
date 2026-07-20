@@ -54,13 +54,13 @@ func DefaultEnvSpecs() []EnvSpec {
 		},
 		{
 			ProviderID:    "openrouter",
-			Tier:          TierFast,
+			Tier:          TierReliability,
 			KeyEnvs:       []string{"OPENROUTER_API_KEY", "OPENROUTER2_API_KEY"},
 			InlineListEnv: "OPENROUTER_API_KEYS",
 		},
 		{
 			ProviderID:    "zai",
-			Tier:          TierReliability,
+			Tier:          TierFast,
 			KeyEnvs:       []string{"ZAI_API_KEY", "ZAI2_API_KEY"},
 			InlineListEnv: "ZAI_API_KEYS",
 		},
