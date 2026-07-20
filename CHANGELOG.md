@@ -10,6 +10,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 *Frontend polish, DoraHacks submission prep, docs hardening.*
 
+### Fixed
+- `proof-aggregation::create_batch` no longer silently overwrites an existing
+  open batch — duplicate `batch_id` now reverts with `ApiError::User(22)`,
+  empty `batch_id` reverts with `20`, and `max_proofs == 0` reverts with `21`.
+  This closes the P1 finding in `docs/SECURITY_AUDIT.md` and unblocks Gate 2
+  redeploy of the `proof-aggregation` crate. Contract rebuilds cleanly on
+  `nightly-2025-01-01`; guard invariants mirrored in
+  `contracts/tests/src/integration_tests.rs::proof_aggregation_tests`
+  (6 new tests, all green).
+
 ### Added
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
