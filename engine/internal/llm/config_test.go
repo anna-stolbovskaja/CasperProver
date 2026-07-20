@@ -52,11 +52,11 @@ func TestDefaultEnvSpecs_TierPolicy(t *testing.T) {
 	if tiers["nvidia"] != TierFast {
 		t.Errorf("nvidia should be fast, got %v", tiers["nvidia"])
 	}
-	if tiers["openrouter"] != TierFast {
-		t.Errorf("openrouter should be fast, got %v", tiers["openrouter"])
+	if tiers["openrouter"] != TierReliability {
+		t.Errorf("openrouter should be reliability (aggregator, slower), got %v", tiers["openrouter"])
 	}
-	if tiers["zai"] != TierReliability {
-		t.Errorf("zai should be reliability, got %v", tiers["zai"])
+	if tiers["zai"] != TierFast {
+		t.Errorf("zai (glm-4-flash) should be fast, got %v", tiers["zai"])
 	}
 	if tiers["gemini"] != TierReliability {
 		t.Errorf("gemini should be reliability, got %v", tiers["gemini"])
