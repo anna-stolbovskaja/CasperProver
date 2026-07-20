@@ -4,9 +4,9 @@
 
 # CasperProver
 
-**Cryptographic proof engine for AI agent decisions — ZK-verified, post-quantum ready, on-chain immutable**
+**Cryptographic audit-trail engine for AI agent decisions — Merkle-anchored on-chain, ZK-augmented, post-quantum ready**
 
-*Prove what an agent computed. Verify it on-chain. No replay needed.*
+*Commit an agent's inputs & outputs to Casper. Verify the commitment in milliseconds. ZK & PQ layers optional; ZK verification is off-chain (gnark).*
 
 [![CI](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/check.yml)
 [![Verify](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml/badge.svg)](https://github.com/anna-stolbovskaja/CasperProver/actions/workflows/verify.yml)
@@ -44,15 +44,15 @@
 
 ## Why This Matters
 
-AI agents are executing critical workflows — KYC checks, financial decisions, compliance rules. But there is **no audit trail**. You cannot prove what an agent computed without re-running the entire model.
+AI agents are executing critical workflows — KYC checks, financial decisions, compliance rules. But there is **no tamper-evident audit trail**. Without one, you have to re-run the model to check a past decision, and even that only proves the model can produce the same output — not that this particular decision was made.
 
-CasperProver closes that gap:
+CasperProver closes the **audit-trail** gap. It does **not** prove the model's internal computation was correct (that is a research-grade zkML problem — see Growth Potential). It commits inputs, outputs and model fingerprint to Casper, so any later party can verify the record has not been altered:
 
 | Without CasperProver | With CasperProver |
 |---|---|
-| Re-run the model to verify | Verify inclusion proof in milliseconds |
-| Trust the agent operator | Verify cryptographically on-chain |
-| Black-box outputs | Merkle-anchored, tamper-evident record |
+| Re-run the model to check a past decision | Verify the Merkle inclusion proof in milliseconds |
+| Trust the agent operator's log | Verify the Merkle root is anchored on-chain |
+| Black-box, mutable log | Merkle-anchored, tamper-evident record |
 | Centralized log (mutable) | Immutable on-chain commitment |
 | No quantum resistance | Post-quantum signing (ML-DSA-65, Lamport OTS) |
 | No economic penalties | Stake-and-slash for dishonest agents |
@@ -84,8 +84,8 @@ flowchart LR
 **How it works:**
 Given `f(x) = y` with model `M`, CasperProver produces `π = MerkleProof(H(x), H(y), H(M))` where `H = SHA-256`. The root is committed on-chain; the inclusion proof is stored and queryable forever without re-running the model.
 
-For stronger guarantees, the same proof can be:
-- **ZK-verified** via real BN254 Groth16 (gnark)
+For stronger guarantees, the same commitment can be:
+- **ZK-augmented** with real BN254 Groth16 circuits (gnark) — proofs generated & verified **off-chain** in the engine; the resulting proof handle is stored alongside the Merkle root. On-chain Casper verification of Groth16 is not implemented.
 - **Post-quantum signed** with hybrid Ed25519+ML-DSA-65 or Lamport OTS
 - **Chained** into a DAG with cycle detection and input continuity validation
 
@@ -96,7 +96,7 @@ For stronger guarantees, the same proof can be:
 | Feature | Description | Status |
 |---|---|---|
 | **Merkle Proofs** | SHA-256 + Merkle tree, <50ms generation | ✅ Live |
-| **Real ZK Proofs** | BN254 Groth16 via gnark — R1CS circuits, trusted setup, pairing verification | ✅ Live |
+| **Real ZK Proofs (off-chain)** | BN254 Groth16 via gnark — R1CS circuits, trusted setup, pairing verification runs in the engine; on-chain Casper Groth16 verifier is roadmap | ✅ Live (off-chain) |
 | **Post-Quantum Crypto** | ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA, Lamport OTS | ✅ Live |
 | **Batch Aggregation** | Hash-chain aggregation with Postgres persistence | ✅ Live |
 | **Proof-Chain DAG** | Multi-step proof validation: cycle detection, input continuity, single root | ✅ Live |

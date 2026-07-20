@@ -162,13 +162,23 @@ const ZKProofs: React.FC = () => {
         ZK Proofs
       </h2>
 
+      <div className="bg-[#12121a] border border-yellow-500/40 rounded-md px-4 py-3 text-xs text-yellow-200/90 flex items-start gap-2">
+        <AlertTriangle size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+        <span>
+          <strong>Boundary:</strong> Real Groth16 prove &amp; verify runs <strong>off-chain</strong> in the CasperProver engine (gnark BN254). Only the resulting proof handle can be anchored on-chain. On-chain Casper pairing verification is roadmap, not shipped.
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Real Groth16 Prove */}
         <div className="bg-[#1a1a2a] rounded-lg border border-[#222235] p-6">
-          <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2 mb-4">
-            <KeyRound size={20} className="text-red-500" />
-            Groth16 Real Prove (BN254)
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+              <KeyRound size={20} className="text-red-500" />
+              Groth16 Real Prove (BN254)
+            </h3>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-red-600/20 text-red-300 border border-red-500/40">REAL CRYPTO · OFF-CHAIN</span>
+          </div>
           <p className="text-gray-400 text-sm mb-4">
             Generate a real BN254 Groth16 proof of knowledge of a MiMC preimage.
             Uses gnark library with trusted setup, R1CS constraints, and real elliptic curve pairing.
@@ -204,10 +214,13 @@ const ZKProofs: React.FC = () => {
 
         {/* Real Groth16 Verify */}
         <div className="bg-[#1a1a2a] rounded-lg border border-[#222235] p-6">
-          <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2 mb-4">
-            <ShieldCheck size={20} className="text-red-500" />
-            Groth16 Real Verify
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+              <ShieldCheck size={20} className="text-red-500" />
+              Groth16 Real Verify
+            </h3>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-red-600/20 text-red-300 border border-red-500/40">REAL CRYPTO · OFF-CHAIN</span>
+          </div>
           <p className="text-gray-400 text-sm mb-4">
             Verify a Groth16 proof. Fields auto-populate when you generate a proof on the left.
           </p>
@@ -251,10 +264,13 @@ const ZKProofs: React.FC = () => {
 
         {/* Conceptual Groth16 */}
         <div className="bg-[#1a1a2a] rounded-lg border border-[#222235] p-6">
-          <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2 mb-4">
-            <AlertTriangle size={20} className="text-yellow-500" />
-            Groth16 Conceptual (Hash-Based)
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+              <AlertTriangle size={20} className="text-yellow-500" />
+              Groth16 Conceptual (Hash-Based)
+            </h3>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-yellow-600/20 text-yellow-300 border border-yellow-500/40">SIMULATION</span>
+          </div>
           <p className="text-gray-400 text-sm mb-4">
             Legacy hash-based simulation. Honestly labeled — not real pairing verification.
           </p>
