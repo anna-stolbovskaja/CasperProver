@@ -24,6 +24,7 @@ import (
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
@@ -63,6 +64,10 @@ type Server struct {
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
+
+	// Multi-provider judge for /inference/judge. Set via SetJudge; nil = 503.
+	judge    JudgeService
+	hitlSink hitl.Sink // optional HITL delivery sink; set via SetHITLSink
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -223,6 +228,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /inference/verify", s.inferenceVerify)
 	mux.HandleFunc("POST /inference/register-model", s.inferenceRegisterModel)
 	mux.HandleFunc("GET /inference/model/{id}", s.inferenceGetModel)
+	mux.HandleFunc("POST /inference/judge", s.judgeHandler)
 	// Aggregation routes
 	mux.HandleFunc("POST /aggregation/create-batch", s.aggregationCreateBatch)
 	mux.HandleFunc("POST /aggregation/add-proof", s.aggregationAddProof)
