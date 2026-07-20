@@ -1,9 +1,9 @@
 # Undeployed contracts — status & deploy path
 
-> **Honest positioning:** these three Casper contracts are fully implemented
-> and build cleanly against `nightly-2025-01-01` / `wasm32-unknown-unknown`, but
-> they are **not yet deployed** to Casper testnet. They are archived from every
-> CI run and available as build artifacts.
+> **Honest positioning:** these three Casper contract prototypes build cleanly
+> against `nightly-2025-01-01` / `wasm32-unknown-unknown`, but they are **not
+> deploy-ready** and are not deployed to Casper testnet. CI archives the WASM
+> files as build evidence only; a successful build is not a security approval.
 
 ## Contracts
 
@@ -32,16 +32,17 @@ already-deployed contracts (`stake-slashing`, `defi-mock`, `verifier-gate`,
 
 ## Why they are not live yet
 
-- **Wallet gate.** Deploy MUST be signed by the CasperProver deployer key
-  (Anna / CasperProver wallet only, per project isolation rules).
-- **Judge boundary.** Publishing an unverified contract just to have a live
-  address would put a claim ("on-chain") on something we cannot fully audit
-  in the deadline window. We would rather ship compiled artifacts + a clear
-  roadmap than break the "REAL vs ON-CHAIN vs SIMULATION" badge contract.
-- **Time-box.** Per `CP_FINAL_TASKS_V2.md` Gate 2 spec: "if build+smoke green
-  and deploy path is clear — deploy; if within 4 h there is no safe path — do
-  not break the working four; document compiled artifact + roadmap and
-  continue submission path."
+- **Security gate.** Source review found pre-deploy blockers: verifier/state
+  ordering and unbounded caller-controlled fields in `proof-of-inference`;
+  public verification and unbounded pricing configuration in `model-registry`;
+  and missing duplicate/existence/finalized/cap checks in `proof-aggregation`.
+- **Execution-test gate.** The current 22-test harness reimplements selected
+  logic; it does not execute these WASM contracts in a Casper/Odra engine.
+  Each blocker needs a failing execution test before its fix is accepted.
+- **Wallet isolation.** Any future deploy must use Anna's CasperProver wallet
+  only. Wallet availability does not override the security and test gates.
+- **Judge boundary.** A compiled artifact is labelled `built / undeployed`,
+  never `audited`, `live`, or `on-chain`.
 
 ## Reproducing the build
 
@@ -60,12 +61,11 @@ run summary.
 
 ## Roadmap to on-chain
 
-1. Anna signs a deploy batch for the three contracts against Casper testnet.
-2. Deploy transactions are captured in `deploy-out/onchain.json` alongside
-   the existing four contracts, with `deployed_at` / `deploy_hash` /
-   `contract_hash` / `contract_package_hash`.
-3. `verify.sh` gains the three additional checks (existence + entry point
-   smoke) automatically — it reads contracts from the manifest, no code
-   change needed.
-4. Frontend / SDK / docs pick up the new hashes with no rebuild since
-   nothing hardcodes them (Gate 1.5 canonical manifest work).
+1. Add failing contract-execution tests for every blocker listed above.
+2. Apply the minimum contract fixes and rerun WASM builds plus the execution
+   harness; review installer/admin and runtime arguments.
+3. Only then may Anna sign a Casper testnet deploy batch.
+4. Record deploy and contract/package hashes in `deploy-out/onchain.json` and
+   run on-chain existence plus entry-point smoke checks.
+5. Regenerate frontend config from the canonical manifest and update the
+   real/off-chain/simulation labels only after evidence is green.

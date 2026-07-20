@@ -227,7 +227,7 @@ curl https://casperprover-api-ylsh.onrender.com/pq/hybrid-sign \
 | **defi-mock** | [`fe0c45f6...0b39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | KYC-gated DeFi vault | 2026-07-07 |
 | **stake-slashing** | [`1ad1b3d9...983d52`](https://testnet.cspr.live/contract/1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52) | Economic penalties (hardened redeploy) | 2026-07-19 |
 
-**Additionally written** (not yet deployed): `proof-of-inference`, `model-registry`, `proof-aggregation` — ready for mainnet.
+**Prototype contracts** (buildable, not deploy-ready or deployed): `proof-of-inference`, `model-registry`, `proof-aggregation`. Their pre-deploy security blockers and execution-test gate are tracked in `docs/UNDEPLOYED_CONTRACTS.md`.
 
 **On-chain activity:** 248+ testnet transactions across contract deploys and entry-point calls.
 
