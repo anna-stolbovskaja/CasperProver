@@ -101,6 +101,37 @@ a judge key is explicitly supplied.
 - Live deployment targets **testnet**. Mainnet migration is a
   separate hardening pass.
 
+## Regulatory posture (30-second read)
+
+CasperProver is a **compliance enabler**, not a regulated entity. It
+produces ZK-proofs and Merkle-committed evidence for downstream
+systems that ARE regulated. Full analysis in `docs/COMPLIANCE.md`.
+
+- **EU MiCA** — out of CASP scope. CP does not custody assets, does
+  not exchange crypto-assets, does not operate a trading platform.
+  It is a utility layer under Art. 3 that produces cryptographic
+  attestations. Not a Crypto-Asset Service Provider.
+- **EU AI Act** — CP is **not itself an AI system**. It is a
+  compliance enabler for high-risk AI deployers (e.g. AgentEscrow402
+  operating under Annex III 8(a) ADR classification): ZK-proofs
+  provide Art. 12/13/14 evidence for logging, transparency and
+  human-oversight without exposing raw prompts or business secrets.
+- **GDPR** — ZK-proofs are the canonical **Art. 5(1)(c) data
+  minimisation** mechanism. Verifiers learn a statement is true
+  without seeing the underlying personal data; Merkle roots commit
+  to a set without publishing its members.
+- **US FinCEN (2019 guidance)** — CP does not transmit value.
+  It publishes hashes and proofs. Not a money transmitter under
+  31 CFR § 1010.100(ff)(5).
+- **NIST AI RMF 1.0 + GenAI Profile (July 2024)** — CP maps to
+  Govern/Map/Measure/Manage as an evidence-production layer for
+  downstream deployers. Concrete subcategory mapping is in
+  `docs/COMPLIANCE.md`.
+
+Honest gap-list is in `docs/COMPLIANCE.md` (formal legal opinion
+per commercial deployer, salting guidance for low-entropy pre-images,
+per-jurisdiction deployer runbooks).
+
 ## Anti-linking pass — this project is CasperProver
 
 CasperProver and AgentEscrow402 are **independent submissions** by
