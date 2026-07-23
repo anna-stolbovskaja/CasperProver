@@ -202,6 +202,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /proofs", s.submitProof)
 	mux.HandleFunc("POST /proofs/batch", s.batchProofs)
 	mux.HandleFunc("POST /verify", s.verifyProof)
+	mux.HandleFunc("POST /verify/batch", s.verifyBatch)
 	mux.HandleFunc("POST /proofs/{id}/revoke", s.revokeProof)
 	mux.HandleFunc("GET /proofs/{id}/export", s.exportProof)
 	mux.HandleFunc("GET /stats", s.stats)
@@ -596,6 +597,94 @@ func (s *Server) verifyProof(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// verifyBatch re-runs verifyProof's exact single-proof check (existence,
+// hash matches, commit validity, merkle-path validity) across a batch of
+// proof ids in one round trip. Order of req.ProofIDs is preserved in the
+// response so callers can zip results back to their inputs; a proof_id that
+// does not exist is reported per-item rather than failing the whole batch.
+func (s *Server) verifyBatch(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
+	var req struct {
+		Proofs []struct {
+			ProofID string `json:"proof_id"`
+			Input   string `json:"input"`
+			Output  string `json:"output"`
+			Model   string `json:"model"`
+		} `json:"proofs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if len(req.Proofs) == 0 || len(req.Proofs) > 50 {
+		s.jsonError(w, "batch size must be 1-50", http.StatusBadRequest)
+		return
+	}
+
+	results := make([]map[string]interface{}, len(req.Proofs))
+	allValid := true
+	for i, item := range req.Proofs {
+		if item.ProofID == "" {
+			results[i] = map[string]interface{}{
+				"index": i,
+				"error": "proof_id is required",
+			}
+			allValid = false
+			continue
+		}
+
+		p, ok := s.eng.Get(item.ProofID)
+		if !ok {
+			results[i] = map[string]interface{}{
+				"index":    i,
+				"proof_id": item.ProofID,
+				"error":    "proof not found",
+			}
+			allValid = false
+			continue
+		}
+
+		result := map[string]interface{}{
+			"index":    i,
+			"proof_id": item.ProofID,
+			"valid":    p.Valid,
+			"revoked":  p.Revoked,
+		}
+
+		verified := p.Valid && !p.Revoked
+		if item.Input != "" && item.Output != "" && item.Model != "" {
+			err := s.ver.VerifyProof(p, []byte(item.Input), []byte(item.Output), []byte(item.Model))
+			if err != nil {
+				result["verified"] = false
+				result["error"] = err.Error()
+				verified = false
+			} else {
+				result["verified"] = true
+			}
+			result["checks"] = map[string]bool{
+				"input_hash_match":  hasher.HexHash([]byte(item.Input)) == p.IH,
+				"output_hash_match": hasher.HexHash([]byte(item.Output)) == p.OH,
+				"model_hash_match":  hasher.HexHash([]byte(item.Model)) == p.MH,
+				"commit_valid":      hasher.VerifyCommit(p.PH, []byte(item.Input), []byte(item.Output), []byte(item.Model)),
+				"merkle_valid":      prover.VerifyPath([]byte(item.Input), p.Path, p.Root, p.Idx),
+			}
+			verified = result["verified"] == true
+		}
+
+		if !verified {
+			allValid = false
+		}
+		results[i] = result
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"results":   results,
+		"all_valid": allValid,
+		"count":     len(results),
+	})
 }
 
 func (s *Server) revokeProof(w http.ResponseWriter, r *http.Request) {
