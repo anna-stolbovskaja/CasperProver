@@ -214,6 +214,100 @@ func TestAggregationVerifyBatch_RunsThroughRealAggregator(t *testing.T) {
 // pqVerifySPHINCS/pqHybridVerify always returned valid:true regardless of
 // input - see internal/crypto's package doc for the underlying bug).
 
+func TestVerifyBatch_MixOfValidInvalidAndMissing(t *testing.T) {
+	s := newTestServer("")
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /proofs", s.submitProof)
+	mux.HandleFunc("POST /verify/batch", s.verifyBatch)
+
+	submit := func(agent, input, output, model string) string {
+		req := httptest.NewRequest(http.MethodPost, "/proofs", jsonBody(
+			`{"agent":"`+agent+`","input":"`+input+`","output":"`+output+`","model":"`+model+`"}`))
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated && rec.Code != http.StatusOK {
+			t.Fatalf("expected proof submission to succeed, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var out map[string]any
+		if err := decodeJSON(rec.Body.Bytes(), &out); err != nil {
+			t.Fatalf("decode submit response: %v", err)
+		}
+		id := asString(out["id"])
+		if id == "" {
+			id = asString(out["proof_id"])
+		}
+		if id == "" {
+			t.Fatalf("submit response had no proof id: %v", out)
+		}
+		return id
+	}
+
+	goodID := submit("agent-a", "input-a", "output-a", "model-a")
+	otherID := submit("agent-b", "input-b", "output-b", "model-b")
+
+	body := `{"proofs":[` +
+		`{"proof_id":"` + goodID + `","input":"input-a","output":"output-a","model":"model-a"},` +
+		`{"proof_id":"` + otherID + `","input":"wrong-input","output":"output-b","model":"model-b"},` +
+		`{"proof_id":"does-not-exist"}` +
+		`]}`
+	req := httptest.NewRequest(http.MethodPost, "/verify/batch", jsonBody(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 from verify/batch, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var out struct {
+		Results  []map[string]any `json:"results"`
+		AllValid bool             `json:"all_valid"`
+		Count    int              `json:"count"`
+	}
+	if err := decodeJSON(rec.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode batch response: %v", err)
+	}
+	if out.Count != 3 {
+		t.Fatalf("expected count=3, got %d", out.Count)
+	}
+	if out.AllValid {
+		t.Fatalf("expected all_valid=false given a mismatched proof and a missing proof, got results=%v", out.Results)
+	}
+	if len(out.Results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(out.Results))
+	}
+	if verified, _ := out.Results[0]["verified"].(bool); !verified {
+		t.Fatalf("expected first proof verified=true, got %v", out.Results[0])
+	}
+	if verified, _ := out.Results[1]["verified"].(bool); verified {
+		t.Fatalf("expected second proof verified=false (input hash mismatch), got %v", out.Results[1])
+	}
+	if errMsg, _ := out.Results[2]["error"].(string); errMsg != "proof not found" {
+		t.Fatalf("expected third result error=proof not found, got %v", out.Results[2])
+	}
+}
+
+func TestVerifyBatch_RejectsEmptyAndOversizedBatches(t *testing.T) {
+	s := newTestServer("")
+
+	req := httptest.NewRequest(http.MethodPost, "/verify/batch", jsonBody(`{"proofs":[]}`))
+	rec := httptest.NewRecorder()
+	s.verifyBatch(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty batch, got %d", rec.Code)
+	}
+
+	items := make([]string, 0, 51)
+	for i := 0; i < 51; i++ {
+		items = append(items, `{"proof_id":"x"}`)
+	}
+	oversized := `{"proofs":[` + strings.Join(items, ",") + `]}`
+	req = httptest.NewRequest(http.MethodPost, "/verify/batch", jsonBody(oversized))
+	rec = httptest.NewRecorder()
+	s.verifyBatch(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for batch >50, got %d", rec.Code)
+	}
+}
+
 func TestPQSignVerifySPHINCS_HTTPRoundTrip(t *testing.T) {
 	s := newTestServer("")
 	mux := http.NewServeMux()
