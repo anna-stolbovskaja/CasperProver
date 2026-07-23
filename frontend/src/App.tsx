@@ -26,6 +26,7 @@ import AgentDemo from './components/lab/AgentDemo'
 import LabPlayground from './components/lab/Playground'
 import KYC from './components/lab/KYC'
 import ZKProofs from './components/lab/ZKProofs'
+import JudgeDashboard from './components/JudgeDashboard'
 import ApiDocs from './components/docs/ApiDocs'
 import SdkDocs from './components/docs/SdkDocs'
 import McpDocs from './components/docs/McpDocs'
@@ -90,6 +91,7 @@ export default function App() {
             <Route path="playground" element={<LabPlayground />} />
             <Route path="kyc" element={<KYC />} />
           </Route>
+          <Route path="/judge" element={<JudgeDashboard />} />
           <Route path="/docs/api" element={<ApiDocs />} />
           <Route path="/docs/sdk" element={<SdkDocs />} />
           <Route path="/docs/mcp" element={<McpDocs />} />
