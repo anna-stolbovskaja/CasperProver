@@ -1,10 +1,16 @@
-.PHONY: build test lint clean contracts contracts-test sdk-test
+.PHONY: build test lint clean contracts contracts-test sdk-test bench bench-baseline
 
 build:
 	cd engine && go build -o ../bin/casperprover ./cmd/casperprover
 
 test:
 	cd engine && go test -v -race ./...
+
+bench:
+	./scripts/run_benchmarks.sh
+
+bench-baseline:
+	./scripts/run_benchmarks.sh --baseline
 
 lint:
 	cd engine && golangci-lint run
