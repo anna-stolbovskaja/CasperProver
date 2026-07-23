@@ -80,6 +80,7 @@ type ResilientQuerier struct {
 	state           circuitState
 	consecutiveFail int
 	openedAt        time.Time
+	probeInFlight   bool // true while a half-open probe call has not yet completed
 }
 
 // NewResilientQuerier builds a ResilientQuerier around an existing
@@ -114,8 +115,10 @@ func (s circuitState) String() string {
 	}
 }
 
-// stateLocked resolves an open circuit into half-open once OpenTimeout has
-// elapsed. Caller must hold q.mu.
+// stateLocked reports the current logical state, resolving an expired
+// open circuit into half-open once OpenTimeout has elapsed. It does not
+// mutate q.state; callers that need to transition into half-open must do
+// so explicitly (see allow). Caller must hold q.mu.
 func (q *ResilientQuerier) stateLocked() circuitState {
 	if q.state == circuitOpen && time.Since(q.openedAt) >= q.cb.OpenTimeout {
 		return circuitHalfOpen
@@ -126,6 +129,14 @@ func (q *ResilientQuerier) stateLocked() circuitState {
 // allow decides whether a new call may proceed, and returns whether this
 // call is a half-open probe (which, on failure, must immediately reopen
 // the circuit rather than counting toward the threshold).
+//
+// Concurrency: only ONE probe may be in-flight at a time. Additional
+// callers arriving during the half-open window while a probe is already
+// executing are rejected with ErrCircuitOpen (the caller sees
+// proceed=false, probe=false), rather than being let through as extra
+// concurrent probes. This preserves the classic circuit-breaker
+// contract: recovery is validated by a single lightweight probe, not by
+// a thundering herd against a still-flaky node.
 func (q *ResilientQuerier) allow() (proceed bool, probe bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -134,22 +145,30 @@ func (q *ResilientQuerier) allow() (proceed bool, probe bool) {
 	case circuitOpen:
 		return false, false
 	case circuitHalfOpen:
-		// Promote bookkeeping state to half-open so a concurrent caller
-		// doesn't also think it's the probe; only one probe at a time.
-		if q.state == circuitOpen {
-			q.state = circuitHalfOpen
+		// If another probe is already in flight, reject this caller: we
+		// don't want N goroutines all treating themselves as "the" probe
+		// and hammering the recovering node.
+		if q.probeInFlight {
+			return false, false
 		}
+		// Promote bookkeeping state to half-open and claim the probe
+		// slot; subsequent concurrent callers will hit the guard above.
+		q.state = circuitHalfOpen
+		q.probeInFlight = true
 		return true, true
 	default:
 		return true, false
 	}
 }
 
-func (q *ResilientQuerier) onSuccess() {
+func (q *ResilientQuerier) onSuccess(probe bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.consecutiveFail = 0
 	q.state = circuitClosed
+	if probe {
+		q.probeInFlight = false
+	}
 }
 
 func (q *ResilientQuerier) onFailure(probe bool) {
@@ -157,9 +176,11 @@ func (q *ResilientQuerier) onFailure(probe bool) {
 	defer q.mu.Unlock()
 
 	if probe {
-		// Half-open probe failed: reopen immediately, reset the timer.
+		// Half-open probe failed: reopen immediately, reset the timer,
+		// release the probe slot so the next window can probe again.
 		q.state = circuitOpen
 		q.openedAt = time.Now()
+		q.probeInFlight = false
 		return
 	}
 
@@ -206,7 +227,7 @@ func (q *ResilientQuerier) QueryGlobalState(ctx context.Context, key string, pat
 
 		res, err := q.client.QueryLatestGlobalState(ctx, key, path)
 		if err == nil {
-			q.onSuccess()
+			q.onSuccess(probe)
 			return res, nil
 		}
 
