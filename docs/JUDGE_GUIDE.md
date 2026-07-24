@@ -29,6 +29,7 @@ The key is never embedded in the script, URL, repository, or shell history examp
 | 7 | Open `/lab/proofs`, create and verify a proof | Deterministic hash/Merkle record; optional wallet anchoring | **ENGINE; ON-CHAIN ONLY WHEN TX HASH EXISTS** |
 | 8 | Open `/lab/playground` | Every API operation shows request/response and errors | **DEVELOPER UX** |
 | 9 | Run `./verify.sh` | Existing independent smoke suite passes | **REGRESSION EVIDENCE** |
+| 10 | `pip install -e sdk/python && CP_BASE_URL=https://casperprover-api-ylsh.onrender.com cprover health && cprover proofs list` | CLI returns JSON from the live API | **DEVELOPER UX / CLI** |
 
 ## 3. Claim boundary
 
