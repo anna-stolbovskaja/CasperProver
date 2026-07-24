@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,8 +59,9 @@ type Server struct {
 	log       *slog.Logger
 	start     time.Time
 	apiKey    string
-	adminKey  string // separate admin secret for privileged routes (KYC grant, model registration, aggregation finalize)
-	strict    bool // fail closed for requested on-chain operations
+	adminKey  string      // separate admin secret for privileged routes (KYC grant, model registration, aggregation finalize)
+	keys      apiKeyStore // optional in-memory apiKeyStore for tests; nil in production (falls through to s.db)
+	strict    bool        // fail closed for requested on-chain operations
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
@@ -249,24 +251,37 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.HandleFunc("GET /aggregation/verify-batch/{id}", s.aggregationVerifyBatch)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 
-	// --- Public writes (X-API-Key when API_KEY is set) ---
-	mux.Handle("POST /proofs", s.writeAuth(http.HandlerFunc(s.submitProof)))
-	mux.Handle("POST /proofs/batch", s.writeAuth(http.HandlerFunc(s.batchProofs)))
-	mux.Handle("POST /verify", s.writeAuth(http.HandlerFunc(s.verifyProof)))
-	mux.Handle("POST /proofs/{id}/revoke", s.writeAuth(http.HandlerFunc(s.revokeProof)))
-	mux.Handle("POST /kyc/check", s.writeAuth(http.HandlerFunc(s.kycCheck)))
-	mux.Handle("POST /inference/prove", s.writeAuth(http.HandlerFunc(s.inferenceProve)))
-	mux.Handle("POST /inference/verify", s.writeAuth(http.HandlerFunc(s.inferenceVerify)))
-	mux.Handle("POST /zk/verify-groth16", s.writeAuth(http.HandlerFunc(s.zkVerifyGroth16)))
-	mux.Handle("POST /zk/batch-verify", s.writeAuth(http.HandlerFunc(s.zkBatchVerify)))
-	mux.Handle("POST /zk/groth16-real/prove", s.writeAuth(http.HandlerFunc(s.zkGroth16RealProve)))
-	mux.Handle("POST /zk/groth16-real/verify", s.writeAuth(http.HandlerFunc(s.zkGroth16RealVerify)))
-	mux.Handle("POST /zk/challenge", s.writeAuth(http.HandlerFunc(s.zkChallenge)))
-	mux.Handle("POST /proof-chain/validate", s.writeAuth(http.HandlerFunc(s.proofChainValidate)))
-	mux.Handle("POST /pq/sign-sphincs", s.writeAuth(http.HandlerFunc(s.pqSignSPHINCS)))
-	mux.Handle("POST /pq/verify-sphincs", s.writeAuth(http.HandlerFunc(s.pqVerifySPHINCS)))
-	mux.Handle("POST /pq/hybrid-sign", s.writeAuth(http.HandlerFunc(s.pqHybridSign)))
-	mux.Handle("POST /pq/hybrid-verify", s.writeAuth(http.HandlerFunc(s.pqHybridVerify)))
+	// --- Public writes (X-API-Key when API_KEY is set, OR sk_live_ per-wallet key) ---
+	//
+	// Scope allowlist per route:
+	//   - submit: full write surface (proofs, verify, ZK/PQ, inference)
+	//   - verify_only: /verify + all /zk/*verify* + all /pq/*verify*
+	//   - admin_readonly: /kyc/check (a diagnostic read-write endpoint
+	//     that only inspects the whitelist, does not mutate it)
+	//
+	// Shared API_KEY bypasses scope enforcement (super-scope). See
+	// writeAuth + requireScope in this file for the mechanism.
+	submitOnly := []string{ScopeSubmit}
+	verifyOrSubmit := []string{ScopeSubmit, ScopeVerifyOnly}
+	adminReadOrSubmit := []string{ScopeSubmit, ScopeAdminReadonly}
+
+	mux.Handle("POST /proofs", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.submitProof))))
+	mux.Handle("POST /proofs/batch", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.batchProofs))))
+	mux.Handle("POST /verify", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.verifyProof))))
+	mux.Handle("POST /proofs/{id}/revoke", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.revokeProof))))
+	mux.Handle("POST /kyc/check", s.writeAuth(s.requireScope(adminReadOrSubmit, http.HandlerFunc(s.kycCheck))))
+	mux.Handle("POST /inference/prove", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.inferenceProve))))
+	mux.Handle("POST /inference/verify", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.inferenceVerify))))
+	mux.Handle("POST /zk/verify-groth16", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.zkVerifyGroth16))))
+	mux.Handle("POST /zk/batch-verify", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.zkBatchVerify))))
+	mux.Handle("POST /zk/groth16-real/prove", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.zkGroth16RealProve))))
+	mux.Handle("POST /zk/groth16-real/verify", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.zkGroth16RealVerify))))
+	mux.Handle("POST /zk/challenge", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.zkChallenge))))
+	mux.Handle("POST /proof-chain/validate", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.proofChainValidate))))
+	mux.Handle("POST /pq/sign-sphincs", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.pqSignSPHINCS))))
+	mux.Handle("POST /pq/verify-sphincs", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.pqVerifySPHINCS))))
+	mux.Handle("POST /pq/hybrid-sign", s.writeAuth(s.requireScope(submitOnly, http.HandlerFunc(s.pqHybridSign))))
+	mux.Handle("POST /pq/hybrid-verify", s.writeAuth(s.requireScope(verifyOrSubmit, http.HandlerFunc(s.pqHybridVerify))))
 
 	// --- Admin writes (X-Admin-API-Key when ADMIN_API_KEY is set) ---
 	// These mutate operator state and MUST NOT accept the public API key.
@@ -275,6 +290,11 @@ func (s *Server) buildMux() *http.ServeMux {
 	mux.Handle("POST /aggregation/create-batch", s.adminAuth(http.HandlerFunc(s.aggregationCreateBatch)))
 	mux.Handle("POST /aggregation/add-proof", s.adminAuth(http.HandlerFunc(s.aggregationAddProof)))
 	mux.Handle("POST /aggregation/finalize", s.adminAuth(http.HandlerFunc(s.aggregationFinalize)))
+
+	// Per-wallet key lifecycle (admin-gated; signature enforced inside handlers).
+	mux.Handle("POST /admin/keys/challenge", s.adminAuth(http.HandlerFunc(s.adminIssueChallenge)))
+	mux.Handle("POST /admin/keys/issue", s.adminAuth(http.HandlerFunc(s.adminIssueKey)))
+	mux.Handle("POST /admin/keys/revoke", s.adminAuth(http.HandlerFunc(s.adminRevokeKey)))
 
 	return mux
 }
@@ -341,22 +361,34 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 // writeAuth gates public write endpoints on X-API-Key.
 //
-// When API_KEY is unset, requests pass through (local-dev default,
-// documented in KNOWN_LIMITATIONS.md). When API_KEY is set:
-//   - missing X-API-Key         → 401 (not authenticated)
-//   - present but wrong X-API-Key → 403 (authenticated but rejected)
+// The header accepts two credential shapes:
 //
-// The 401 vs 403 split matches RFC 7235 semantics and lets clients tell
-// "I forgot the header" apart from "my key is wrong / revoked". Comparison
-// is constant-time to avoid trivial timing side channels on the shared
-// secret.
+//  1. The shared API_KEY (raw string). This is the legacy tenant secret
+//     and the operator escape hatch; treated as if it holds every scope.
+//  2. A per-wallet key issued by POST /admin/keys/issue: format
+//     `sk_live_<64 hex>`. Verified by sha256 lookup against the
+//     api_keys table (via s.keyStore()). Must be non-revoked. The
+//     issued row's scope is stashed in the request context so
+//     downstream requireScope() can check it.
 //
-// PR-4 will extend writeAuth to accept per-wallet keys (sk_live_...) with
-// a signed wallet challenge on issuance and a scope allowlist; the shared
-// API_KEY path stays as an operator escape hatch.
+// Rules:
+//   - both API_KEY and ADMIN_API_KEY unset AND no key store → pass
+//     through (local-dev default, called out in the startup log).
+//   - missing X-API-Key on a configured server → 401 (unauthenticated).
+//   - present but neither matches nor lookups OK → 403 (rejected).
+//   - present, looks like sk_live_ but revoked / unknown → 403.
+//
+// Constant-time compare on the shared secret path (crypto/subtle);
+// the sk_live_ path is a DB lookup on the sha256 digest, which is
+// itself constant-time-ish because comparison happens on fixed-length
+// hex.
+//
+// The 401 vs 403 split follows RFC 7235 so clients can tell "I forgot
+// the header" apart from "my key is stale / revoked".
 func (s *Server) writeAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.apiKey == "" {
+		// Fully unauthenticated posture (no shared secret, no key store).
+		if s.apiKey == "" && s.keyStore() == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -365,11 +397,61 @@ func (s *Server) writeAuth(next http.Handler) http.Handler {
 			s.jsonError(w, "missing X-API-Key", http.StatusUnauthorized)
 			return
 		}
-		if subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
-			s.jsonError(w, "invalid X-API-Key", http.StatusForbidden)
+
+		// 1) Shared API_KEY match → treated as full-scope. Constant-time.
+		if s.apiKey != "" && subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) == 1 {
+			next.ServeHTTP(w, r.WithContext(withKeyScope(r.Context(), sharedKeyScope)))
 			return
 		}
-		next.ServeHTTP(w, r)
+
+		// 2) Per-wallet sk_live_ path. Only try when the shape matches;
+		// otherwise fall through to 403 rather than doing a DB lookup on
+		// arbitrary strings.
+		if s.keyStore() != nil && strings.HasPrefix(got, apiKeyPrefix) {
+			rec, err := s.lookupAPIKey(r.Context(), hashAPIKey(got))
+			if err == nil && rec != nil && !rec.Revoked {
+				next.ServeHTTP(w, r.WithContext(withKeyScope(r.Context(), rec.Scope)))
+				return
+			}
+			// Fall through to 403.
+		}
+
+		s.jsonError(w, "invalid X-API-Key", http.StatusForbidden)
+	})
+}
+
+// requireScope wraps a handler so it only runs if the presented key
+// carries an allowed scope. The scope is set by writeAuth on the
+// request context.
+//
+// The shared API_KEY (sharedKeyScope) is treated as a super-scope and
+// satisfies every requireScope check — that's the operator escape
+// hatch. Tenant per-wallet keys must carry exactly one of the
+// caller-provided scopes.
+//
+// Route wiring in buildMux() decides which scope satisfies which
+// route; e.g. POST /verify accepts {ScopeSubmit, ScopeVerifyOnly},
+// POST /proofs only ScopeSubmit.
+func (s *Server) requireScope(allowed []string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		scope := keyScopeFromContext(r.Context())
+		if scope == sharedKeyScope {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if scope == "" {
+			// writeAuth passed us through (e.g. unauthenticated dev mode).
+			// Enforce nothing; treat as previous behaviour.
+			next.ServeHTTP(w, r)
+			return
+		}
+		for _, a := range allowed {
+			if a == scope {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		s.jsonError(w, "key scope "+scope+" not permitted for this route", http.StatusForbidden)
 	})
 }
 
