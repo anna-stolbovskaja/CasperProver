@@ -7,10 +7,13 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/make-software/casper-go-sdk/v2/casper"
@@ -26,14 +29,45 @@ import (
 const (
 	defaultTTL       = 30 * time.Minute
 	defaultGasAmount = 3_000_000_000 // 3 CSPR
+
+	// Retry defaults for transient RPC failures (network timeouts, 5xx,
+	// connection resets). Values chosen for interactive-latency submits:
+	// at most 3 attempts with 200ms/400ms backoff between attempts, so
+	// worst case adds ~600ms before surfacing a terminal error.
+	defaultMaxAttempts    = 3
+	defaultInitialBackoff = 200 * time.Millisecond
+	defaultBackoffFactor  = 2.0
 )
+
+// txSubmitter is the subset of the casper-go-sdk rpc.Client surface the
+// submitter depends on. Extracting an interface lets unit tests inject
+// a mock RPC that returns programmed errors / successes / lookup results
+// without hitting a real Casper node.
+//
+// The retry loop needs BOTH:
+//   - PutTransactionV1: send the signed transaction
+//   - GetTransactionByTransactionHash: look up whether an ambiguous
+//     transient failure actually made it on-chain (idempotency check)
+type txSubmitter interface {
+	PutTransactionV1(ctx context.Context, tx types.TransactionV1) (rpc.PutTransactionResult, error)
+	GetTransactionByTransactionHash(ctx context.Context, transactionHash string) (rpc.InfoGetTransactionResult, error)
+}
+
+// retryConfig controls how putWithIdempotentRetry escalates a transient
+// failure into a retry, and how many attempts it makes.
+type retryConfig struct {
+	maxAttempts    int
+	initialBackoff time.Duration
+	backoffFactor  float64
+}
 
 // CasperSubmitter signs and submits TransactionV1 calls to on-chain
 // CasperProver contracts via the casper-go-sdk RPC client.
 type CasperSubmitter struct {
 	chain  string
 	keys   keypair.PrivateKey
-	client rpc.Client
+	client txSubmitter
+	retry  retryConfig
 }
 
 // New creates a CasperSubmitter. keyPath must point to a PEM file
@@ -61,7 +95,84 @@ func New(nodeURL, chain, keyPath string) *CasperSubmitter {
 		chain:  chain,
 		keys:   keys,
 		client: rpcClient,
+		retry: retryConfig{
+			maxAttempts:    defaultMaxAttempts,
+			initialBackoff: defaultInitialBackoff,
+			backoffFactor:  defaultBackoffFactor,
+		},
 	}
+}
+
+// isRetryableRPCError returns true for errors that indicate a transient
+// failure of the deploy-submission RPC call and are worth an idempotency
+// re-check + retry:
+//   - context.DeadlineExceeded / net.Error with Timeout==true
+//   - connection resets / EOF / broken pipe / "connection refused"
+//   - HTTP 5xx responses (surfaced by the SDK as textual errors)
+//
+// Terminal errors (bad payload, signing failure, 4xx from the node,
+// invalid arguments) are NOT retried — retrying them would just waste
+// a slot and delay the real error reaching the caller.
+func isRetryableRPCError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	transientMarkers := []string{
+		"connection reset",
+		"connection refused",
+		"broken pipe",
+		"eof",
+		"i/o timeout",
+		"timeout",
+		"temporarily unavailable",
+		"service unavailable",    // 503
+		"bad gateway",            // 502
+		"gateway timeout",        // 504
+		"internal server error",  // 500
+		"status 5",               // catch-all for "HTTP status 5xx" style formatting
+	}
+	for _, m := range transientMarkers {
+		if strings.Contains(msg, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// isNotFoundError returns true when a GetTransactionByTransactionHash
+// lookup indicates the transaction hasn't reached the node yet. The RPC
+// error surface for "not found" varies across node versions, so we match
+// the common substrings. A negative match here is safe: we simply keep
+// retrying, and if the tx really is on-chain a subsequent lookup will
+// confirm it.
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	notFoundMarkers := []string{
+		"not found",
+		"unknown transaction",
+		"transaction not found",
+		"no such transaction",
+		"failed to get transaction",
+		"-32601", // method not found — some pre-Condor nodes; treat as "no info"
+		"-32603", // internal — often "not present"
+	}
+	for _, m := range notFoundMarkers {
+		if strings.Contains(msg, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // putTransaction builds, signs, and submits a TransactionV1 that calls
@@ -112,14 +223,181 @@ func (s *CasperSubmitter) putTransaction(contractHash, entryPoint string, args *
 		return "", fmt.Errorf("sign transaction: %w", err)
 	}
 
-	res, err := s.client.PutTransactionV1(context.Background(), *tx)
+	// The transaction hash is deterministic and known BEFORE any RPC call —
+	// this is exactly what makes idempotent retry possible: on a transient
+	// failure we can ask the node "did you already accept tx X?" instead of
+	// blindly re-submitting.
+	txHash := tx.Hash.ToHex()
+
+	res, err := s.putWithIdempotentRetry(context.Background(), *tx, txHash, entryPoint)
 	if err != nil {
 		return "", fmt.Errorf("put transaction: %w", err)
 	}
 
-	txHash := res.TransactionHash.TransactionV1.ToHex()
-	slog.Info("transaction submitted", "hash", txHash, "entry_point", entryPoint)
-	return txHash, nil
+	returnedHash := res.TransactionHash.TransactionV1.ToHex()
+	if returnedHash != txHash {
+		// Should never happen if the SDK is well-behaved, but log if it
+		// does — the caller trusts the returned hash and this would be a
+		// silent identity mismatch.
+		slog.Warn("submitter hash mismatch after successful submit",
+			"expected", txHash, "returned", returnedHash, "entry_point", entryPoint)
+	}
+	slog.Info("transaction submitted", "hash", returnedHash, "entry_point", entryPoint)
+	return returnedHash, nil
+}
+
+// putWithIdempotentRetry calls PutTransactionV1 with exponential-backoff
+// retries on transient RPC errors. Before every retry (and after the
+// final attempt), it uses GetTransactionByTransactionHash to check
+// whether the transaction actually made it on-chain despite the transient
+// error — this is the *idempotency* guarantee: an ambiguous 5xx / socket
+// reset that actually landed the tx is recognized as a success instead of
+// being blindly re-submitted with the same nonce.
+//
+// The lookup uses the LOCALLY-COMPUTED tx hash (from the signed payload)
+// so it is deterministic and doesn't depend on the flaky put response.
+//
+// On success returns a PutTransactionResult with the confirmed hash so
+// callers can log a single value. On terminal (non-retryable) errors
+// returns the raw error immediately without further retries.
+func (s *CasperSubmitter) putWithIdempotentRetry(
+	ctx context.Context,
+	tx types.TransactionV1,
+	txHash string,
+	entryPoint string,
+) (rpc.PutTransactionResult, error) {
+	maxAttempts := s.retry.maxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = defaultMaxAttempts
+	}
+	backoff := s.retry.initialBackoff
+	if backoff <= 0 {
+		backoff = defaultInitialBackoff
+	}
+	factor := s.retry.backoffFactor
+	if factor <= 0 {
+		factor = defaultBackoffFactor
+	}
+
+	var lastErr error
+	var zero rpc.PutTransactionResult
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		res, err := s.client.PutTransactionV1(ctx, tx)
+		if err == nil {
+			if attempt > 1 {
+				slog.Info("deploy submission succeeded after retry",
+					"attempt", attempt,
+					"tx_hash", txHash,
+					"entry_point", entryPoint)
+			}
+			return res, nil
+		}
+		lastErr = err
+
+		if !isRetryableRPCError(err) {
+			slog.Warn("deploy submission failed with non-retryable error",
+				"attempt", attempt,
+				"tx_hash", txHash,
+				"entry_point", entryPoint,
+				"err", err)
+			return zero, err
+		}
+
+		// Transient failure — before we retry (which would risk double-
+		// submitting the same nonce), ask the node whether the transaction
+		// actually landed despite the error.
+		if landed, lookupErr := s.checkTxLanded(ctx, txHash); landed {
+			slog.Info("deploy submission recovered via idempotency lookup",
+				"attempt", attempt,
+				"tx_hash", txHash,
+				"entry_point", entryPoint,
+				"put_err", err)
+			return synthesizePutResult(txHash), nil
+		} else if lookupErr != nil && !isNotFoundError(lookupErr) {
+			// The lookup itself is broken (RPC down entirely). We can't
+			// distinguish landed-vs-not, so we do NOT retry — retrying now
+			// could double-spend if the tx was actually accepted.
+			slog.Error("idempotency lookup failed; refusing to retry to avoid double-submit",
+				"attempt", attempt,
+				"tx_hash", txHash,
+				"entry_point", entryPoint,
+				"put_err", err,
+				"lookup_err", lookupErr)
+			return zero, fmt.Errorf(
+				"idempotency lookup failed after transient put error (%v); refusing to retry: %w",
+				err, lookupErr,
+			)
+		}
+
+		if attempt == maxAttempts {
+			break
+		}
+
+		slog.Warn("deploy submission transient failure, retrying after idempotency check",
+			"attempt", attempt,
+			"tx_hash", txHash,
+			"next_backoff", backoff,
+			"entry_point", entryPoint,
+			"err", err)
+
+		select {
+		case <-time.After(backoff):
+		case <-ctx.Done():
+			return zero, ctx.Err()
+		}
+		backoff = time.Duration(float64(backoff) * factor)
+	}
+
+	// Exhausted attempts. One final idempotency check: maybe the very last
+	// attempt actually landed and only the response was lost.
+	if landed, lookupErr := s.checkTxLanded(ctx, txHash); landed {
+		slog.Info("deploy submission landed on final-attempt idempotency check",
+			"tx_hash", txHash, "entry_point", entryPoint, "last_err", lastErr)
+		return synthesizePutResult(txHash), nil
+	} else if lookupErr != nil && !isNotFoundError(lookupErr) {
+		return zero, fmt.Errorf(
+			"exhausted %d attempts (last err %v); final idempotency lookup also failed: %w",
+			maxAttempts, lastErr, lookupErr,
+		)
+	}
+
+	return zero, fmt.Errorf("exhausted %d attempts: %w", maxAttempts, lastErr)
+}
+
+// checkTxLanded consults the node about the tx hash. Returns (true, nil)
+// when the transaction is present in any form, (false, nil) when the
+// node clearly doesn't have it yet, or (false, err) when the lookup
+// itself failed for an unrelated reason.
+func (s *CasperSubmitter) checkTxLanded(ctx context.Context, txHash string) (bool, error) {
+	// Bound the lookup so a slow node can't wedge the retry loop for
+	// longer than the submit path itself was willing to wait.
+	lookupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	_, err := s.client.GetTransactionByTransactionHash(lookupCtx, txHash)
+	if err == nil {
+		return true, nil
+	}
+	if isNotFoundError(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+// synthesizePutResult builds the minimum-viable rpc.PutTransactionResult
+// callers depend on when we've confirmed success via idempotency lookup
+// (the original PutTransactionV1 response was lost / errored). Only the
+// TransactionHash.TransactionV1 field is consumed by putTransaction.
+func synthesizePutResult(txHash string) rpc.PutTransactionResult {
+	h, err := key.NewHash(txHash)
+	if err != nil {
+		// Should be unreachable — txHash came from tx.Hash.ToHex() upstream.
+		slog.Error("synthesizePutResult: bad hex from local tx hash", "hash", txHash, "err", err)
+		return rpc.PutTransactionResult{}
+	}
+	return rpc.PutTransactionResult{
+		TransactionHash: types.TransactionHash{TransactionV1: &h},
+	}
 }
 
 // Submit anchors a proof to the on-chain proof_registry contract.
