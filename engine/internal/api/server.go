@@ -58,6 +58,7 @@ type Server struct {
 	log       *slog.Logger
 	start     time.Time
 	apiKey    string
+	adminKey  string // separate admin secret for privileged routes (KYC grant, model registration, aggregation finalize)
 	strict    bool // fail closed for requested on-chain operations
 
 	aggMu      sync.Mutex
@@ -127,9 +128,15 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	strict := os.Getenv("CP_STRICT") == "1"
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
-		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
+		slog.Warn("API_KEY not set - public write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
 	} else {
-		slog.Info("API_KEY configured - write endpoints require X-API-Key header")
+		slog.Info("API_KEY configured - public write endpoints require X-API-Key header")
+	}
+	adminKey := os.Getenv("ADMIN_API_KEY")
+	if adminKey == "" {
+		slog.Warn("ADMIN_API_KEY not set - admin endpoints (kyc/*, inference/register-model, aggregation/*) are unauthenticated (fine for local dev/demo, not for a real deployment)")
+	} else {
+		slog.Info("ADMIN_API_KEY configured - admin endpoints require X-Admin-API-Key header")
 	}
 
 	demoKYC := kyc.NewDemo(eng)
@@ -156,10 +163,11 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		realZK:    realZK,
 		contracts: contracts,
 		port:      port,
-		log:    slog.Default(),
-		start:  time.Now(),
-		apiKey: apiKey,
-		strict: strict,
+		log:      slog.Default(),
+		start:    time.Now(),
+		apiKey:   apiKey,
+		adminKey: adminKey,
+		strict:   strict,
 
 		aggBatches: make(map[string]*aggBatch),
 	}
@@ -194,57 +202,81 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 }
 
 func (s *Server) Start() error {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /health", s.health)
-	mux.HandleFunc("GET /proofs", s.listProofs)
-	mux.HandleFunc("GET /proofs/{id}", s.getProof)
-	mux.HandleFunc("POST /proofs", s.submitProof)
-	mux.HandleFunc("POST /proofs/batch", s.batchProofs)
-	mux.HandleFunc("POST /verify", s.verifyProof)
-	mux.HandleFunc("POST /proofs/{id}/revoke", s.revokeProof)
-	mux.HandleFunc("GET /proofs/{id}/export", s.exportProof)
-	mux.HandleFunc("GET /stats", s.stats)
-	mux.HandleFunc("POST /kyc/check", s.kycCheck)
-	mux.HandleFunc("POST /kyc/grant", s.kycGrant)
-	mux.HandleFunc("GET /kyc/whitelist/{user}", s.kycWhitelist)
-
-	// Inference routes
-	mux.HandleFunc("POST /inference/prove", s.inferenceProve)
-	mux.HandleFunc("POST /inference/verify", s.inferenceVerify)
-	mux.HandleFunc("POST /inference/register-model", s.inferenceRegisterModel)
-	mux.HandleFunc("GET /inference/model/{id}", s.inferenceGetModel)
-	// Aggregation routes
-	mux.HandleFunc("POST /aggregation/create-batch", s.aggregationCreateBatch)
-	mux.HandleFunc("POST /aggregation/add-proof", s.aggregationAddProof)
-	mux.HandleFunc("POST /aggregation/finalize", s.aggregationFinalize)
-	mux.HandleFunc("GET /aggregation/batch/{id}", s.aggregationGetBatch)
-	mux.HandleFunc("GET /aggregation/verify-batch/{id}", s.aggregationVerifyBatch)
-	// ZK Verification routes
-	mux.HandleFunc("POST /zk/verify-groth16", s.zkVerifyGroth16)
-	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)
-	mux.HandleFunc("POST /zk/groth16-real/prove", s.zkGroth16RealProve)
-	mux.HandleFunc("POST /zk/groth16-real/verify", s.zkGroth16RealVerify)
-	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
-	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
-	// Phase 2: proof chains (DAG validation)
-	mux.HandleFunc("POST /proof-chain/validate", s.proofChainValidate)
-	// Post-quantum routes
-	mux.HandleFunc("POST /pq/sign-sphincs", s.pqSignSPHINCS)
-	mux.HandleFunc("POST /pq/verify-sphincs", s.pqVerifySPHINCS)
-	mux.HandleFunc("POST /pq/hybrid-sign", s.pqHybridSign)
-	mux.HandleFunc("POST /pq/hybrid-verify", s.pqHybridVerify)
+	mux := s.buildMux()
 
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.authMiddleware(s.logMiddleware(mux)))),
+		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.logMiddleware(mux))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 	s.log.Info("api starting", "addr", addr)
 	return srv.ListenAndServe()
+}
+
+// buildMux constructs the route table and per-route auth wrapping.
+//
+// Routes are split into three explicit tiers so callers see exactly which
+// endpoints require which credential:
+//
+//   - public GET/HEAD/OPTIONS: no auth (health, listing, exports, stats).
+//   - public writes: writeAuth() (X-API-Key when API_KEY is set); this is
+//     the tenant/user-facing surface (submit a proof, verify, revoke your
+//     own proof, ZK/PQ helpers). PR-4 will layer per-wallet keys on top
+//     of this same middleware.
+//   - admin writes: adminAuth() (X-Admin-API-Key when ADMIN_API_KEY is
+//     set) - operator-only endpoints that mutate whitelist / model
+//     registry / aggregation batches. Never fall back to the shared
+//     public API_KEY: an admin operation MUST fail closed if only the
+//     public key is presented.
+//
+// Extracted from Start() so authorized_test.go can exercise the fully
+// wired handler chain without opening a socket.
+func (s *Server) buildMux() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	// --- Public GET/HEAD (no auth) ---
+	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /proofs", s.listProofs)
+	mux.HandleFunc("GET /proofs/{id}", s.getProof)
+	mux.HandleFunc("GET /proofs/{id}/export", s.exportProof)
+	mux.HandleFunc("GET /stats", s.stats)
+	mux.HandleFunc("GET /kyc/whitelist/{user}", s.kycWhitelist)
+	mux.HandleFunc("GET /inference/model/{id}", s.inferenceGetModel)
+	mux.HandleFunc("GET /aggregation/batch/{id}", s.aggregationGetBatch)
+	mux.HandleFunc("GET /aggregation/verify-batch/{id}", s.aggregationVerifyBatch)
+	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
+
+	// --- Public writes (X-API-Key when API_KEY is set) ---
+	mux.Handle("POST /proofs", s.writeAuth(http.HandlerFunc(s.submitProof)))
+	mux.Handle("POST /proofs/batch", s.writeAuth(http.HandlerFunc(s.batchProofs)))
+	mux.Handle("POST /verify", s.writeAuth(http.HandlerFunc(s.verifyProof)))
+	mux.Handle("POST /proofs/{id}/revoke", s.writeAuth(http.HandlerFunc(s.revokeProof)))
+	mux.Handle("POST /kyc/check", s.writeAuth(http.HandlerFunc(s.kycCheck)))
+	mux.Handle("POST /inference/prove", s.writeAuth(http.HandlerFunc(s.inferenceProve)))
+	mux.Handle("POST /inference/verify", s.writeAuth(http.HandlerFunc(s.inferenceVerify)))
+	mux.Handle("POST /zk/verify-groth16", s.writeAuth(http.HandlerFunc(s.zkVerifyGroth16)))
+	mux.Handle("POST /zk/batch-verify", s.writeAuth(http.HandlerFunc(s.zkBatchVerify)))
+	mux.Handle("POST /zk/groth16-real/prove", s.writeAuth(http.HandlerFunc(s.zkGroth16RealProve)))
+	mux.Handle("POST /zk/groth16-real/verify", s.writeAuth(http.HandlerFunc(s.zkGroth16RealVerify)))
+	mux.Handle("POST /zk/challenge", s.writeAuth(http.HandlerFunc(s.zkChallenge)))
+	mux.Handle("POST /proof-chain/validate", s.writeAuth(http.HandlerFunc(s.proofChainValidate)))
+	mux.Handle("POST /pq/sign-sphincs", s.writeAuth(http.HandlerFunc(s.pqSignSPHINCS)))
+	mux.Handle("POST /pq/verify-sphincs", s.writeAuth(http.HandlerFunc(s.pqVerifySPHINCS)))
+	mux.Handle("POST /pq/hybrid-sign", s.writeAuth(http.HandlerFunc(s.pqHybridSign)))
+	mux.Handle("POST /pq/hybrid-verify", s.writeAuth(http.HandlerFunc(s.pqHybridVerify)))
+
+	// --- Admin writes (X-Admin-API-Key when ADMIN_API_KEY is set) ---
+	// These mutate operator state and MUST NOT accept the public API key.
+	mux.Handle("POST /kyc/grant", s.adminAuth(http.HandlerFunc(s.kycGrant)))
+	mux.Handle("POST /inference/register-model", s.adminAuth(http.HandlerFunc(s.inferenceRegisterModel)))
+	mux.Handle("POST /aggregation/create-batch", s.adminAuth(http.HandlerFunc(s.aggregationCreateBatch)))
+	mux.Handle("POST /aggregation/add-proof", s.adminAuth(http.HandlerFunc(s.aggregationAddProof)))
+	mux.Handle("POST /aggregation/finalize", s.adminAuth(http.HandlerFunc(s.aggregationFinalize)))
+
+	return mux
 }
 
 // rateLimiter tracks per-IP request counts (60 req/min).
@@ -289,26 +321,82 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// authMiddleware requires a matching X-API-Key header on every mutating
-// request (anything other than GET/HEAD/OPTIONS) once API_KEY is configured.
-// Read-only endpoints (health, listing proofs, checking whitelist status,
-// etc.) stay public - this is a demo/hackathon API, not a multi-tenant
-// product, so a single shared secret is intentionally simple rather than
-// per-agent keys/JWTs. If API_KEY is unset, every request is allowed through
-// (documented in KNOWN_LIMITATIONS.md as the local-dev/demo default).
+// authMiddleware is the legacy global write-key gate. Kept as a thin
+// wrapper over writeAuth so tests that construct it directly still work;
+// the live router in buildMux() wires writeAuth / adminAuth per route
+// instead of wrapping the whole mux.
+//
+// Retained rather than deleted because external callers and existing tests
+// reference it by name; deleting it in the same PR that introduces the
+// split would conflate two concerns.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+			next.ServeHTTP(w, r)
+			return
+		}
+		s.writeAuth(next).ServeHTTP(w, r)
+	})
+}
+
+// writeAuth gates public write endpoints on X-API-Key.
+//
+// When API_KEY is unset, requests pass through (local-dev default,
+// documented in KNOWN_LIMITATIONS.md). When API_KEY is set:
+//   - missing X-API-Key         → 401 (not authenticated)
+//   - present but wrong X-API-Key → 403 (authenticated but rejected)
+//
+// The 401 vs 403 split matches RFC 7235 semantics and lets clients tell
+// "I forgot the header" apart from "my key is wrong / revoked". Comparison
+// is constant-time to avoid trivial timing side channels on the shared
+// secret.
+//
+// PR-4 will extend writeAuth to accept per-wallet keys (sk_live_...) with
+// a signed wallet challenge on issuance and a scope allowlist; the shared
+// API_KEY path stays as an operator escape hatch.
+func (s *Server) writeAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.apiKey == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		got := r.Header.Get("X-API-Key")
+		if got == "" {
+			s.jsonError(w, "missing X-API-Key", http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
+			s.jsonError(w, "invalid X-API-Key", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// adminAuth gates admin-only endpoints on X-Admin-API-Key.
+//
+// Admin endpoints (KYC grant, model registration, aggregation batches)
+// mutate operator state and MUST fail closed if only the public API_KEY
+// is presented - accepting the shared public key here would silently
+// promote every tenant to operator. The admin key is deliberately a
+// separate secret; do not fall back to s.apiKey.
+//
+// When ADMIN_API_KEY is unset, requests pass through (local-dev default,
+// same posture as API_KEY). Same 401/403 split and constant-time compare
+// as writeAuth.
+func (s *Server) adminAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.adminKey == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		got := r.Header.Get("X-API-Key")
-		if got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(s.apiKey)) != 1 {
-			s.jsonError(w, "missing or invalid X-API-Key", http.StatusUnauthorized)
+		got := r.Header.Get("X-Admin-API-Key")
+		if got == "" {
+			s.jsonError(w, "missing X-Admin-API-Key", http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(got), []byte(s.adminKey)) != 1 {
+			s.jsonError(w, "invalid X-Admin-API-Key", http.StatusForbidden)
 			return
 		}
 		next.ServeHTTP(w, r)
