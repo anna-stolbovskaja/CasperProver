@@ -10,6 +10,7 @@ import {
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
+import TrustStatus from '../TrustStatus';
 
 const Modal: React.FC<{
   isOpen: boolean;
@@ -177,7 +178,7 @@ const ZKProofs: React.FC = () => {
               <KeyRound size={20} className="text-red-500" />
               Groth16 Real Prove (BN254)
             </h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-red-600/20 text-red-300 border border-red-500/40">REAL CRYPTO · OFF-CHAIN</span>
+            <TrustStatus kind="real-cryptography" />
           </div>
           <p className="text-gray-400 text-sm mb-4">
             Generate a real BN254 Groth16 proof of knowledge of a MiMC preimage.
@@ -219,7 +220,7 @@ const ZKProofs: React.FC = () => {
               <ShieldCheck size={20} className="text-red-500" />
               Groth16 Real Verify
             </h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-red-600/20 text-red-300 border border-red-500/40">REAL CRYPTO · OFF-CHAIN</span>
+            <TrustStatus kind="real-cryptography" />
           </div>
           <p className="text-gray-400 text-sm mb-4">
             Verify a Groth16 proof. Fields auto-populate when you generate a proof on the left.
@@ -269,7 +270,7 @@ const ZKProofs: React.FC = () => {
               <AlertTriangle size={20} className="text-yellow-500" />
               Groth16 Conceptual (Hash-Based)
             </h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wide bg-yellow-600/20 text-yellow-300 border border-yellow-500/40">SIMULATION</span>
+            <TrustStatus kind="simulation" />
           </div>
           <p className="text-gray-400 text-sm mb-4">
             Legacy hash-based simulation. Honestly labeled — not real pairing verification.
