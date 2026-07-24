@@ -21,17 +21,59 @@ import {
   Lightbulb,
 } from 'lucide-react';
 
-const tabs = [
-  { name: 'Overview', path: 'overview' },
-  { name: 'Proofs', path: 'proofs' },
-  { name: 'Models', path: 'models' },
-  { name: 'Aggregation', path: 'aggregation' },
-  { name: 'ZK Proofs', path: 'zk-proofs' },
-  { name: 'PQ Crypto', path: 'pq-crypto' },
-  { name: 'Contracts', path: 'contracts' },
-  { name: 'Playground', path: 'playground' },
-  { name: 'KYC', path: 'kyc' },
+/**
+ * Lab navigation groups.
+ *
+ * Every existing tab is preserved — same path, same label, same route.
+ * Groups only add semantic labels so the nav communicates purpose to
+ * three audiences (product / crypto & chain / dev / explore) without
+ * removing anything or changing URLs. The flat `tabs` array is derived
+ * so any code that iterated over it in the past still works.
+ */
+interface LabTab {
+  name: string;
+  path: string;
+}
+
+interface LabTabGroup {
+  key: string;
+  label: string;
+  tabs: LabTab[];
+}
+
+const tabGroups: LabTabGroup[] = [
+  {
+    key: 'core',
+    label: 'Core workflow',
+    tabs: [
+      { name: 'Overview', path: 'overview' },
+      { name: 'Proofs', path: 'proofs' },
+      { name: 'Models', path: 'models' },
+      { name: 'Aggregation', path: 'aggregation' },
+    ],
+  },
+  {
+    key: 'crypto-chain',
+    label: 'Cryptography & chain',
+    tabs: [
+      { name: 'ZK Proofs', path: 'zk-proofs' },
+      { name: 'PQ Crypto', path: 'pq-crypto' },
+      { name: 'Contracts', path: 'contracts' },
+    ],
+  },
+  {
+    key: 'dev-tools',
+    label: 'Developer tools',
+    tabs: [{ name: 'Playground', path: 'playground' }],
+  },
+  {
+    key: 'explore',
+    label: 'Explore',
+    tabs: [{ name: 'KYC', path: 'kyc' }],
+  },
 ];
+
+const tabs: LabTab[] = tabGroups.flatMap(g => g.tabs);
 
 const externalLinks = [
   { name: 'Home', href: '/', icon: Home },
@@ -186,23 +228,40 @@ const LabLayout: React.FC = () => {
             </div>
           </div>
 
-          {/* Desktop tab row */}
-          <nav className="hidden md:flex overflow-x-auto -mb-px scrollbar-none">
-            {tabs.map((tab) => (
-              <NavLink
-                key={tab.name}
-                to={tab.path}
-                className={({ isActive }) =>
-                  `py-2.5 px-3 text-sm font-medium transition-colors duration-200 whitespace-nowrap border-b-2 ${
-                    isActive
-                      ? 'text-red-500 border-red-500'
-                      : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-600'
-                  }`
-                }
-                end={tab.path === 'overview'}
+          {/*
+            Desktop tab row — same tabs, same paths, same styles as before.
+            Groups are separated by thin vertical dividers and each group
+            carries an aria-label so purpose is machine-readable without
+            adding visual noise or changing per-tab hit targets.
+          */}
+          <nav className="hidden md:flex overflow-x-auto -mb-px scrollbar-none" aria-label="Lab sections">
+            {tabGroups.map((group, gi) => (
+              <div
+                key={group.key}
+                role="group"
+                aria-label={group.label}
+                className={`flex items-center ${gi > 0 ? 'pl-3 ml-1 border-l border-[#222235]/60' : ''}`}
               >
-                {tab.name}
-              </NavLink>
+                <span className="hidden lg:inline text-[10px] uppercase tracking-wider text-gray-600 pr-2 select-none">
+                  {group.label}
+                </span>
+                {group.tabs.map((tab) => (
+                  <NavLink
+                    key={tab.name}
+                    to={tab.path}
+                    className={({ isActive }) =>
+                      `py-2.5 px-3 text-sm font-medium transition-colors duration-200 whitespace-nowrap border-b-2 ${
+                        isActive
+                          ? 'text-red-500 border-red-500'
+                          : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-600'
+                      }`
+                    }
+                    end={tab.path === 'overview'}
+                  >
+                    {tab.name}
+                  </NavLink>
+                ))}
+              </div>
             ))}
           </nav>
         </div>
@@ -226,27 +285,36 @@ const LabLayout: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {/* Lab sections */}
-            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 px-3">Proof Lab</p>
-            <div className="space-y-0.5 mb-6">
-              {tabs.map((tab) => (
-                <NavLink
-                  key={tab.name}
-                  to={tab.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-red-600/20 text-red-400 border-l-2 border-red-500'
-                        : 'text-gray-300 hover:bg-[#1a1a2a]'
-                    }`
-                  }
-                  end={tab.path === 'overview'}
-                >
-                  {tab.name}
-                </NavLink>
-              ))}
-            </div>
+            {/*
+              Mobile: one section per group, same links, same paths. The
+              previous single "Proof Lab" heading is replaced by four
+              purpose-labeled subheadings so the menu communicates the
+              same grouping as the desktop nav.
+            */}
+            {tabGroups.map(group => (
+              <div key={group.key} className="mb-5">
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 px-3">{group.label}</p>
+                <div className="space-y-0.5" role="group" aria-label={group.label}>
+                  {group.tabs.map((tab) => (
+                    <NavLink
+                      key={tab.name}
+                      to={tab.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-red-600/20 text-red-400 border-l-2 border-red-500'
+                            : 'text-gray-300 hover:bg-[#1a1a2a]'
+                        }`
+                      }
+                      end={tab.path === 'overview'}
+                    >
+                      {tab.name}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ))}
 
             {/* External links */}
             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-2 px-3">Links</p>
