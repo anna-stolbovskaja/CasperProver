@@ -2,6 +2,18 @@
 
 This checklist is the shortest reproducible path through CasperProver. It separates **real cryptography**, **on-chain evidence**, and **simulation** so claims can be verified rather than trusted.
 
+## 0. Landing entry points
+
+The landing page (`/`) exposes three audience-scoped entry points, each linking to an existing route in this repo:
+
+| Audience | Entry | Route |
+|---|---|---|
+| Users | **Try the product** — guided demo in the Playground | `/lab/playground` |
+| Developers | **API, SDK & MCP** — docs hub | `/docs/api` (siblings: `/docs/sdk`, `/docs/mcp`) |
+| Evaluators / investors | **Proof & architecture** — deployed contracts and source | `/lab/contracts` |
+
+The secondary row also links to the full Lab (`/lab`) and the GitHub source. No entry point navigates outside routes that resolve in `App.tsx`.
+
 ## 1. One-command evidence
 
 ```bash
@@ -32,7 +44,20 @@ The key is never embedded in the script, URL, repository, or shell history examp
 
 ## 3. Claim boundary
 
-| Label | What CasperProver actually does |
+Every judge-facing badge on the site resolves through a single `TrustStatus` component with exactly four canonical labels. If you see a badge, its value is one of these:
+
+| Label | Where it appears | What it means |
+|---|---|---|
+| **Real cryptography** | `/lab/zk-proofs` — Groth16 Real Prove, Groth16 Real Verify | Real primitive in the CasperProver engine (gnark BN254 Groth16, ML-DSA-65, Ed25519). Executes off-chain. |
+| **On-chain** | `/lab/contracts` — the four deployed contract cards (`proof-registry`, `verifier-gate`, `defi-mock`, `stake-slashing`) | Deployed on Casper testnet with a real contract hash; click through to the CSPR.live explorer. |
+| **Simulation** | `/lab/zk-proofs` — Groth16 Conceptual (Hash-Based) | Illustrative hash-based flow, not real pairing verification. |
+| **Built, not deployed** | `/lab/contracts` — the three source-only cards (`proof-of-inference`, `model-registry`, `proof-aggregation`) | Rust source is in `contracts/` and reviewable on GitHub, but the contract has no on-chain address. |
+
+Badges are strictly restricted to the four values above. "Verified", "live", "production-ready", "audited" are never used. The mapping between a UI element and its label is driven by an existing structured source — either the deployed contract table (`deployed: true|false`) or the presence of the real Groth16 endpoint — not by copy.
+
+Underlying capability summary (unchanged):
+
+| Category | What CasperProver actually does |
 |---|---|
 | **REAL CRYPTO** | gnark/BN254 Groth16 for a MiMC preimage circuit; ML-DSA-65 and Ed25519 hybrid signatures; Lamport OTS education path |
 | **ON-CHAIN** | Casper testnet contracts store/validate proof metadata, hashes, access state and stake/slashing state |
