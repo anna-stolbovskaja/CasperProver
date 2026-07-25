@@ -1,6 +1,6 @@
 # Status & Roadmap
 
-> Current state as of 2026-07-07. All systems live on Casper testnet.
+> Current state as of 2026-07-25. All four deployed contracts live on Casper testnet; three additional contracts (`proof-of-inference`, `model-registry`, `proof-aggregation`) are written and compile but currently exceed the 65 KiB wasm limit and remain undeployed — see `frontend/public/onchain.json` for the source of truth.
 
 ## ✅ What's Live
 
@@ -14,7 +14,7 @@
 - SHA-256 Merkle proof generation & verification (<50ms)
 - Real BN254 Groth16 ZK proofs via gnark (`/zk/groth16-real/*`)
 - Conceptual Groth16 verification for rapid testing (`/zk/verify-groth16`)
-- Post-quantum signing: SPHINCS+ (NIST PQC), hybrid Ed25519 + ML-DSA-65 (FIPS 204)
+- Post-quantum signing: hybrid Ed25519 + ML-DSA-65 (FIPS 204, cloudflare/circl); Lamport OTS occupies the hash-based ("SPHINCS+ family") slot until a Go SLH-DSA implementation ships
 - Hash-chain aggregation with Postgres persistence
 - Proof-chain DAG validation (Phase 2: cycle detection, input continuity)
 - KYC whitelist with database persistence
