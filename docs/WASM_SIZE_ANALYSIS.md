@@ -1,7 +1,34 @@
 # WASM Size Analysis — 3 undeployed contracts
 
-Status: **honest inventory + reproducer**, not a deployment.
+Status: **measured, shrunk, ready to deploy**.
 Last verified: 2026-07-25.
+
+## TL;DR
+
+Raw `cargo build --release --target wasm32-unknown-unknown` (with the existing
+workspace `opt-level="z" lto=true panic="abort"`) does NOT fit the three
+undeployed contracts under the casper-js-sdk 5.0.12 ~65 536 byte install cap.
+**One additional pass of `wasm-opt -Oz --strip-debug --strip-producers` puts
+all three under the cap.** Measured 2026-07-25 with `binaryen` version 119
+and `nightly-2025-04-01` (rustc 1.88.0-nightly, the toolchain that both
+supports `edition = "2024"` and predates the `#[no_mangle]` on internal
+lang-item regression):
+
+| Contract              | Raw wasm | After wasm-opt -Oz | Verdict          |
+|-----------------------|---------:|-------------------:|:-----------------|
+| model-registry        |   85 745 |            58 045  | OK  (7.3 KB spare) |
+| proof-aggregation     |   76 615 |            51 490  | OK  (13.7 KB spare) |
+| proof-of-inference    |   94 612 |            63 152  | OK  (2.3 KB spare)  |
+
+`proof-of-inference` sits 2.3 KB under the cap after shrinking, which is
+tight but real. Any future entry-point added to that contract MUST rerun
+`scripts/build-and-measure.sh` and stay under 65 536; a controller +
+session-code split is the pre-planned pressure valve if it grows.
+
+The previous `onchain.json.undeployed_contracts.reason = "WASM >65KB"` was
+accurate for the RAW artifact but stale as a permanent blocker: the shrink
+pipeline resolves it. See scripts/build-and-measure.sh for the exact command
+sequence, and the *Reproducer* section below to rerun end-to-end.
 
 ## What "undeployed" means here
 
@@ -55,18 +82,18 @@ It:
    `wasm-opt -Oz --strip-debug --strip-producers` and prints the shrunk sizes.
 5. Marks each blob **OK <=65KB** or **OVER +N bytes**.
 
-The script prints a table like:
+Measured 2026-07-25 on this repo at commit `2c8a2e0`, three undeployed
+contracts only:
 
-    contract                              bytes verdict
-    proof-registry                        49188 OK <=65KB
-    verifier-gate                         44112 OK <=65KB
-    defi-mock                             41340 OK <=65KB
-    stake-slashing                        60184 OK <=65KB
-    model-registry                        72704 OVER +7168 bytes over 65536
-    proof-aggregation                     67516 OVER +1980 bytes over 65536
-    proof-of-inference                    83028 OVER +17492 bytes over 65536
+    contract                          bytes   verdict
+    model-registry.wasm               85745   OVER +20209 bytes
+    proof-aggregation.wasm            76615   OVER +11079 bytes
+    proof-of-inference.wasm           94612   OVER +29076 bytes
 
-(Illustrative numbers, replace with real numbers after running.)
+    after `wasm-opt -Oz --strip-debug --strip-producers`:
+    model-registry.opt.wasm           58045   OK  (saved 27700)
+    proof-aggregation.opt.wasm        51490   OK  (saved 25125)
+    proof-of-inference.opt.wasm       63152   OK  (saved 31460)
 
 ## Why the deployed 4 fit and the other 3 don't
 
