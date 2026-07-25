@@ -56,6 +56,13 @@ func (v Verdict) String() string {
 	}
 }
 
+// MarshalJSON emits the string form so JSON receipts are human-readable.
+// Unmarshalling is not implemented — receipts are produced, not consumed,
+// by CasperProver.
+func (v Verdict) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + v.String() + `"`), nil
+}
+
 // FacetKind identifies a structured evaluation dimension. Kinds are a small
 // closed set on purpose — every kind has a documented meaning in
 // docs/DECISION_LAYER.md and a corresponding evaluator implementation.
