@@ -160,10 +160,12 @@ const PQCrypto: React.FC = () => {
         <div className="bg-[#1a1a2a] p-6 rounded-lg border border-[#222235] shadow-md">
           <h3 className="text-xl font-semibold text-gray-100 mb-4 flex items-center gap-2">
             <Fingerprint size={24} className="text-red-500" />
-            SPHINCS+ Signature Scheme
+            Hash-based OTS (Lamport)
           </h3>
           <p className="text-gray-400 mb-4">
-            SPHINCS+ is a stateless hash-based signature scheme, offering strong post-quantum security.
+            Lamport one-time signatures (Lamport 1979) — the classic hash-based OTS construction that
+            SPHINCS+'s WOTS+ builds on. Real, self-consistent crypto; one-time use per key pair.
+            Occupies the &quot;SPHINCS+ family&quot; slot until a maintained Go SLH-DSA implementation ships.
           </p>
 
           <form onSubmit={handleSphincsSign} className="space-y-4 mb-6">
