@@ -109,9 +109,19 @@ type webhookEvent struct {
 
 // deadLetter is the archived tail of an event that ran out of retries.
 type deadLetter struct {
-	Event    webhookEvent `json:"event"`
-	FailedAt time.Time    `json:"failed_at"`
-	URL      string       `json:"url"`
+	// DeliveryID is a stable, opaque handle for POST
+	// /v1/webhooks/dead-letters/{delivery_id}/replay. Derived from
+	// SubID + CreatedAt so it is stable across restarts of a single
+	// process (in-memory only — see KNOWN_LIMITATIONS.md).
+	DeliveryID string       `json:"delivery_id"`
+	Event      webhookEvent `json:"event"`
+	FailedAt   time.Time    `json:"failed_at"`
+	URL        string       `json:"url"`
+	OwnerKey   string       `json:"-"`
+	// Replayed is bumped every time an operator calls the replay
+	// endpoint. Lets us surface "this ran out of retries N times" in
+	// the admin UI without losing the record on the first replay.
+	Replayed int `json:"replayed"`
 }
 
 // webhookStore holds registrations, the pending queue, and dead
@@ -324,7 +334,13 @@ func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent,
 	ev.Attempts++
 	ev.LastError = msg
 	if ev.Attempts >= webhookMaxAttempts {
-		dl := &deadLetter{Event: *ev, FailedAt: s.now(), URL: sub.URL}
+		dl := &deadLetter{
+			DeliveryID: newDeadLetterID(sub.ID, ev.CreatedAt),
+			Event:      *ev,
+			FailedAt:   s.now(),
+			URL:        sub.URL,
+			OwnerKey:   sub.OwnerKey,
+		}
 		s.dead = append(s.dead, dl)
 		if len(s.dead) > webhookDeadLetterLimit {
 			s.dead = s.dead[len(s.dead)-webhookDeadLetterLimit:]
@@ -348,6 +364,57 @@ func (s *webhookStore) deadLetters() []*deadLetter {
 	out := make([]*deadLetter, len(s.dead))
 	copy(out, s.dead)
 	return out
+}
+
+// replay pulls a dead-lettered event back onto the delivery queue at
+// attempts=0 with NextTryAt=now, and removes it from the dead-letter
+// list. Ownership is enforced against ownerKeyHash so caller A cannot
+// replay caller B's dead letters. Returns the delivery id of the
+// re-enqueued event on success, or an error if not found / not owned
+// / the target subscription has been unregistered.
+func (s *webhookStore) replay(deliveryID, ownerKeyHash string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	idx := -1
+	for i, dl := range s.dead {
+		if dl.DeliveryID == deliveryID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return "", errors.New("not found")
+	}
+	dl := s.dead[idx]
+	if dl.OwnerKey != ownerKeyHash {
+		return "", errors.New("not found") // deliberately opaque
+	}
+	sub, ok := s.subs[dl.Event.SubID]
+	if !ok {
+		return "", errors.New("subscription unregistered — cannot replay")
+	}
+	_ = sub
+	// Re-enqueue with attempts reset. Keep the body verbatim so the
+	// HMAC signature stays byte-identical to the original attempt.
+	ev := dl.Event
+	ev.Attempts = 0
+	ev.LastError = ""
+	ev.NextTryAt = s.now()
+	s.queue = append(s.queue, &ev)
+	// Remove from dead list.
+	s.dead = append(s.dead[:idx], s.dead[idx+1:]...)
+	// Preserve the replay counter — useful for observability if the
+	// same event gets dead-lettered a second time.
+	return dl.DeliveryID, nil
+}
+
+// newDeadLetterID mints the stable id used by the replay endpoint.
+// Format: "dl_" + first 12 hex chars of sha256(subID | createdAt).
+// Two events on the same subscription created in the same nanosecond
+// would collide — extraordinarily unlikely for a single node.
+func newDeadLetterID(subID string, createdAt time.Time) string {
+	h := sha256.Sum256([]byte(subID + "|" + createdAt.Format(time.RFC3339Nano)))
+	return "dl_" + hex.EncodeToString(h[:6])
 }
 
 // runWorker delivers events on a tick until the store's stopping

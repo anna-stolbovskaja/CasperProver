@@ -42,6 +42,7 @@ func (s *Server) registerWebhookRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/webhooks", s.webhooksList)
 	mux.HandleFunc("DELETE /v1/webhooks/{id}", s.webhooksDelete)
 	mux.HandleFunc("GET /v1/webhooks/dead-letters", s.webhooksDeadLetters)
+	mux.HandleFunc("POST /v1/webhooks/dead-letters/{delivery_id}/replay", s.webhooksReplayDeadLetter)
 }
 
 // callerHash converts the caller's API key (or "anon" for dev
@@ -137,6 +138,34 @@ func (s *Server) webhooksDeadLetters(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(webhookDeadLetterResponse{DeadLetters: owned, Count: len(owned)})
+}
+
+type webhookReplayResponse struct {
+	DeliveryID string `json:"delivery_id"`
+	Status     string `json:"status"`
+}
+
+func (s *Server) webhooksReplayDeadLetter(w http.ResponseWriter, r *http.Request) {
+	if s.webhooks == nil {
+		s.jsonError(w, "webhook subsystem disabled", http.StatusServiceUnavailable)
+		return
+	}
+	if !s.enforceScope(w, r, "webhooks:write") {
+		return
+	}
+	id := r.PathValue("delivery_id")
+	replayedID, err := s.webhooks.replay(id, callerHash(r))
+	if err != nil {
+		status := http.StatusNotFound
+		if strings.Contains(err.Error(), "unregistered") {
+			status = http.StatusConflict
+		}
+		s.jsonError(w, err.Error(), status)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
+	_ = json.NewEncoder(w).Encode(webhookReplayResponse{DeliveryID: replayedID, Status: "enqueued"})
 }
 
 // emitWebhookEvent is the internal fan-out entry point. Domain
