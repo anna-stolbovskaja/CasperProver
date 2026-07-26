@@ -47,3 +47,17 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+## SDK versioning policy
+
+`docs/SDK_VERSIONING.md` specifies the SemVer contract for API, receipt
+schema, and SDKs. Highlights:
+
+- **Receipt schemas support forever**. A receipt signed under `cp:receipt:v1`
+  must remain verifiable after `v2` ships. Non-negotiable.
+- **Honesty-ladder downgrade** (`REAL` → `SIMULATION`) is ALWAYS a MAJOR bump
+  and requires a `LEGAL/TOS.md` amendment. Forbidden as a silent change.
+- **No public publish until G6** (ops readiness) unless tagged `-alpha`/`-beta`
+  and documented as SIMULATION.
+- **Deprecation flow**: 6–12 months notice + WARNING headers + changelog
+  entry before deletion. Deletion of a receipt schema is forbidden.
