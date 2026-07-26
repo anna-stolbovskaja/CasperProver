@@ -47,3 +47,17 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+## `slash_equivocation` entrypoint (spec, non-deployed)
+
+`contracts/stake-slashing/SLASH_EQUIVOCATION_DRAFT.md` specifies the
+minimum-viable equivocation-slashing extension to the existing `stake-slashing`
+contract. Ships no code and authorises no redeploy — per invariant "не
+редеплоим до аудита" a live contract change requires G2 sign-off.
+
+Highlights: two conflicting proofs (same input_hash + model_id, different
+output_hash) are self-witnessing evidence; entrypoint is permissionless
+(anyone can call); slash is 50% of current stake (stricter than the 20% of
+`report_and_slash`, because equivocation is the strictest failure mode);
+composite key `min(a,b)|max(a,b)` prevents order-swap replay; optional
+`evidence_hash` lane is reserved for future dispute-resolver, NOT in MVP.
