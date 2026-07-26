@@ -326,7 +326,7 @@ Extended infrastructure — real code, wired to the API:
 | GPU required | **None** |
 | API endpoints | **32** |
 | SDK/MCP tools | **32** |
-| Smart contracts | **4 live** + 3 written |
+| Smart contracts | **4 live** + 4 written (compiled, awaiting WASM-size opt or deploy) |
 | Testnet transactions | **248+** |
 
 ---
