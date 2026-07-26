@@ -1,9 +1,11 @@
 import React from 'react';
 import SectionIntro from './SectionIntro';
 import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink } from 'lucide-react';
+import { getOnchainSync, loadOnchainManifest, type ContractName } from '../../lib/onchain';
 
 interface ContractInfo {
   name: string;
+  key: ContractName;
   address: string | null;
   purpose: string;
   icon: React.ElementType;
@@ -12,75 +14,101 @@ interface ContractInfo {
   deployDate?: string;
 }
 
-const CONTRACTS: ContractInfo[] = [
-  {
-    name: 'proof-registry',
-    address: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
-    purpose: 'Immutable on-chain store for all proof metadata — hashes, Merkle roots, timestamps, and verification status.',
-    icon: FileText,
-    deployed: true,
-    lines: 251,
-    deployDate: '2026-06-29',
-  },
-  {
-    name: 'verifier-gate',
-    address: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
-    purpose: 'Gateway contract for Merkle inclusion verification — checks proof existence and validity via cross-contract calls.',
-    icon: Shield,
-    deployed: true,
-    lines: 143,
-    deployDate: '2026-06-29',
-  },
-  {
-    name: 'defi-mock',
-    address: 'fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef',
-    purpose: 'KYC-gated DeFi vault — demonstrates proof-based access control for financial operations via cross-contract verification.',
-    icon: Code,
-    deployed: true,
-    lines: 202,
-    deployDate: '2026-07-07',
-  },
-  {
-    name: 'stake-slashing',
-    address: '1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52',
-    purpose: 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters. Cross-contract call to proof-registry.',
-    icon: Swords,
-    deployed: true,
-    lines: 273,
-    deployDate: '2026-07-07',
-  },
-  {
-    name: 'proof-of-inference',
-    address: null,
-    purpose: 'Full inference proof contract — records model hash, input/output commitments, and verification result on-chain for each AI decision.',
-    icon: Brain,
-    deployed: false,
-    lines: 498,
-  },
-  {
-    name: 'model-registry',
-    address: null,
-    purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.',
-    icon: Box,
-    deployed: false,
-    lines: 372,
-  },
-  {
-    name: 'proof-aggregation',
-    address: null,
-    purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.',
-    icon: Layers,
-    deployed: false,
-    lines: 179,
-  },
-];
+// Build the display list from the on-chain manifest at render time so a
+// redeploy landing in /onchain.json shows up without a rebuild. Any
+// contract absent from the manifest is rendered as "written but not
+// deployed" (address=null), which is the correct state for the three
+// SDK-scaffolded contracts.
+function buildContracts(): ContractInfo[] {
+  const m = getOnchainSync().contracts;
+  const hashOf = (k: ContractName) => m[k]?.contract_hash ?? null;
+  const dateOf = (k: ContractName) => m[k]?.deployed_at?.slice(0, 10);
+  return [
+    {
+      name: 'proof-registry',
+      key: 'proof_registry',
+      address: hashOf('proof_registry'),
+      purpose: 'Immutable on-chain store for all proof metadata — hashes, Merkle roots, timestamps, and verification status.',
+      icon: FileText,
+      deployed: hashOf('proof_registry') !== null,
+      lines: 251,
+      deployDate: dateOf('proof_registry'),
+    },
+    {
+      name: 'verifier-gate',
+      key: 'verifier_gate',
+      address: hashOf('verifier_gate'),
+      purpose: 'Gateway contract for Merkle inclusion verification — checks proof existence and validity via cross-contract calls.',
+      icon: Shield,
+      deployed: hashOf('verifier_gate') !== null,
+      lines: 143,
+      deployDate: dateOf('verifier_gate'),
+    },
+    {
+      name: 'defi-mock',
+      key: 'defi_mock',
+      address: hashOf('defi_mock'),
+      purpose: 'KYC-gated DeFi vault — demonstrates proof-based access control for financial operations via cross-contract verification.',
+      icon: Code,
+      deployed: hashOf('defi_mock') !== null,
+      lines: 202,
+      deployDate: dateOf('defi_mock'),
+    },
+    {
+      name: 'stake-slashing',
+      key: 'stake_slashing',
+      address: hashOf('stake_slashing'),
+      purpose: 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters. Cross-contract call to proof-registry.',
+      icon: Swords,
+      deployed: hashOf('stake_slashing') !== null,
+      lines: 273,
+      deployDate: dateOf('stake_slashing'),
+    },
+    {
+      name: 'proof-of-inference',
+      key: 'proof_of_inference',
+      address: hashOf('proof_of_inference'),
+      purpose: 'Full inference proof contract — records model hash, input/output commitments, and verification result on-chain for each AI decision.',
+      icon: Brain,
+      deployed: hashOf('proof_of_inference') !== null,
+      lines: 498,
+      deployDate: dateOf('proof_of_inference'),
+    },
+    {
+      name: 'model-registry',
+      key: 'model_registry',
+      address: hashOf('model_registry'),
+      purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.',
+      icon: Box,
+      deployed: hashOf('model_registry') !== null,
+      lines: 372,
+      deployDate: dateOf('model_registry'),
+    },
+    {
+      name: 'proof-aggregation',
+      key: 'proof_aggregation',
+      address: hashOf('proof_aggregation'),
+      purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.',
+      icon: Layers,
+      deployed: hashOf('proof_aggregation') !== null,
+      lines: 179,
+      deployDate: dateOf('proof_aggregation'),
+    },
+  ];
+}
 
 const EXPLORER_BASE_URL = 'https://testnet.cspr.live/contract/';
 const GITHUB_BASE_URL = 'https://github.com/anna-stolbovskaja/CasperProver/tree/main/contracts/';
 
 const Contracts: React.FC = () => {
-  const deployed = CONTRACTS.filter(c => c.deployed);
-  const written = CONTRACTS.filter(c => !c.deployed);
+  const [contracts, setContracts] = React.useState<ContractInfo[]>(() => buildContracts());
+  React.useEffect(() => {
+    // Re-render once the runtime manifest arrives. If the fetch failed
+    // buildContracts() just returns the snapshot again — harmless.
+    loadOnchainManifest().then(() => setContracts(buildContracts()));
+  }, []);
+  const deployed = contracts.filter(c => c.deployed);
+  const written = contracts.filter(c => !c.deployed);
 
   return (
     <div className="p-4">
@@ -93,7 +121,7 @@ const Contracts: React.FC = () => {
       />
       <h2 className="text-2xl font-bold text-gray-100 mb-2">CasperProver Contracts</h2>
       <p className="text-gray-400 mb-6">
-        {deployed.length} deployed on Casper testnet · {written.length} written and ready for mainnet · {CONTRACTS.reduce((s, c) => s + c.lines, 0).toLocaleString()} lines of Rust
+        {deployed.length} deployed on Casper testnet · {written.length} written and ready for mainnet · {contracts.reduce((s, c) => s + c.lines, 0).toLocaleString()} lines of Rust
       </p>
 
       {/* Deployed contracts */}

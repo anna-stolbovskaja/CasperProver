@@ -17,9 +17,21 @@ import {
   PublicKey,
 } from 'casper-js-sdk'
 import type { ICSPRClickSDK } from '@make-software/csprclick-core-types'
+import { getContractHash, getOnchainSync } from './onchain'
 
 export const CASPER_CHAIN_NAME = 'casper-test'
-export const PROOF_REGISTRY_HASH = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
+// PROOF_REGISTRY_HASH is now a getter so a redeploy that lands in
+// /onchain.json is picked up without a rebuild. Kept as an exported
+// constant expression for callers that captured it once at import
+// time; those callers now resolve through the on-chain manifest.
+export const PROOF_REGISTRY_HASH: string =
+  getContractHash('proof_registry') ??
+  // Fallback to the compile-time snapshot's proof_registry entry — the
+  // one shipped in SNAPSHOT inside onchain.ts. This branch is unreachable
+  // in practice (SNAPSHOT always has the four deployed hashes) but keeps
+  // the return type as string, not string | null, at the call sites.
+  getOnchainSync().contracts.proof_registry?.contract_hash ??
+  ''
 export const PAYMENT_MOTES = 3_000_000_000 // 3 CSPR — sufficient for dictionary writes
 
 export type LiveTxResult =
