@@ -16,3 +16,14 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>
 )
+
+// Register the service worker for PWA offline-first behavior (backlog 9.3/9.4).
+// SW itself lives in /public/sw.js; only production builds register.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      // Non-fatal — the app must still work without a SW.
+      console.warn('SW registration failed', err)
+    })
+  })
+}
