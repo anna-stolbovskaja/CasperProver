@@ -1,17 +1,10 @@
 # CasperProver Go SDK
 
-> **Status:** `v0.1.0-scaffold`. Real code lives in the top-level `sdk/` module
-> today (`github.com/anna-stolbovskaja/CasperProver/sdk`). This directory
-> holds the packaging + release story for the next 30 days; see
-> `docs/roadmap/30-DAY.md`.
+> **Status:** `v0.1.0`. High-level `Prove` / `Verify` / `Batch` / `Anchor`
+> primitives + typed responses. The lower-level route methods in
+> `sdk/client.go` remain as the compatibility surface.
 
-## Install (once published)
-
-```sh
-go get github.com/anna-stolbovskaja/casperprover-go@v0.1.0
-```
-
-Until the first published tag, consumers import the in-repo module:
+## Install
 
 ```sh
 go get github.com/anna-stolbovskaja/CasperProver/sdk
@@ -20,62 +13,42 @@ go get github.com/anna-stolbovskaja/CasperProver/sdk
 ## Quickstart
 
 ```go
-package main
+import "github.com/anna-stolbovskaja/CasperProver/sdk"
 
-import (
-    "context"
-    "fmt"
-    "log"
-
-    cp "github.com/anna-stolbovskaja/CasperProver/sdk"
+c := sdk.NewClient(
+    sdk.WithBaseURL("https://casperprover-api-ylsh.onrender.com"),
+    sdk.WithAuthToken("pk_..."),
 )
 
-func main() {
-    client, err := cp.NewClient(cp.Options{
-        BaseURL: "https://api.casperprover.example",
-        APIKey:  "sk_tenant_...",
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
+ctx := context.Background()
+proof, err := c.Prove(ctx, sdk.ProveRequest{
+    Agent: "a", Model: "gpt-toy-v1",
+    Input: "hello", Output: "42",
+}, sdk.WithIdempotencyKey("run-1"))
+if err != nil { log.Fatal(err) }
 
-    receipt, err := client.SubmitDecision(context.Background(), cp.DecisionInput{
-        AgentID: "agent-1",
-        Input:   []byte("hello"),
-        Output:  []byte("world"),
-        ModelID: "modelhash-…",
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Printf("receipt: %s verdict=%s confidence=%.2f\n",
-        receipt.ID, receipt.Verdict, receipt.Confidence)
-}
+check, _ := c.Verify(ctx, proof.ID)
+fmt.Println(check.Valid)
 ```
 
-## Version support table
+Every write primitive accepts `sdk.WithIdempotencyKey(key)` — safe retries
+against the server-side dedup cache (24h TTL).
 
-| SDK version | Engine API version | Notes                     |
-|-------------|--------------------|---------------------------|
-| `v0.1.x`    | `v0` (implicit)    | Pre-`/v1/` routes         |
-| `v0.2.x`    | `v1`               | After `docs/roadmap/API_LIFECYCLE.md` migration |
+Legacy unversioned routes:
 
-`v1.0.0` gates listed in `docs/roadmap/30-DAY.md#semver-policy-sdks`.
+```go
+sdk.NewClient(sdk.WithAPIVersion(sdk.APIVersionUnversioned))
+```
 
-## Repo layout
+## Receipt validator
 
-- `sdk/*.go` — client, types, MCP wrapper (kept where the engine tests it).
-- `sdk/go/README.md` — this file, the publish story.
-- `sdk/go/go.mod` — will be added when the module is extracted for
-  publication under `github.com/anna-stolbovskaja/casperprover-go`.
+`sdk.VerifyReceiptBytes(payload)` re-derives `input_hash`, `output_hash`,
+and `model_hash` locally (SHA-256 of the UTF-8 plaintext) and returns
+`*sdk.ReceiptValidationError` on any mismatch. Bit-identical output to the
+Python and TypeScript implementations.
 
-## Smoke test
+## Test
 
 ```sh
-cd /path/to/CasperProver
-go test ./sdk/...
+cd sdk && go test -race -count=1 ./...
 ```
-
-The suite exercises the client against an in-process fixture server. A
-live-engine smoke test lives under `scripts/smoke-sdk-go.mjs` and is run
-manually before each release tag.

@@ -1,58 +1,59 @@
 # CasperProver TypeScript SDK
 
-> **Status:** `v0.1.0-scaffold`. The 30-day plan is to extract a proper
-> `@casperprover/sdk` npm package from the current frontend's API client
-> code; see `docs/roadmap/30-DAY.md`.
+> **Status:** `v0.1.0`. Full-feature client with `prove`, `verify`, `batch`,
+> `anchor`, and a shared receipt validator. Feature parity with the Go and
+> Python SDKs.
 
 ## Install (once published)
 
 ```sh
 npm install @casperprover/sdk
-# or
-pnpm add @casperprover/sdk
 ```
+
+Until the first release, add it as a path dependency or import directly
+from the checkout.
 
 ## Quickstart
 
 ```ts
-import { CasperProverClient } from "@casperprover/sdk";
+import { Client, verifyReceiptBytes } from "@casperprover/sdk";
 
-const client = new CasperProverClient({
-  baseUrl: "https://api.casperprover.example",
-  apiKey: process.env.CP_API_KEY!,
+const c = new Client({
+  baseUrl: "https://casperprover-api-ylsh.onrender.com",
+  apiKey: "pk_...",
 });
 
-const receipt = await client.submitDecision({
-  agentId: "agent-1",
-  input: new TextEncoder().encode("hello"),
-  output: new TextEncoder().encode("world"),
-  modelId: "modelhash-...",
-});
+const proof = await c.prove(
+  { agent: "a", model: "gpt-toy-v1", input: "hello", output: "42" },
+  { idempotencyKey: "run-1" },
+);
+console.log(proof.id, proof.vk_hash);
 
-console.log(receipt.id, receipt.verdict, receipt.confidence);
+const check = await c.verify(proof.id);
+console.log(check.valid);
 ```
 
-## Version support table
+Every write primitive accepts `{ idempotencyKey }` — safe retries against
+the server-side dedup cache (24h TTL).
 
-| SDK version | Engine API version | Notes                     |
-|-------------|--------------------|---------------------------|
-| `v0.1.x`    | `v0` (implicit)    | Pre-`/v1/` routes         |
-| `v0.2.x`    | `v1`               | After `docs/roadmap/API_LIFECYCLE.md` migration |
+Legacy unversioned routes: `new Client({ apiVersion: "" })`.
 
-## Publish plan (30-day)
+## Receipt validator
 
-1. Extract the frontend's API client (`frontend/src/lib/api/*`) into a
-   framework-agnostic package under `sdk/typescript/`.
-2. Build with `tsup` → ESM + CJS + `.d.ts`.
-3. `vitest` smoke against an in-memory fetch mock.
-4. First tag `v0.1.0` after a green smoke against a live testnet-facing
-   engine.
+`verifyReceiptBytes(payload)` and `verifyReceipt(obj)` re-derive
+`input_hash`, `output_hash`, and `model_hash` locally (SHA-256 of the UTF-8
+plaintext) and throw `ReceiptValidationError` on any mismatch.
 
-## `verify.sh` helper
-
-A small Node CLI wrapper (`sdk/typescript/bin/verify.mjs`) will front
-the existing `verify.sh` scenario for CI use:
+## Test
 
 ```sh
-npx @casperprover/sdk verify --receipt <receipt-id>
+cd sdk/typescript
+node --test --experimental-strip-types src/client.test.ts
+```
+
+## Build (once TypeScript is installed)
+
+```sh
+npm install --save-dev typescript@5
+npx tsc -p tsconfig.json
 ```

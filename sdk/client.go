@@ -25,6 +25,7 @@ type Client struct {
 	authToken  string
 	baseURL    string
 	httpClient *http.Client
+	apiVersion APIVersion
 }
 
 // ClientOption configures a Client.
@@ -46,11 +47,13 @@ func WithAuthToken(token string) ClientOption {
 	return func(c *Client) { c.authToken = token }
 }
 
-// NewClient creates a CasperProver API client.
+// NewClient creates a CasperProver API client. Defaults to APIVersionV1;
+// override with WithAPIVersion(APIVersionUnversioned) for legacy routes.
 func NewClient(opts ...ClientOption) *Client {
 	c := &Client{
 		baseURL:    defaultBaseURL,
 		httpClient: &http.Client{Timeout: defaultTimeout},
+		apiVersion: APIVersionV1,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -62,6 +65,13 @@ func NewClient(opts ...ClientOption) *Client {
 func (c *Client) SetAuthToken(token string) { c.authToken = token }
 
 func (c *Client) doRequest(ctx context.Context, method, path string, reqBody, respBody interface{}) error {
+	return c.doRequestWithOpts(ctx, method, path, reqBody, respBody)
+}
+
+// doRequestWithOpts is the low-level dispatcher. All high-level methods route
+// through it; per-request options (idempotency key, extra headers) are
+// applied here so the client stays stateless between calls.
+func (c *Client) doRequestWithOpts(ctx context.Context, method, path string, reqBody, respBody interface{}, opts ...RequestOption) error {
 	var bodyReader io.Reader
 	if reqBody != nil {
 		b, err := json.Marshal(reqBody)
@@ -80,6 +90,14 @@ func (c *Client) doRequest(ctx context.Context, method, path string, reqBody, re
 	}
 	if c.authToken != "" {
 		req.Header.Set("X-API-Key", c.authToken)
+	}
+
+	rc := buildRequestConfig(opts)
+	if rc.idempotencyKey != "" {
+		req.Header.Set("X-Idempotency-Key", rc.idempotencyKey)
+	}
+	for name, val := range rc.extraHeaders {
+		req.Header.Set(name, val)
 	}
 
 	resp, err := c.httpClient.Do(req)
