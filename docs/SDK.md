@@ -86,7 +86,7 @@ CASPERPROVER_API_URL=http://localhost:9090 go run ./sdk/cmd/mcpserver
 | `create_batch` / `add_proof_to_batch` / `finalize_batch` / `get_batch` / `verify_batch` | STARK aggregation batches | ✅ |
 | `verify_groth16` | hash-based Groth16 check | ✅ |
 | `groth16_real_prove` / `groth16_real_verify` | real BN254 Groth16 via gnark | ✅ |
-| `pq_sign_sphincs` / `pq_verify_sphincs` | post-quantum SPHINCS+ signing | ✅ |
+| `pq_sign_sphincs` / `pq_verify_sphincs` | hash-based OTS signing (Lamport OTS, occupies the SPHINCS+ family slot) | ✅ |
 | `pq_hybrid_sign` / `pq_hybrid_verify` | hybrid Ed25519 + ML-DSA-65 signing | ✅ |
 
 | `zk_batch_verify` | batch-verify multiple ZK proofs | ✅ |
