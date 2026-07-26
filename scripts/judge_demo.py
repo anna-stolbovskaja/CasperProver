@@ -12,6 +12,10 @@ CONTRACTS = {
     "Verifier Gate": "06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66",
     "DeFi Mock": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
     "Stake Slashing": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
+    "Proof Aggregation": "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb",
+    "Model Registry": "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a",
+    "Proof of Inference": "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318",
+    "Governance": "38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e",
 }
 
 @dataclass
