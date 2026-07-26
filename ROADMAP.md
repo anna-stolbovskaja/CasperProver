@@ -34,6 +34,7 @@
 - [ ] STARK recursive aggregation (pending mature Go STARK library)
 - [x] Demo/Real data toggle in lab
 - [x] PQ signature key rotation + versioning (`docs/PQ_KEYRING.md`) — keyring, migration primitive, HTTP surface. In-memory storage; HSM/KMS integration deferred.
+- [x] PQ keystore adapter (`docs/KEYSTORE.md`) — `Keystore` interface (`engine/internal/crypto/keystore/`) + 3 backends: `memory` (default), `file` (ChaCha20-Poly1305 at rest, Argon2id KDF), `remote` HSM/KMS gateway stub with a documented HTTP contract. Real HSM driver still lives out of tree per deployment.
 - [x] Nova / folding aggregation **harness** (`docs/roadmap/NOVA_HARNESS.md`) — API contract + hash-chain stand-in labelled `hash-fold-v1`. A real Nova is still a future item and requires a Pallas/Vesta curve cycle in Go.
 
 ## 🔮 Future

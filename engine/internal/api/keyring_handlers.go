@@ -64,7 +64,7 @@ func (s *Server) pqKeyCreate(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	meta, err := s.keyRing.CreateKey(algo)
+	meta, err := s.keystore.CreateKey(r.Context(), algo)
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -83,8 +83,8 @@ func (s *Server) pqKeyRotate(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	prev, hadPrev := s.keyRing.ActiveKeyID(algo)
-	meta, err := s.keyRing.RotateKey(algo)
+	prev, hadPrev := s.keystore.ActiveKeyID(r.Context(), algo)
+	meta, err := s.keystore.RotateKey(r.Context(), algo)
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -108,7 +108,7 @@ func (s *Server) pqKeyList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Optional ?algo= filter.
-	all := s.keyRing.List()
+	all := s.keystore.List(r.Context())
 	if algoStr := r.URL.Query().Get("algo"); algoStr != "" {
 		algo, err := pqcrypto.ParseAlgo(algoStr)
 		if err != nil {
@@ -132,7 +132,7 @@ func (s *Server) pqKeyGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	meta, err := s.keyRing.GetMeta(id)
+	meta, err := s.keystore.GetMeta(r.Context(), id)
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusNotFound)
 		return
@@ -176,7 +176,7 @@ func (s *Server) pqKeySign(w http.ResponseWriter, r *http.Request) {
 		err error
 	)
 	if req.KeyID != "" {
-		sig, err = s.keyRing.SignWithKey(req.KeyID, []byte(req.Message))
+		sig, err = s.keystore.SignWithKey(r.Context(), req.KeyID, []byte(req.Message))
 		id = req.KeyID
 	} else {
 		algo, aerr := pqcrypto.ParseAlgo(req.Algo)
@@ -184,7 +184,7 @@ func (s *Server) pqKeySign(w http.ResponseWriter, r *http.Request) {
 			s.jsonError(w, aerr.Error(), http.StatusBadRequest)
 			return
 		}
-		sig, id, err = s.keyRing.Sign(algo, []byte(req.Message))
+		sig, id, err = s.keystore.Sign(r.Context(), algo, []byte(req.Message))
 	}
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusBadRequest)
@@ -220,7 +220,7 @@ func (s *Server) pqKeyVerify(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, "signature must be hex-encoded", http.StatusBadRequest)
 		return
 	}
-	valid, verr := s.keyRing.Verify(req.KeyID, []byte(req.Message), sig)
+	valid, verr := s.keystore.Verify(r.Context(), req.KeyID, []byte(req.Message), sig)
 	if verr != nil {
 		// Unknown key ID → 404; any other failure → 400.
 		if strings.Contains(verr.Error(), "unknown key id") {
@@ -269,7 +269,7 @@ func (s *Server) pqKeyMigrate(w http.ResponseWriter, r *http.Request) {
 		s.jsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	newSig, newID, err := s.keyRing.MigrateSignature(req.OldKeyID, []byte(req.Message), oldSig, toAlgo)
+	newSig, newID, err := s.keystore.MigrateSignature(r.Context(), req.OldKeyID, []byte(req.Message), oldSig, toAlgo)
 	if err != nil {
 		// Signal old-sig invalid vs. any other failure.
 		status := http.StatusBadRequest
@@ -287,6 +287,14 @@ func (s *Server) pqKeyMigrate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// pqKeystoreInfo reports the current keystore backend, backing, and key
+// count. Read-only; not gated by CP_KEYRING_ENABLE because it's diagnostic.
+func (s *Server) pqKeystoreInfo(w http.ResponseWriter, r *http.Request) {
+	info := s.keystore.Info(r.Context())
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(info)
+}
+
 // registerKeyRingRoutes wires the /v1/pq/keys/* endpoints and their scopes.
 func (s *Server) registerKeyRingRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/pq/keys", s.pqKeyCreate)
@@ -296,6 +304,7 @@ func (s *Server) registerKeyRingRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/pq/keys/sign", s.pqKeySign)
 	mux.HandleFunc("POST /v1/pq/keys/verify", s.pqKeyVerify)
 	mux.HandleFunc("POST /v1/pq/keys/migrate", s.pqKeyMigrate)
+	mux.HandleFunc("GET /v1/pq/keystore/info", s.pqKeystoreInfo)
 }
 
 // Note: PQ keyring scopes are registered directly in scopes.go's routeScopes
