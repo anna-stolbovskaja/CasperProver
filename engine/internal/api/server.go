@@ -237,8 +237,14 @@ func (s *Server) Start() error {
 
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      s.rateLimitMiddleware(s.corsMiddleware(s.authMiddleware(s.logMiddleware(mux)))),
+		Addr: addr,
+		Handler: s.versionRewriteMiddleware(
+			s.rateLimitMiddleware(
+				s.corsMiddleware(
+					s.authMiddleware(
+						s.idempotencyMiddleware(
+							s.deprecationMiddleware(
+								s.logMiddleware(mux))))))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
