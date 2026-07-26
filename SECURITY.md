@@ -48,6 +48,11 @@ Do not open public issues for vulnerabilities.
 
 Never commit deployer secrets. `.env.example` has placeholders only. Testnet keys are disposable.
 
+## Full Threat Model
+
+See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for asset inventory, actor
+trust boundaries, per-surface mitigations, and accepted-risk rationale.
+
 ## Limitations
 
 See [docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
