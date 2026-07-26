@@ -45,8 +45,10 @@ func main() {
 
 	// 2. Submit a demo proof.
 	req := sdk.SubmitProofRequest{
-		AgentID:   "quickstart-agent",
-		ProofHash: "deadbeef" + fmt.Sprintf("%016x", time.Now().UnixNano()),
+		Agent:  "quickstart-agent",
+		Input:  "quickstart demo input",
+		Output: "quickstart demo output",
+		Model:  "demo-model-v1",
 	}
 	sub, err := client.SubmitProof(ctx, req)
 	if err != nil {
