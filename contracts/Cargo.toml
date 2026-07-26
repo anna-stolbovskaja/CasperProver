@@ -8,6 +8,7 @@ members = [
     "proof-of-inference",
     "stake-slashing",
     "stake-slashing-session",
+    "governance",
     "tests",
 ]
 resolver = "2"
