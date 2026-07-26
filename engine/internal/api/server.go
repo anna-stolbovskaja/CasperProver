@@ -25,6 +25,7 @@ import (
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto/keystore"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/decision"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/quorum"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
@@ -84,6 +85,9 @@ type Server struct {
 	// Provenance-lineage receipts (Pack AR). Nil when disabled.
 	receipts    *receipts.Service
 	receiptSink io.Closer // JSONLSink close-handle when configured
+
+	// BLS12-381 threshold quorum (Pack AS). Nil when disabled.
+	quorumRegistry *quorum.Registry
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -268,6 +272,15 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		srv.initReceiptsService()
 	}
 
+	// BLS12-381 threshold quorum (Pack AS). Opt-in via CP_QUORUM_ENABLE=1.
+	// The registry starts empty; operators register signers via
+	// POST /v1/quorum/signers. There is no default committee — an empty
+	// registry rejects every verify call, which is the safe default.
+	if os.Getenv("CP_QUORUM_ENABLE") == "1" {
+		srv.quorumRegistry = quorum.NewRegistry()
+		srv.log.Info("quorum service enabled")
+	}
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()
@@ -360,6 +373,7 @@ func (s *Server) Start() error {
 	s.registerDecisionRoutes(mux)
 	s.registerReceiptRoutes(mux)
 	s.registerHITLRoutes(mux)
+	s.registerQuorumRoutes(mux)
 
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
 	mux.HandleFunc("GET /v1/routes", s.routesHandler)
