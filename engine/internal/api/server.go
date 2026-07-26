@@ -374,6 +374,7 @@ func (s *Server) Start() error {
 	s.registerReceiptRoutes(mux)
 	s.registerHITLRoutes(mux)
 	s.registerQuorumRoutes(mux)
+	s.registerMerkleRecursionRoutes(mux)
 
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
 	mux.HandleFunc("GET /v1/routes", s.routesHandler)
