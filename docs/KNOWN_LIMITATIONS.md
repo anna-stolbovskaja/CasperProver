@@ -118,3 +118,14 @@ system remains **testnet-only** and the honesty labels
 (`REAL / ON-CHAIN / SIMULATION`) must not be changed to imply a live
 mainnet surface. That plan is a map, not a schedule — no dates, no
 vendors, no spend are authorized by it.
+## Metadata privacy posture
+`docs/METADATA_PRIVACY.md` catalogues seven metadata classes (ingress, timing,
+chain-side, verifier-side, observability, confidential-storage access,
+external-observer) with per-class mitigation ladder priced honestly.
+**Payload privacy ≠ metadata privacy.** The hash-only architectural boundary
+from `LEGAL/DATA_PROTECTION.md` solves *what* the Service sees; it does not
+solve *how much can be inferred from the fact that the Service saw anything*.
+Anchor addresses on Casper Network are pseudonyms, not anonymity primitives;
+traffic patterns leak business rhythm; verifier-side calls fingerprint the
+Verifier. Any commit that promises "anonymous attestation" or "unlinkable
+proofs" without a hard REAL/SIMULATION qualifier is a defect.
