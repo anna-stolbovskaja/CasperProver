@@ -33,7 +33,7 @@
 
 ### Near-term
 - Real Groth16 circuit for full model-inference verification (current: MiMC preimage)
-- Production trusted setup ceremony (current: per-start generation)
+- Multi-party (public) Groth16 ceremony (current: real gnark Phase 1 + Phase 2 with single-coordinator N-contribution chain — see `zk/ceremony/README.md` for the honesty label and multi-party upgrade path; upgrade requires only running `Contribute()` on independent machines, no code change)
 - Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts
 - Demo/Real data toggle in lab
 
