@@ -1,8 +1,15 @@
 package prover
 
+import "github.com/anna-stolbovskaja/CasperProver/engine/internal/config"
+
 // SeedDemoData populates the engine with realistic demo proofs so that
 // the lab always has meaningful data even after a restart.
 func (e *ProofEngine) SeedDemoData() {
+	// Look up proof-registry hash from the canonical on-chain manifest.
+	// Falls back to empty string if the manifest is not readable — an empty
+	// Deploy is a signal to the UI that the seed row is not chain-anchored,
+	// which is preferable to a hardcoded stale hash surviving a redeploy.
+	proofRegistryHash, _ := config.ContractHash("proof_registry")
 	demos := []struct {
 		agent   string
 		input   string
@@ -79,6 +86,6 @@ func (e *ProofEngine) SeedDemoData() {
 
 	for _, d := range demos {
 		p := e.GenerateWithKey(d.agent, d.pubKey, []byte(d.input), []byte(d.output), []byte(d.model), d.useCase, "anchored")
-		p.Deploy = "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"
+		p.Deploy = proofRegistryHash
 	}
 }

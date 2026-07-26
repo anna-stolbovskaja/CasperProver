@@ -12,6 +12,9 @@ go.work.sum
 target/
 *.wasm
 .env
+.env.local
+.env.*.local
+.envrc
 .idea/
 .vscode/
 *.swp
@@ -25,3 +28,9 @@ Cargo.lock
 *.bak
 .vercel
 scripts/__pycache__/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

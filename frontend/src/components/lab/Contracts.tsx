@@ -1,99 +1,98 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import SectionIntro from './SectionIntro';
 import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink } from 'lucide-react';
+import { loadManifest, OnChainManifest } from '../../lib/onchain';
 
-interface ContractInfo {
-  name: string;
-  address: string | null;
+// Presentation-only metadata (icon, purpose, lines) keyed by manifest name.
+// On-chain data (address, deployed?, deployDate) is loaded from
+// /onchain.json (generated from deploy-out/onchain.json). A redeploy no
+// longer requires editing this file — only regenerate the manifest.
+interface PresentationMeta {
+  key: string;          // key in manifest.contracts / manifest.undeployed_contracts
+  name: string;         // display name (may differ, e.g. dashes vs underscores)
   purpose: string;
   icon: React.ElementType;
-  deployed: boolean;
   lines: number;
+}
+
+const PRESENTATION: PresentationMeta[] = [
+  { key: 'proof_registry', name: 'proof-registry', purpose: 'Immutable on-chain store for all proof metadata — hashes, Merkle roots, timestamps, and verification status.', icon: FileText, lines: 251 },
+  { key: 'verifier_gate', name: 'verifier-gate', purpose: 'Gateway contract for Merkle inclusion verification — checks proof existence and validity via cross-contract calls.', icon: Shield, lines: 143 },
+  { key: 'defi_mock', name: 'defi-mock', purpose: 'KYC-gated DeFi vault — demonstrates proof-based access control for financial operations via cross-contract verification.', icon: Code, lines: 202 },
+  { key: 'stake_slashing', name: 'stake-slashing', purpose: 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters. Cross-contract call to proof-registry.', icon: Swords, lines: 273 },
+  { key: 'proof_of_inference', name: 'proof-of-inference', purpose: 'Full inference proof contract — records model hash, input/output commitments, and verification result on-chain for each AI decision.', icon: Brain, lines: 498 },
+  { key: 'model_registry', name: 'model-registry', purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.', icon: Box, lines: 372 },
+  { key: 'proof_aggregation', name: 'proof-aggregation', purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.', icon: Layers, lines: 179 },
+];
+
+interface ContractRow extends PresentationMeta {
+  address: string | null;
+  deployed: boolean;
   deployDate?: string;
 }
 
-const CONTRACTS: ContractInfo[] = [
-  {
-    name: 'proof-registry',
-    address: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
-    purpose: 'Immutable on-chain store for all proof metadata — hashes, Merkle roots, timestamps, and verification status.',
-    icon: FileText,
-    deployed: true,
-    lines: 251,
-    deployDate: '2026-06-29',
-  },
-  {
-    name: 'verifier-gate',
-    address: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
-    purpose: 'Gateway contract for Merkle inclusion verification — checks proof existence and validity via cross-contract calls.',
-    icon: Shield,
-    deployed: true,
-    lines: 143,
-    deployDate: '2026-06-29',
-  },
-  {
-    name: 'defi-mock',
-    address: 'fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef',
-    purpose: 'KYC-gated DeFi vault — demonstrates proof-based access control for financial operations via cross-contract verification.',
-    icon: Code,
-    deployed: true,
-    lines: 202,
-    deployDate: '2026-07-07',
-  },
-  {
-    name: 'stake-slashing',
-    address: '1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52',
-    purpose: 'Economic penalty contract — 20% CSPR slash on revoked proofs with permissionless bounty for reporters. Cross-contract call to proof-registry.',
-    icon: Swords,
-    deployed: true,
-    lines: 273,
-    deployDate: '2026-07-07',
-  },
-  {
-    name: 'proof-of-inference',
-    address: null,
-    purpose: 'Full inference proof contract — records model hash, input/output commitments, and verification result on-chain for each AI decision.',
-    icon: Brain,
-    deployed: false,
-    lines: 498,
-  },
-  {
-    name: 'model-registry',
-    address: null,
-    purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.',
-    icon: Box,
-    deployed: false,
-    lines: 372,
-  },
-  {
-    name: 'proof-aggregation',
-    address: null,
-    purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.',
-    icon: Layers,
-    deployed: false,
-    lines: 179,
-  },
-];
-
-const EXPLORER_BASE_URL = 'https://testnet.cspr.live/contract/';
+const EXPLORER_BASE_URL_FALLBACK = 'https://testnet.cspr.live/contract/';
 const GITHUB_BASE_URL = 'https://github.com/anna-stolbovskaja/CasperProver/tree/main/contracts/';
 
+function joinContract(base: string): string {
+  if (!base) return EXPLORER_BASE_URL_FALLBACK;
+  return base.endsWith('/') ? `${base}contract/` : `${base}/contract/`;
+}
+
 const Contracts: React.FC = () => {
-  const deployed = CONTRACTS.filter(c => c.deployed);
-  const written = CONTRACTS.filter(c => !c.deployed);
+  const [manifest, setManifest] = useState<OnChainManifest | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadManifest()
+      .then(setManifest)
+      .catch((e) => setError(e.message ?? String(e)));
+  }, []);
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-950/40 border border-red-500/40 rounded-md px-4 py-3 text-sm text-red-200">
+          Failed to load on-chain manifest ({error}). Contract data cannot be
+          displayed without a live <code>/onchain.json</code>.
+        </div>
+      </div>
+    );
+  }
+
+  if (!manifest) {
+    return <div className="p-4 text-gray-500 text-sm">Loading on-chain manifest…</div>;
+  }
+
+  const contracts: ContractRow[] = PRESENTATION.map((p) => {
+    const dep = manifest.contracts[p.key];
+    if (dep) {
+      return {
+        ...p,
+        address: dep.contract_hash,
+        deployed: true,
+        deployDate: dep.deployed_at ? dep.deployed_at.slice(0, 10) : undefined,
+      };
+    }
+    return { ...p, address: null, deployed: false };
+  });
+
+  const deployed = contracts.filter((c) => c.deployed);
+  const written = contracts.filter((c) => !c.deployed);
+  const explorerBase = joinContract(manifest.explorer);
 
   return (
     <div className="p-4">
       <SectionIntro
         title="Smart Contracts"
-        description="7 Rust/Wasm smart contracts built for CasperProver: 4 deployed on Casper testnet (proof_registry, verifier_gate, defi_mock, stake_slashing) and 3 written but not yet deployed (proof-of-inference, model-registry, proof-aggregation). Each contract is verified on-chain with real deploy hashes — click to view on Casper Explorer."
-        dataSource="Real smart contracts deployed on Casper testnet. Deploy hashes and contract hashes verified via CSPR.cloud API."
+        description={`${contracts.length} Rust/Wasm smart contracts built for CasperProver: ${deployed.length} deployed on ${manifest.network} and ${written.length} written but not yet deployed. Each contract is verified on-chain with real deploy hashes — click to view on Casper Explorer.`}
+        dataSource={`Live from /onchain.json (generated from deploy-out/onchain.json). Network: ${manifest.network}.`}
         badge="On-chain verified"
         badgeColor="green"
       />
       <h2 className="text-2xl font-bold text-gray-100 mb-2">CasperProver Contracts</h2>
       <p className="text-gray-400 mb-6">
-        {deployed.length} deployed on Casper testnet · {written.length} written and ready for mainnet · {CONTRACTS.reduce((s, c) => s + c.lines, 0).toLocaleString()} lines of Rust
+        {deployed.length} deployed on {manifest.network} · {written.length} written and ready for mainnet · {contracts.reduce((s, c) => s + c.lines, 0).toLocaleString()} lines of Rust
       </p>
 
       {/* Deployed contracts */}
@@ -101,14 +100,16 @@ const Contracts: React.FC = () => {
         <span className="w-2 h-2 rounded-full bg-green-400" /> Deployed on Testnet
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {deployed.map(c => (
+        {deployed.map((c) => (
           <div key={c.name} className="bg-[#1a1a2a] p-5 rounded-lg border border-[#222235] shadow-md">
             <div className="flex items-center gap-3 mb-3">
               {React.createElement(c.icon, { size: 24, className: 'text-red-500' })}
               <h3 className="text-lg font-semibold text-gray-100">{c.name}</h3>
-              <span className="ml-auto text-xs text-green-400/70 border border-green-500/20 px-2 py-0.5 rounded">
-                {c.deployDate}
-              </span>
+              {c.deployDate && (
+                <span className="ml-auto text-xs text-green-400/70 border border-green-500/20 px-2 py-0.5 rounded">
+                  {c.deployDate}
+                </span>
+              )}
             </div>
             <p className="text-gray-400 text-sm mb-3">{c.purpose}</p>
             <div className="text-xs text-gray-500 font-mono mb-3 break-all">
@@ -116,7 +117,7 @@ const Contracts: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
               <a
-                href={`${EXPLORER_BASE_URL}${c.address}`}
+                href={`${explorerBase}${c.address}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium transition-colors"
@@ -141,7 +142,7 @@ const Contracts: React.FC = () => {
         <span className="w-2 h-2 rounded-full bg-yellow-400" /> Written — Ready for Mainnet
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {written.map(c => (
+        {written.map((c) => (
           <div key={c.name} className="bg-[#1a1a2a] p-5 rounded-lg border border-[#222235]/60 shadow-md">
             <div className="flex items-center gap-3 mb-3">
               {React.createElement(c.icon, { size: 24, className: 'text-yellow-500' })}

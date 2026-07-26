@@ -8,7 +8,10 @@ import (
 	"strconv"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/llm"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
@@ -33,6 +36,8 @@ func main() {
 		demoVerify(eng)
 	case "demo":
 		demoFlow(eng)
+	case "gate3":
+		runGate3Demo()
 	case "serve":
 		serve(eng)
 	default:
@@ -47,6 +52,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "  prove   Generate a demo proof\n")
 	fmt.Fprintf(os.Stderr, "  verify  Verify a demo proof\n")
 	fmt.Fprintf(os.Stderr, "  demo    Run full KYC demo flow\n")
+	fmt.Fprintf(os.Stderr, "  gate3   Run the Gate 3 agentic vertical slice: approve + abstain + malicious + conflict paths, no network I/O\n")
 	fmt.Fprintf(os.Stderr, "  serve   Start API server\n")
 }
 
@@ -161,6 +167,30 @@ func serve(eng *prover.ProofEngine) {
 		slog.Error("api.New failed -- refusing to start", "error", err)
 		os.Exit(1)
 	}
+
+	// Wire the multi-provider judge if any LLM keys are configured. Absence is
+	// not fatal — the /inference/judge endpoint will just 503 until keys land.
+	if providers := llm.BuildProvidersFromEnv(0); len(providers) > 0 {
+		cfg := llm.LoadConfig()
+		runner := llm.NewRunner(providers, nil, cfg)
+		srv.SetJudge(judge.NewFacetJudge(runner))
+		slog.Info("judge wired", "providers", len(providers))
+	} else {
+		slog.Warn("judge NOT wired — no LLM provider keys in env; /inference/judge will 503")
+	}
+
+	// Wire HITL sinks from env (HITL_SINKS=slack,telegram,noop). Missing config
+	// falls back to NoopSink so the server always boots; misconfigured sinks
+	// fail loud at startup.
+	hitlCfg := hitl.ConfigFromEnv()
+	hitlSink, err := hitlCfg.Build()
+	if err != nil {
+		slog.Error("HITL sink config invalid", "error", err, "kinds", hitlCfg.Kinds)
+		os.Exit(1)
+	}
+	srv.SetHITLSink(hitlSink)
+	slog.Info("HITL sink wired", "kinds", hitlCfg.Kinds)
+
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)

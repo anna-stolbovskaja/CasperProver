@@ -17,9 +17,43 @@ import {
   PublicKey,
 } from 'casper-js-sdk'
 import type { ICSPRClickSDK } from '@make-software/csprclick-core-types'
+import { loadManifest, getCachedManifest } from './onchain'
 
+// Chain name is per-network; kept as a constant because the CSPR.click SDK
+// needs it synchronously for tx construction. If we ever ship to mainnet
+// this becomes manifest-driven too.
 export const CASPER_CHAIN_NAME = 'casper-test'
-export const PROOF_REGISTRY_HASH = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
+
+// Boot-time fallback: last known proof_registry hash. The real value comes
+// from the manifest via loadManifest() below. The export stays for backward
+// compat, but callers should treat it as advisory and prefer
+// getProofRegistryHash() when constructing txs.
+export let PROOF_REGISTRY_HASH = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
+
+/**
+ * Refresh PROOF_REGISTRY_HASH from the canonical /onchain.json. Fires and
+ * forgets — a redeploy that changes the hash before this resolves would
+ * still ship the fallback for a few milliseconds, which is acceptable
+ * (the frontend cannot construct a tx before mount anyway).
+ */
+void loadManifest()
+  .then((m) => {
+    const fresh = m.contracts.proof_registry?.contract_hash
+    if (fresh && fresh !== PROOF_REGISTRY_HASH) {
+      // eslint-disable-next-line no-console
+      console.info(`[liveTx] proof_registry hash refreshed from manifest: ${PROOF_REGISTRY_HASH.slice(0, 8)}… → ${fresh.slice(0, 8)}…`)
+      PROOF_REGISTRY_HASH = fresh
+    }
+  })
+  .catch(() => {
+    /* manifest unavailable — stay on fallback, log elsewhere */
+  })
+
+/** Preferred accessor: returns the manifest-resolved hash if available, else the fallback. */
+export function getProofRegistryHash(): string {
+  return getCachedManifest()?.contracts.proof_registry?.contract_hash ?? PROOF_REGISTRY_HASH
+}
+
 export const PAYMENT_MOTES = 3_000_000_000 // 3 CSPR — sufficient for dictionary writes
 
 export type LiveTxResult =
@@ -43,7 +77,7 @@ export async function submitProofOnChain(
 ): Promise<LiveTxResult> {
   try {
     const tx = new ContractCallBuilder()
-      .byHash(PROOF_REGISTRY_HASH)
+      .byHash(getProofRegistryHash())
       .entryPoint('submit_proof')
       .runtimeArgs(
         Args.fromMap({
@@ -87,7 +121,7 @@ export async function registerAgentOnChain(
 ): Promise<LiveTxResult> {
   try {
     const tx = new ContractCallBuilder()
-      .byHash(PROOF_REGISTRY_HASH)
+      .byHash(getProofRegistryHash())
       .entryPoint('register_agent')
       .runtimeArgs(
         Args.fromMap({
@@ -128,7 +162,7 @@ export async function revokeProofOnChain(
 ): Promise<LiveTxResult> {
   try {
     const tx = new ContractCallBuilder()
-      .byHash(PROOF_REGISTRY_HASH)
+      .byHash(getProofRegistryHash())
       .entryPoint('revoke_proof')
       .runtimeArgs(
         Args.fromMap({

@@ -20,10 +20,12 @@ import (
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/siwe"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/config"
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
@@ -66,6 +68,9 @@ type Server struct {
 	aggBatches map[string]*aggBatch
 
 	siwe *siwe.Store
+	// Multi-provider judge for /inference/judge. Set via SetJudge; nil = 503.
+	judge    JudgeService
+	hitlSink hitl.Sink // optional HITL delivery sink; set via SetHITLSink
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -89,11 +94,19 @@ type aggBatch struct {
 	Pack *aggregator.STARKPack
 }
 
-func envOrDefault(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
+// manifestHashOrEnv returns env override first, then the canonical manifest,
+// then an empty string. A hardcoded fallback here would silently outlive a
+// redeploy (Gate 1.5 forbids it).
+func manifestHashOrEnv(envKey, manifestKey string) string {
+	if v := os.Getenv(envKey); v != "" {
 		return v
 	}
-	return fallback
+	h, err := config.ContractHash(manifestKey)
+	if err != nil {
+		slog.Warn("onchain manifest not readable; contract hash will be empty until redeploy manifest is provisioned", "env_key", envKey, "manifest_key", manifestKey, "err", err)
+		return ""
+	}
+	return h
 }
 
 // New constructs the API Server from environment configuration.
@@ -110,10 +123,10 @@ func envOrDefault(key, fallback string) string {
 // PRs (see docs/STRICT_MODE_ROLLOUT.md in AE402 for the sibling doc).
 func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 	contracts := contractHashes{
-		ProofRegistry: envOrDefault("CONTRACT_PROOF_REGISTRY", "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"),
-		VerifierGate:  envOrDefault("CONTRACT_VERIFIER_GATE", "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3"),
-		DefiMock:      envOrDefault("CONTRACT_DEFI_MOCK", "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef"),
-		StakeSlashing: envOrDefault("CONTRACT_STAKE_SLASHING", "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52"),
+		ProofRegistry: manifestHashOrEnv("CONTRACT_PROOF_REGISTRY", "proof_registry"),
+		VerifierGate:  manifestHashOrEnv("CONTRACT_VERIFIER_GATE", "verifier_gate"),
+		DefiMock:      manifestHashOrEnv("CONTRACT_DEFI_MOCK", "defi_mock"),
+		StakeSlashing: manifestHashOrEnv("CONTRACT_STAKE_SLASHING", "stake_slashing"),
 	}
 
 	nodeURL := os.Getenv("CASPER_NODE_URL")
@@ -241,6 +254,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /inference/verify", s.inferenceVerify)
 	mux.HandleFunc("POST /inference/register-model", s.inferenceRegisterModel)
 	mux.HandleFunc("GET /inference/model/{id}", s.inferenceGetModel)
+	mux.HandleFunc("POST /inference/judge", s.judgeHandler)
 	// Aggregation routes
 	mux.HandleFunc("POST /aggregation/create-batch", s.aggregationCreateBatch)
 	mux.HandleFunc("POST /aggregation/add-proof", s.aggregationAddProof)
@@ -798,13 +812,21 @@ func (s *Server) exportProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	verifyURL := ""
+	if m, err := config.Load(); err == nil {
+		verifyURL = m.Verification.APIHealth
+		// APIHealth ends in /health; the verify surface is a sibling.
+		if verifyURL != "" {
+			verifyURL = verifyURL[:len(verifyURL)-len("/health")] + "/verify"
+		}
+	}
 	bundle := map[string]interface{}{
 		"version":    "1.0",
 		"exported":   time.Now().Unix(),
 		"proof":      p,
 		"contract":   s.contracts.ProofRegistry,
 		"chain":      "casper-test",
-		"verify_url": "https://casperprover-api-ylsh.onrender.com/verify",
+		"verify_url": verifyURL,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
