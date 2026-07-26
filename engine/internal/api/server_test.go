@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +26,14 @@ func asString(v any) string {
 
 func newTestServer(apiKey string) *Server {
 	eng := prover.New()
-	s := New(eng, 0, nil)
+	s, err := New(eng, 0, nil)
+	if err != nil {
+		// Helper -- no *testing.T available. Panic is fine because a
+		// non-nil error here means api.New's contract broke (unit
+		// tests never opt into CP_STRICT), so the whole suite is
+		// unusable and we want a loud stack.
+		panic(fmt.Sprintf("newTestServer: New returned error: %v", err))
+	}
 	s.apiKey = apiKey
 	return s
 }

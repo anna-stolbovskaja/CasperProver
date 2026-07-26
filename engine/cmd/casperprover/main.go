@@ -152,7 +152,15 @@ func serve(eng *prover.ProofEngine) {
 			port = p
 		}
 	}
-	srv := api.New(eng, port, db)
+	srv, err := api.New(eng, port, db)
+	if err != nil {
+		// api.New returns an error on strict-mode precondition
+		// violations (e.g. CP_STRICT=1 with an empty API_KEY). Crash
+		// loudly instead of starting a broken server. See
+		// api.New()'s docstring for the current list of preconditions.
+		slog.Error("api.New failed -- refusing to start", "error", err)
+		os.Exit(1)
+	}
 	if err := srv.Start(); err != nil {
 		slog.Error("server stopped", "error", err)
 		os.Exit(1)

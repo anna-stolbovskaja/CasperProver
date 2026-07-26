@@ -92,7 +92,19 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
-func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
+// New constructs the API Server from environment configuration.
+//
+// It returns an error when CP_STRICT=1 is set but the deployment is missing
+// a fail-loud prerequisite. Right now that means:
+//
+//   - API_KEY is empty. Under strict mode we refuse to boot instead of
+//     tolerating anonymous writes -- silent "auth off" was the failure
+//     mode CP_AGENT_SPEC v2 called out ("startup fails or prominently
+//     degrades if API_KEY missing").
+//
+// Additional strict-mode preconditions may be added here in follow-up
+// PRs (see docs/STRICT_MODE_ROLLOUT.md in AE402 for the sibling doc).
+func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 	contracts := contractHashes{
 		ProofRegistry: envOrDefault("CONTRACT_PROOF_REGISTRY", "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708"),
 		VerifierGate:  envOrDefault("CONTRACT_VERIFIER_GATE", "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3"),
@@ -126,9 +138,17 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 
 	strict := os.Getenv("CP_STRICT") == "1"
 	apiKey := os.Getenv("API_KEY")
-	if apiKey == "" {
-		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment)")
-	} else {
+	switch {
+	case apiKey == "" && strict:
+		// Fail-loud precondition: under CP_STRICT=1 we refuse to boot
+		// with an empty API_KEY. Rationale in the New() docstring above
+		// and CP_AGENT_SPEC v2 (Gate 1.2). Operator gets an immediate
+		// crash instead of a running-but-broken app that accepts
+		// anonymous writes.
+		return nil, fmt.Errorf("CP_STRICT=1 but API_KEY is empty -- refusing to start with anonymous writes enabled (set API_KEY or unset CP_STRICT)")
+	case apiKey == "":
+		slog.Warn("API_KEY not set - all write endpoints are unauthenticated (fine for local dev/demo, not for a real deployment; enable CP_STRICT=1 to fail-close)")
+	default:
 		slog.Info("API_KEY configured - write endpoints require X-API-Key header")
 	}
 
@@ -190,7 +210,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		}
 	}
 
-	return srv
+	return srv, nil
 }
 
 func (s *Server) Start() error {
@@ -346,6 +366,25 @@ func (s *Server) logMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// authStatus categorises the current write-authentication posture.
+//
+// Returned states:
+//
+//   - "enabled"  -- API_KEY is set; write endpoints require X-API-Key.
+//   - "disabled" -- API_KEY is empty; write endpoints are open (dev/demo
+//     only; strict mode refuses to boot in this state, so a running
+//     server that reports "disabled" is *by definition* not strict).
+//
+// The tri-state existed in a prior iteration ("warning" for empty+non-strict);
+// v2 collapses it because the strict flag is already reported separately
+// and adding a third state confused judges reading the JSON.
+func (s *Server) authStatus() string {
+	if s.apiKey != "" {
+		return "enabled"
+	}
+	return "disabled"
+}
+
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 	st := s.eng.GetStats()
 	w.Header().Set("Content-Type", "application/json")
@@ -356,6 +395,15 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 		"total_proofs": st.Total,
 		"chain":        "casper-test",
 		"strict":       s.strict,
+		// Structured auth breakdown. "auth.mode" is the machine-readable
+		// state ({"enabled","disabled"}); "auth.enforced" is the boolean
+		// convenience field verify.sh and the frontend key off. See
+		// authStatus() above.
+		"auth": map[string]interface{}{
+			"mode":     s.authStatus(),
+			"enforced": s.apiKey != "",
+			"strict":   s.strict,
+		},
 		"capabilities": map[string]bool{
 			"authenticated_writes": s.apiKey != "",
 			"onchain_submit":       s.sub != nil,
