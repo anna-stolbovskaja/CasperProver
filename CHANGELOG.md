@@ -8,7 +8,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-*Frontend polish, DoraHacks submission prep, docs hardening.*
+*Frontend polish, DoraHacks submission prep, docs hardening, backend hardening, CI/deps sweep, Casper 2.0 SDK migration.*
 
 ### Added (2026-07-19)
 - **CP_STRICT=1 + `API_KEY` fail-closed** (`engine/internal/api/server.go`, feat/cp-api-key-fail-closed). `api.New()` now returns an error instead of a running server when CP_STRICT=1 is set with an empty API_KEY -- `main.go` turns that error into `os.Exit(1)`, so an operator who opted into strict mode gets an immediate crash instead of a silently-anonymous deployment. Loose mode + empty key still works (dev / demo). `/health` gained a structured `auth` block ({mode, enforced, strict}) so `verify.sh` and the frontend can gate on the deployment posture without parsing the log stream. `verify.sh` gained a `verify_auth` section that WARNs on unenforced auth and hard-FAILs on the impossible "strict + not enforced" state (fail-close bypass detection). 7 unit tests in `engine/internal/api/apikey_failclosed_test.go` cover the 2×2 (strict, key) precondition matrix and the three `/health.auth` shapes (enabled + enforced, disabled loose, prod strict). Closes CP_AGENT_SPEC v2 Gate 1.2 ("startup fails or prominently degrades if API_KEY missing").
@@ -25,6 +25,13 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `docs/SUBMISSION_CHECKLIST.tmp` — DoraHacks submission tracker.
 - `docs/RED_TEAM.tmp` — 18-vector red-team self-audit.
 - `docs/API.tmp` — curl-first API reference for all 32 endpoints.
+- `verify.sh` — single-command proof-of-deployment script that hits `/health`, checks all four contract hashes on CSPR.cloud, and prints a green/red matrix (`1f17c22`).
+- `SECURITY.md` — self-audit table, threat model, and disclosure policy (`db0775e`).
+- `frontend/public/onchain.json` — verified contract deploy data pulled from CSPR.cloud, consumed by the Contracts tab (`f60372a`).
+- Dependabot configuration covering Go, npm, Cargo, and GitHub Actions (`56d9331`); SDK-side gomod ecosystem added separately (`694f024`).
+- TruffleHog secret-scan workflow on push and PR — verified and unknown findings both surface (`d247ec0`, hardened in `9396a19`).
+- CI job that uploads compiled contract WASM artifacts, needed by the stake-slashing redeploy pipeline (`517f28a`).
+- Lab UX additions: breadcrumbs above lab content (`71a344c`), help-tooltips on section titles (`a2bf6de`), keyboard-shortcuts + help modal (`b614894`), `StatusBadge` extracted from `SectionIntro` for reuse (`625477d`).
 
 ### Changed
 - All 20 `console.error` calls in Lab components guarded by `import.meta.env.DEV`; only `ErrorBoundary` (line 18) and `toast` fallback (line 122) keep unconditional logging by design.
@@ -32,9 +39,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `ErrorBoundary` auto-resets on route change via `key={location.pathname}` — no stale error screens across nav.
 - Mobile Lab sidebar auto-closes on route change.
 - `README.md` badges regrouped: CI status row + capability row.
+- **Migrated `internal/submitter` to `casper-go-sdk/v2` and refactored to sign & submit real `TransactionV1` payloads (Condor); `gnark` bumped `0.12 → 0.13` (`212c429`).**
+- Contract hashes moved out of hard-coded literals into env vars (`CONTRACT_PROOF_REGISTRY`, `CONTRACT_VERIFIER_GATE`, `CONTRACT_DEFI_MOCK`, `CONTRACT_STAKE_SLASHING`) with sane defaults; redeploys no longer require a code change (`be66ac4`).
+- Logging migrated from ad-hoc `fmt.Printf` to structured `slog` across CLI and demo code (`907eec9`).
+- `genID` now falls back gracefully on `crypto/rand` failure instead of `panic` (`0dc68a2`).
+- CI: `go-version` bumped `1.22 → 1.24`, `golangci-lint` config migrated to v2 (`d0503f8`), remaining errcheck / staticcheck findings resolved (`d0596a5`).
+- GitHub Actions bumps: `actions/setup-node` 4 → 7 (`775090c`), `golangci/golangci-lint-action` 6 → 9 (`8f497f6`), `actions/setup-go` 5 → 7 (`fff4897`).
+- npm bumps: `typescript` 5.6 → 7.0.2, `react-router-dom` 6.28 → 7.18.1 (`7e28ee4`).
+- Safe patch/minor bumps: `circl`, `lib/pq`, `actions/checkout`, `autoprefixer` (`b99d0e4`).
 
 ### Fixed
 - Vite env types wired via `src/vite-env.d.ts` so `import.meta.env.DEV` type-checks under `strict`.
+- **stake-slashing `record_stake` now self-verifies against the actual purse balance — the previous implementation trusted the caller-supplied amount, so out-of-band calls could inflate recorded stake with no backing funds** (`392e4f0`; regression discovered in the internal audit).
+- **Casper 2.0 `Key` compatibility: contracts now use `into_entity_hash_addr` where the old code assumed the pre-Condor addressable-entity model** (`9f4c40a`).
+- Checked arithmetic added in stake-slashing and proof-registry to eliminate silent overflow (`a5e2aa4`).
+- RED_TEAM audit: corrected 2 inaccurate agent-report claims (nonexistent CORS env-var, wrong function name) and added the missing API_KEY-unset auth-gap vector (`6d3d434`).
+- Small lab polish: removed cross-project reference in a comment, replaced ✕ emoji with SVG X icon (`0347127`); replaced 💡 emoji with `Lightbulb` SVG in `LabLayout` (`462eb6c`).
 
 ### Planned
 - Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts to mainnet
