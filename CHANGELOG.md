@@ -13,6 +13,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Added (2026-07-19)
 - **CP_STRICT=1 + `API_KEY` fail-closed** (`engine/internal/api/server.go`, feat/cp-api-key-fail-closed). `api.New()` now returns an error instead of a running server when CP_STRICT=1 is set with an empty API_KEY -- `main.go` turns that error into `os.Exit(1)`, so an operator who opted into strict mode gets an immediate crash instead of a silently-anonymous deployment. Loose mode + empty key still works (dev / demo). `/health` gained a structured `auth` block ({mode, enforced, strict}) so `verify.sh` and the frontend can gate on the deployment posture without parsing the log stream. `verify.sh` gained a `verify_auth` section that WARNs on unenforced auth and hard-FAILs on the impossible "strict + not enforced" state (fail-close bypass detection). 7 unit tests in `engine/internal/api/apikey_failclosed_test.go` cover the 2×2 (strict, key) precondition matrix and the three `/health.auth` shapes (enabled + enforced, disabled loose, prod strict). Closes CP_AGENT_SPEC v2 Gate 1.2 ("startup fails or prominently degrades if API_KEY missing").
 
+### Fixed
+- `proof-aggregation::create_batch` no longer silently overwrites an existing
+  open batch — duplicate `batch_id` now reverts with `ApiError::User(22)`,
+  empty `batch_id` reverts with `20`, and `max_proofs == 0` reverts with `21`.
+  This closes the P1 finding in `docs/SECURITY_AUDIT.md` and unblocks Gate 2
+  redeploy of the `proof-aggregation` crate. Contract rebuilds cleanly on
+  `nightly-2025-01-01`; guard invariants mirrored in
+  `contracts/tests/src/integration_tests.rs::proof_aggregation_tests`
+  (6 new tests, all green).
+
 ### Added
 - **`docs/SECURITY_AUDIT.md`** — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
