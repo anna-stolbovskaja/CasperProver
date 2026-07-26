@@ -23,6 +23,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
   `contracts/tests/src/integration_tests.rs::proof_aggregation_tests`
   (6 new tests, all green).
 
+### Added — Gate 1 hardening (2026-07-20)
+- `GET /onchain.json` API endpoint — canonical contract manifest served over HTTP with 60s in-memory cache and mtime invalidation (`engine/internal/api/onchain.go`, 4 tests).
+- Root `deploy-out/onchain.json` promoted to canonical single-source-of-truth for on-chain contract addresses; served verbatim by `/onchain.json`.
+- `scripts/sync-onchain-manifest.sh` and `make sync-onchain` — one-liner that copies the canonical manifest into `frontend/public/onchain.json`; wired into frontend `prebuild` + `predev` hooks so the SPA can never drift from the API.
+- `scripts/judge_demo.py` — reads contract hashes from the canonical manifest (with a loud stderr fallback) instead of hardcoding them.
+- `verify.sh` — loads contract addresses from `deploy-out/onchain.json` via `jq`; pinned list retained only as a fallback for stripped environments.
+- `CP_STRICT=1` production preflight in `cmd/casperprover/serve` — refuses to start with `API_KEY=""`; unauthenticated writes are only permitted in dev mode.
+
 ### Added
 - **`docs/SECURITY_AUDIT.md`** — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.

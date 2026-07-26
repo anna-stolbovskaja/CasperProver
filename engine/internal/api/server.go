@@ -236,6 +236,7 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", s.health)
+	mux.HandleFunc("GET /onchain.json", s.onchainManifest)
 	mux.HandleFunc("GET /proofs", s.listProofs)
 	mux.HandleFunc("GET /proofs/{id}", s.getProof)
 	mux.HandleFunc("POST /proofs", s.submitProof)

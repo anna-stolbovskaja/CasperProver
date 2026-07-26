@@ -1,5 +1,5 @@
 .PHONY: build test lint clean contracts contracts-test sdk-test \
-        judge-demo judge-repro judge-verify judge-all gate3-demo bench bench-baseline
+        judge-demo judge-repro judge-verify judge-all gate3-demo bench bench-baseline sync-onchain
 
 build:
 	cd engine && go build -o ../bin/casperprover ./cmd/casperprover
@@ -69,3 +69,8 @@ judge-all: build sdk-test test contracts-test judge-verify judge-repro
 
 ## Alias so a first-time judge can just type `make judge-demo`.
 judge-demo: judge-all
+
+# Sync canonical on-chain manifest from deploy-out/onchain.json into consumer
+# surfaces (frontend/public/onchain.json). Run after every redeploy.
+sync-onchain:
+	./scripts/sync-onchain-manifest.sh
