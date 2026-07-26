@@ -29,6 +29,23 @@
 ### Frontend (10 interactive tabs)
 - Overview, Proofs, Models, Aggregation, ZK Proofs, PQ Crypto, Contracts, Agent Demo, Playground, KYC
 
+## Legal & policy (drafts)
+
+Draft, self-authored, not-counsel-reviewed policy documents live under
+`LEGAL/`:
+
+- `LEGAL/TOS.md` — Terms of Service draft (testnet-only status, warranty
+  disclaimer, indemnity).
+- `LEGAL/AUP.md` — Acceptable Use Policy draft (encouraged uses,
+  prohibited uses, enforcement).
+- `LEGAL/DATA_PROTECTION.md` — GDPR-adjacent data protection notice
+  draft (hash-only architectural boundary, retention schedule,
+  data-subject rights template).
+
+All three are labelled **DRAFT — not reviewed by counsel** and will be
+replaced with counsel-reviewed versions before commercial launch
+(`docs/MAINNET_LAUNCH_PLAN.md`, Pack AK).
+
 ## 🔜 Roadmap
 
 ### Near-term

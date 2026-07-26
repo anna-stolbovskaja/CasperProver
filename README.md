@@ -374,6 +374,14 @@ CasperProver/
 
 ---
 
+## Legal & policy (drafts)
+
+Self-authored, not-counsel-reviewed drafts of Terms of Service,
+Acceptable Use Policy, and GDPR-adjacent Data Protection Notice live
+under [`LEGAL/`](LEGAL/README.md). They will be replaced with
+counsel-reviewed versions before any commercial launch (see
+`docs/MAINNET_LAUNCH_PLAN.md`, Pack AK).
+
 ## License
 
 [MPL-2.0](LICENSE) · Last verified: 2026-07-07
