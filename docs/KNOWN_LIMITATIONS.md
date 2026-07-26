@@ -73,6 +73,13 @@ replaced with counsel-reviewed versions before commercial launch
 - Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts
 - Demo/Real data toggle in lab
 
+### Observability (2026-07)
+- Local `/metrics` + Grafana stack shipped in `deploy/observability/`.
+- **In-process** metrics + tracing library is a zero-dependency,
+  purpose-built impl (Prometheus 0.0.4 text exposition; OTel-shaped NDJSON
+  spans). Not `prometheus/client_golang`, no OTLP/gRPC exporter.
+  Upgrade path is call-site-preserving (see `docs/OBSERVABILITY.md`).
+
 ### Medium-term
 - STARK recursive aggregation (pending mature Go library; winterfell is Rust-only)
 - Multi-chain anchoring (EVM, Solana)

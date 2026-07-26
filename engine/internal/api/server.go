@@ -24,6 +24,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/obs"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
@@ -63,6 +64,8 @@ type Server struct {
 	apiKey    string
 	strict    bool // fail closed for requested on-chain operations
 	scopeReg  *ScopeRegistry // optional per-key scope allowlist; nil = disabled
+
+	obsRegistry *obs.Registry // populated on Start() for /metrics exposition
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
@@ -298,6 +301,20 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /auth/siwe/challenge", s.siweChallenge)
 	mux.HandleFunc("POST /auth/siwe/verify", s.siweVerify)
 
+	// Observability: /metrics + RED middleware. Zero-dep; opt-in tracer
+	// (nil = metrics-only). See docs/OBSERVABILITY.md.
+	registry := obs.NewRegistry()
+	httpMetrics := obs.NewHTTPMetrics(registry)
+	s.obsRegistry = registry
+	mux.Handle("GET /metrics", obs.Handler(registry))
+
+	var tracer *obs.Tracer
+	if os.Getenv("CP_TRACES_ENABLED") == "1" {
+		tracer = obs.NewTracer("casperprover-engine", os.Stderr)
+	}
+
+	instrumented := httpMetrics.MiddlewareRoute(tracer, mux, obs.MuxRouteResolver(mux))
+
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
@@ -306,7 +323,7 @@ func (s *Server) Start() error {
 				s.perKeyRateLimitMiddleware(
 					s.corsMiddleware(
 						s.authMiddleware(
-							s.logMiddleware(mux)))))),
+							s.logMiddleware(instrumented)))))),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
