@@ -13,7 +13,7 @@ graph TB
         API[32 REST Endpoints]
         MK[Merkle Builder]
         ZK[Groth16 Verifier<br/>gnark BN254]
-        PQ[PQ Crypto<br/>SPHINCS+ · ML-DSA-65]
+        PQ[PQ Crypto<br/>ML-DSA-65 · Lamport OTS]
         AG[Batch Aggregator]
         PC[Proof Chain<br/>DAG Validator]
         INF[Inference Service]
