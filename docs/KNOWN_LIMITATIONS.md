@@ -47,3 +47,15 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+---
+
+## Mainnet — gated, not scheduled
+
+Any mainnet surface is gated by the eight-gate ledger in
+[`docs/MAINNET_LAUNCH_PLAN.md`](./MAINNET_LAUNCH_PLAN.md). Until every
+gate is closed and the launch review in Gate 8 is signed, the current
+system remains **testnet-only** and the honesty labels
+(`REAL / ON-CHAIN / SIMULATION`) must not be changed to imply a live
+mainnet surface. That plan is a map, not a schedule — no dates, no
+vendors, no spend are authorized by it.
