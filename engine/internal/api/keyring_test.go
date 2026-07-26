@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto/keystore"
 )
 
 // buildKeyRingServer builds a minimal Server wired with just the keyring
@@ -23,7 +24,8 @@ func buildKeyRingServer(t *testing.T, enable bool) (*Server, *http.ServeMux) {
 	} else {
 		t.Setenv("CP_KEYRING_ENABLE", "")
 	}
-	s := &Server{keyRing: pqcrypto.NewKeyRing()}
+	ring := pqcrypto.NewKeyRing()
+	s := &Server{keyRing: ring, keystore: keystore.NewMemory(ring)}
 	mux := http.NewServeMux()
 	s.registerKeyRingRoutes(mux)
 	return s, mux

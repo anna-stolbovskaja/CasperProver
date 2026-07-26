@@ -301,6 +301,102 @@ func LoadPublicKeyRing(data []byte) (*KeyRing, error) {
 	return r, nil
 }
 
+// keyMaterial is the wire format for one key when the caller wants BOTH the
+// public metadata AND the private half. Used by FileKeystore to persist the
+// ring to disk. Callers MUST encrypt the resulting bytes at rest — this
+// method itself performs no encryption.
+type keyMaterial struct {
+	Meta            KeyMeta `json:"meta"`
+	PrivateHex      string  `json:"private_hex,omitempty"`
+	PrivateHybridPQ string  `json:"private_hybrid_pq_hex,omitempty"` // second half for hybrid
+}
+
+type fullRingDoc struct {
+	Version int           `json:"version"` // schema version
+	Keys    []keyMaterial `json:"keys"`
+}
+
+// MarshalFull serializes the ring INCLUDING private key material as JSON.
+//
+// SECURITY WARNING — the output contains raw private keys. Never write it
+// to disk unencrypted, ship it over an unauthenticated channel, or paste
+// it into logs. FileKeystore encrypts this blob with ChaCha20-Poly1305
+// keyed by an Argon2id-derived passphrase before persisting.
+func (r *KeyRing) MarshalFull() ([]byte, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	sorted := make([]KeyMeta, 0, len(r.keys))
+	for _, e := range r.keys {
+		sorted = append(sorted, e.meta)
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Algo != sorted[j].Algo {
+			return string(sorted[i].Algo) < string(sorted[j].Algo)
+		}
+		return sorted[i].Version < sorted[j].Version
+	})
+
+	doc := fullRingDoc{Version: 1, Keys: make([]keyMaterial, 0, len(sorted))}
+	for _, m := range sorted {
+		entry := r.keys[m.ID]
+		privHex, hybridPQHex, err := entry.privateHex()
+		if err != nil {
+			return nil, fmt.Errorf("keyring: marshal private %s: %w", m.ID, err)
+		}
+		doc.Keys = append(doc.Keys, keyMaterial{Meta: m, PrivateHex: privHex, PrivateHybridPQ: hybridPQHex})
+	}
+	return json.MarshalIndent(doc, "", "  ")
+}
+
+// LoadFullKeyRing reconstructs a KeyRing from a MarshalFull snapshot,
+// including private key material. Signing and verification both work on
+// the returned ring.
+func LoadFullKeyRing(data []byte) (*KeyRing, error) {
+	var doc fullRingDoc
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("keyring: parse full snapshot: %w", err)
+	}
+	if doc.Version != 1 {
+		return nil, fmt.Errorf("keyring: unsupported snapshot version %d", doc.Version)
+	}
+	r := NewKeyRing()
+	for _, km := range doc.Keys {
+		pubBytes, err := hex.DecodeString(km.Meta.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("keyring: bad public_key_hex on %s: %w", km.Meta.ID, err)
+		}
+		entry := &keyEntry{meta: km.Meta}
+		if err := entry.hydratePublicOnly(km.Meta.Algo, pubBytes); err != nil {
+			return nil, fmt.Errorf("keyring: hydrate public %s: %w", km.Meta.ID, err)
+		}
+		if km.PrivateHex != "" {
+			privBytes, err := hex.DecodeString(km.PrivateHex)
+			if err != nil {
+				return nil, fmt.Errorf("keyring: bad private_hex on %s: %w", km.Meta.ID, err)
+			}
+			var hybridPQ []byte
+			if km.PrivateHybridPQ != "" {
+				hybridPQ, err = hex.DecodeString(km.PrivateHybridPQ)
+				if err != nil {
+					return nil, fmt.Errorf("keyring: bad hybrid_pq_hex on %s: %w", km.Meta.ID, err)
+				}
+			}
+			if err := entry.hydratePrivate(km.Meta.Algo, privBytes, hybridPQ); err != nil {
+				return nil, fmt.Errorf("keyring: hydrate private %s: %w", km.Meta.ID, err)
+			}
+		}
+		r.keys[km.Meta.ID] = entry
+		if km.Meta.Version > r.perAlgoMaxVersion[km.Meta.Algo] {
+			r.perAlgoMaxVersion[km.Meta.Algo] = km.Meta.Version
+		}
+		if km.Meta.Active {
+			r.active[km.Meta.Algo] = km.Meta.ID
+		}
+	}
+	return r, nil
+}
+
 // -----------------------------------------------------------------------------
 // keyEntry internals — algo dispatch
 // -----------------------------------------------------------------------------
@@ -415,6 +511,80 @@ func (e *keyEntry) verify(message, signature []byte) (bool, error) {
 		return ok, err
 	}
 	return false, fmt.Errorf("keyring: unsupported algo %q", e.meta.Algo)
+}
+
+// privateHex serializes the entry's private material. For non-hybrid algos
+// only privHex is populated; for hybrid, privHex holds ed25519 and
+// hybridPQHex holds mldsa65.
+func (e *keyEntry) privateHex() (privHex, hybridPQHex string, err error) {
+	switch e.meta.Algo {
+	case AlgoEd25519:
+		if e.ed25519Priv == nil {
+			return "", "", nil
+		}
+		return hex.EncodeToString(e.ed25519Priv), "", nil
+	case AlgoMLDSA65:
+		if e.mldsaPriv == nil {
+			return "", "", nil
+		}
+		pb, err := e.mldsaPriv.MarshalBinary()
+		if err != nil {
+			return "", "", err
+		}
+		return hex.EncodeToString(pb), "", nil
+	case AlgoLamport:
+		if e.lamportPriv == nil {
+			return "", "", nil
+		}
+		return hex.EncodeToString(e.lamportPriv.Bytes()), "", nil
+	case AlgoHybrid:
+		if e.ed25519Priv == nil || e.mldsaPriv == nil {
+			return "", "", nil
+		}
+		pq, err := e.mldsaPriv.MarshalBinary()
+		if err != nil {
+			return "", "", err
+		}
+		return hex.EncodeToString(e.ed25519Priv), hex.EncodeToString(pq), nil
+	}
+	return "", "", fmt.Errorf("keyring: unsupported algo %q", e.meta.Algo)
+}
+
+// hydratePrivate restores private key material previously produced by
+// privateHex. Called by LoadFullKeyRing.
+func (e *keyEntry) hydratePrivate(algo Algo, privBytes, hybridPQ []byte) error {
+	switch algo {
+	case AlgoEd25519:
+		if len(privBytes) != ed25519.PrivateKeySize {
+			return errInvalidKeyLength
+		}
+		e.ed25519Priv = ed25519.PrivateKey(privBytes)
+	case AlgoMLDSA65:
+		var priv mldsa65.PrivateKey
+		if err := priv.UnmarshalBinary(privBytes); err != nil {
+			return err
+		}
+		e.mldsaPriv = &priv
+	case AlgoLamport:
+		priv, err := LamportPrivateKeyFromBytes(privBytes)
+		if err != nil {
+			return err
+		}
+		e.lamportPriv = priv
+	case AlgoHybrid:
+		if len(privBytes) != ed25519.PrivateKeySize {
+			return errInvalidKeyLength
+		}
+		e.ed25519Priv = ed25519.PrivateKey(privBytes)
+		var pq mldsa65.PrivateKey
+		if err := pq.UnmarshalBinary(hybridPQ); err != nil {
+			return err
+		}
+		e.mldsaPriv = &pq
+	default:
+		return fmt.Errorf("keyring: unsupported algo %q", algo)
+	}
+	return nil
 }
 
 func (e *keyEntry) hydratePublicOnly(algo Algo, pubBytes []byte) error {

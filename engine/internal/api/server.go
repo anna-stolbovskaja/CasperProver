@@ -22,6 +22,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto/keystore"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
@@ -55,7 +56,8 @@ type Server struct {
 	zk        *zkverifier.Groth16Verifier
 	realZK    *gnarkzk.Setup     // legacy PreimageCircuit-only setup, kept for backwards compat
 	zkReg     *gnarkzk.Registry  // v1 circuit registry (persistent keys via CP_ZK_KEYS_DIR)
-	keyRing   *pqcrypto.KeyRing  // PQ signature keyring (rotation + versioning). Gated by CP_KEYRING_ENABLE=1.
+	keyRing   *pqcrypto.KeyRing   // deprecated shim: same object as keystore.Ring() when the backend is memory. Do not add new call sites; new code should route through `keystore`.
+	keystore  keystore.Keystore   // PQ signing backend. Default memory; opt-in file/remote via CP_KEYSTORE_KIND.
 	contracts contractHashes
 	port      int
 	log       *slog.Logger
@@ -187,7 +189,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		zk:        zkverifier.NewGroth16Verifier(),
 		realZK:    realZK,
 		zkReg:     zkReg,
-		keyRing:   pqcrypto.NewKeyRing(),
+		keyRing:   nil,
 		contracts: contracts,
 		port:      port,
 		log:    slog.Default(),
@@ -202,6 +204,28 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	// dependencies. A durable variant belongs in Postgres and is
 	// tracked in KNOWN_LIMITATIONS.md.
 	srv.webhooks = newWebhookStore()
+
+	// PQ keystore: default memory backend, opt-in file/remote via env.
+	// Errors setting up the requested backend are surfaced but do not
+	// crash the server — the endpoint layer refuses signing operations
+	// when the keystore isn't wired.
+	if ks, backing, err := keystore.FromEnv(); err == nil {
+		srv.keystore = ks
+		if mks, ok := ks.(*keystore.MemoryKeystore); ok {
+			srv.keyRing = mks.Ring()
+		} else {
+			// For non-memory backends, the deprecated keyRing shim stays
+			// nil — handler paths that still reach for it will fall back
+			// through the interface.
+			srv.keyRing = nil
+		}
+		slog.Info("pq keystore configured", "backing", backing)
+	} else {
+		slog.Warn("pq keystore setup failed — falling back to memory", "err", err)
+		mks := keystore.NewMemory(pqcrypto.NewKeyRing())
+		srv.keystore = mks
+		srv.keyRing = mks.Ring()
+	}
 
 	// Scoped API key registry: opt-in via $CP_SCOPES_FILE. Missing
 	// file = fallback to blanket $API_KEY auth (backward compat).

@@ -180,6 +180,7 @@ var routeScopes = map[string]string{
 	"POST /v1/pq/keys/sign":            "pq:write",
 	"POST /v1/pq/keys/verify":          "pq:read",
 	"POST /v1/pq/keys/migrate":         "pq:write",
+	"GET /v1/pq/keystore/info":         "pq:read",
 
 	// Nova / folding aggregation harness
 	"POST /v1/aggregation/fold":        "aggregation:write",
