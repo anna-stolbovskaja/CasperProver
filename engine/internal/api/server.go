@@ -162,6 +162,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	zkReg := gnarkzk.NewRegistry()
 	_ = zkReg.Register(gnarkzk.MiMCPreimageCircuit{})
 	_ = zkReg.Register(gnarkzk.ModelInferenceCircuit{})
+	_ = zkReg.Register(gnarkzk.PerceptronCircuit{})
 	zkKeysDir := os.Getenv("CP_ZK_KEYS_DIR")
 	forceRegen := os.Getenv("CP_ZK_REGENERATE") == "1"
 	for _, id := range zkReg.IDs() {
