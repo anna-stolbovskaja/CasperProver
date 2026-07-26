@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net"
@@ -29,6 +30,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/receipts"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/submitter"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
@@ -78,6 +80,10 @@ type Server struct {
 	decisionRouter *decision.Router
 	decisionJudge  *decision.Judge
 	hitlService    *hitl.Service
+
+	// Provenance-lineage receipts (Pack AR). Nil when disabled.
+	receipts    *receipts.Service
+	receiptSink io.Closer // JSONLSink close-handle when configured
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -254,6 +260,14 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		srv.initDecisionPipeline()
 	}
 
+	// Provenance-lineage receipts (Pack AR). Opt-in via CP_RECEIPTS_ENABLE=1.
+	// The receipts service is layered on top of the decision pipeline; it
+	// only requires the keystore + an in-memory store. If CP_RECEIPTS_JSONL
+	// is set, an OTel-compatible JSONL sink is attached.
+	if os.Getenv("CP_RECEIPTS_ENABLE") == "1" {
+		srv.initReceiptsService()
+	}
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()
@@ -344,6 +358,7 @@ func (s *Server) Start() error {
 	// pipeline is disabled (CP_DECISION_ENABLE!=1) but the routes still
 	// return a well-formed 503, so callers can probe availability.
 	s.registerDecisionRoutes(mux)
+	s.registerReceiptRoutes(mux)
 	s.registerHITLRoutes(mux)
 
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
