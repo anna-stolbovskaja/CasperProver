@@ -21,16 +21,14 @@ import (
 //     security category 3) via github.com/cloudflare/circl, an audited,
 //     widely-used PQC library. Sign/Verify here call straight into circl -
 //     there is no simulation left in this path.
-//   - Post-quantum component (hash-based, "SPHINCS+ slot"): a genuine
-//     Lamport one-time signature (Lamport 1979) - the classic hash-based
-//     OTS construction that SPHINCS+'s WOTS+ builds on. It is real,
-//     self-consistent crypto (sign then verify actually works, and tampering
-//     with the message or signature is detected), but it is NOT SPHINCS+:
-//     it is single-use per key pair (signing two messages with the same key
-//     leaks private key material) and has no hypertree/FORS construction.
-//     circl v1.6.1 does not ship a Go SLH-DSA/SPHINCS+ implementation, so
-//     this is what stands in for that slot until a maintained one is added
-//     as a dependency. Do not reuse a Lamport key pair across signatures.
+//   - Post-quantum component (hash-based, "SPHINCS+ slot"): historically a
+//     genuine Lamport one-time signature (Lamport 1979) - real crypto, but
+//     single-use per key pair.  circl v1.6.4 now ships a FIPS 205 SLH-DSA
+//     implementation, and the recommended PQ hash-based slot is now the
+//     SLH-DSA wrapper in slhdsa.go (safe for repeated use with one key).
+//     Lamport stays in this file for callers that specifically want its
+//     tiny OTS profile; new code SHOULD prefer SLHDSAKeygen / SLHDSASign /
+//     SLHDSAVerify.
 //
 // Prior versions of this file used a made-up scheme (public key = SHA-256
 // of the private key, "signature" = SHA-256(part of the signing key ||
