@@ -165,6 +165,10 @@ var routeScopes = map[string]string{
 	"GET /v1/webhooks":              "webhooks:read",
 	"DELETE /v1/webhooks/{id}":      "webhooks:write",
 	"GET /v1/webhooks/dead-letters": "webhooks:read",
+	"POST /v1/webhooks/dead-letters/{delivery_id}/replay": "webhooks:write",
+
+	// Admin dashboard rollup (read-only)
+	"GET /v1/admin/summary":            "admin:read",
 	"GET /v1/circuits":              "zk:read",
 	"GET /v1/circuits/{id}":         "zk:read",
 	"GET /v1/circuits/{id}/vk":      "zk:read",

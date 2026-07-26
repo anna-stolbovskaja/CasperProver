@@ -398,6 +398,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
 	mux.HandleFunc("GET /v1/routes", s.routesHandler)
 
+	// Admin dashboard rollup (9.6): one read-only endpoint that
+	// answers "what is this engine doing right now?" for the FE.
+	mux.HandleFunc("GET /v1/admin/summary", s.adminSummaryHandler)
+
 	// Prometheus /metrics + a lightweight alias under /v1/.
 	if s.metrics != nil {
 		mux.Handle("GET /metrics", observability.MetricsHandler(s.metrics))
