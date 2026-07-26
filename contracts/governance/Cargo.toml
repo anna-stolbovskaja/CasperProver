@@ -1,0 +1,23 @@
+[package]
+name = "governance"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+casper-contract = "5.1"
+casper-types = "6.0"
+
+[features]
+
+[[bin]]
+name = "governance"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
