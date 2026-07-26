@@ -3,6 +3,7 @@ module github.com/anna-stolbovskaja/CasperProver/engine
 go 1.25.7
 
 require (
+	filippo.io/edwards25519 v1.2.0
 	github.com/cloudflare/circl v1.6.4
 	github.com/consensys/gnark v0.15.0
 	github.com/consensys/gnark-crypto v0.20.1
