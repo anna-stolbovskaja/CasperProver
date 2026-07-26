@@ -109,3 +109,12 @@ mainnet-plan gate. Bridge-based cross-chain anchoring is **permanently
 rejected** in the current design (bridges are the least-audited surface in
 the ecosystem; adopting one imports its risk profile wholesale). Multi-chain
 is reachable only via §5.2 per-chain writes with per-chain G2 audit.
+---
+## Mainnet — gated, not scheduled
+Any mainnet surface is gated by the eight-gate ledger in
+[`docs/MAINNET_LAUNCH_PLAN.md`](./MAINNET_LAUNCH_PLAN.md). Until every
+gate is closed and the launch review in Gate 8 is signed, the current
+system remains **testnet-only** and the honesty labels
+(`REAL / ON-CHAIN / SIMULATION`) must not be changed to imply a live
+mainnet surface. That plan is a map, not a schedule — no dates, no
+vendors, no spend are authorized by it.
