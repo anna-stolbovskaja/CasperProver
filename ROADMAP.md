@@ -33,6 +33,8 @@
 - [ ] Production trusted setup ceremony
 - [ ] STARK recursive aggregation (pending mature Go STARK library)
 - [x] Demo/Real data toggle in lab
+- [x] PQ signature key rotation + versioning (`docs/PQ_KEYRING.md`) — keyring, migration primitive, HTTP surface. In-memory storage; HSM/KMS integration deferred.
+- [x] Nova / folding aggregation **harness** (`docs/roadmap/NOVA_HARNESS.md`) — API contract + hash-chain stand-in labelled `hash-fold-v1`. A real Nova is still a future item and requires a Pallas/Vesta curve cycle in Go.
 
 ## 🔮 Future
 
