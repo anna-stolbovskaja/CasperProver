@@ -1,0 +1,17 @@
+[package]
+name = "zk-verifier"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+casper-contract = "5.1"
+casper-types = "6.0"
+
+[[bin]]
+name = "zk-verifier"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
+
+[features]

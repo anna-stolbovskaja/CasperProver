@@ -18,9 +18,12 @@ use casper_types::{EntryPointPayment,
 
 const ERR_RATE_LIMIT: u16 = 4;
 const ERR_BATCH_TOO_LARGE: u16 = 5;
+const ERR_ZK_NOT_CONFIGURED: u16 = 6;
+const ERR_ZK_VERDICT_INVALID: u16 = 7;
 
 const REGISTRY_HASH: &str = "registry_hash";
 const VERIFY_COUNTS: &str = "verify_counts";
+const ZK_VERIFIER_HASH: &str = "zk_verifier_hash"; // optional Key -> zk-verifier contract; unset = classic mode
 const MAX_VERIFY_PER_BLOCK: u64 = 100;
 const MAX_BATCH_SIZE: usize = 50;
 
@@ -52,6 +55,28 @@ fn fetch_proof(pid: &str) -> ProofRec {
     let mut args = casper_types::RuntimeArgs::new();
     args.insert("proof_id", pid.to_string()).unwrap_or_revert();
     runtime::call_contract(reg.into_entity_hash_addr().unwrap_or_revert().into(), "get_proof", args)
+}
+
+// Ask the zk-verifier contract for the verdict tuple. Returns
+// (verdict==1 && revoked==0) as a bool. Reverts ERR_ZK_NOT_CONFIGURED if the
+// verifier-gate was installed WITHOUT a zk_verifier_hash key (classic mode).
+fn is_zk_valid(circuit_id: &str, proof_hash: &str) -> bool {
+    let zk = runtime::get_key(ZK_VERIFIER_HASH)
+        .unwrap_or_revert_with(ApiError::User(ERR_ZK_NOT_CONFIGURED));
+    let mut args = casper_types::RuntimeArgs::new();
+    args.insert("circuit_id", circuit_id.to_string()).unwrap_or_revert();
+    args.insert("proof_hash", proof_hash.to_string()).unwrap_or_revert();
+    // get_verdict returns ((cid, phash, pubh), (model_id, verifier, _), (ts, verdict, revoked))
+    let (_, _, (_ts, verdict, revoked)): (
+        (String, String, String),
+        (String, String, String),
+        (u64, u64, u64),
+    ) = runtime::call_contract(
+        zk.into_entity_hash_addr().unwrap_or_revert().into(),
+        "get_verdict",
+        args,
+    );
+    verdict == 1 && revoked == 0
 }
 
 #[unsafe(no_mangle)]
@@ -93,6 +118,28 @@ pub extern "C" fn batch_check() {
     runtime::ret(CLValue::from_t(results).unwrap_or_revert());
 }
 
+// Verify a proof that is *both* recorded in proof-registry AND has an
+// on-chain ZK verdict recorded in the zk-verifier registry. Both must line up:
+// proof-registry.valid==1, not revoked; zk-verifier.verdict==1, not revoked.
+// This is the entry-point downstream contracts (defi-mock, insurance mocks)
+// call before releasing funds against a proof.
+#[unsafe(no_mangle)]
+pub extern "C" fn verify_with_zk() {
+    let pid: String = runtime::get_named_arg("proof_id");
+    let circuit_id: String = runtime::get_named_arg("circuit_id");
+    let proof_hash: String = runtime::get_named_arg("proof_hash");
+    let caller = runtime::get_caller();
+    check_rate_limit(&caller);
+
+    let (_, _, (_, valid, revoked)) = fetch_proof(&pid);
+    let registry_ok = valid == 1 && revoked == 0;
+    let zk_ok = is_zk_valid(&circuit_id, &proof_hash);
+    if !zk_ok {
+        runtime::revert(ApiError::User(ERR_ZK_VERDICT_INVALID));
+    }
+    runtime::ret(CLValue::from_t(registry_ok && zk_ok).unwrap_or_revert());
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn call() {
     let registry: Key = runtime::get_named_arg("registry_contract");
@@ -102,6 +149,16 @@ pub extern "C" fn call() {
     let mut nk = NamedKeys::new();
     nk.insert(REGISTRY_HASH.into(), registry);
     nk.insert(VERIFY_COUNTS.into(), vc.into());
+
+    // Optional zk-verifier wire-up: pass `zk_verifier: Key` at install to
+    // enable `verify_with_zk`; pass Key::Hash([0u8; 32]) to skip and stay
+    // in classic (registry-only) mode. Skips are common in tests.
+    let zk: Key = runtime::get_named_arg("zk_verifier");
+    if let Some(h) = zk.into_entity_hash_addr() {
+        if h != [0u8; 32] {
+            nk.insert(ZK_VERIFIER_HASH.into(), zk);
+        }
+    }
 
     let mut ep = EntryPoints::new();
     ep.add_entry_point(EntityEntryPoint::new(
@@ -127,6 +184,18 @@ pub extern "C" fn call() {
             CLType::List(alloc::boxed::Box::new(CLType::String)),
         )],
         CLType::Any,
+        EntryPointAccess::Public,
+        EntryPointType::Called,
+        EntryPointPayment::Caller,
+    ));
+    ep.add_entry_point(EntityEntryPoint::new(
+        "verify_with_zk",
+        vec![
+            Parameter::new("proof_id", CLType::String),
+            Parameter::new("circuit_id", CLType::String),
+            Parameter::new("proof_hash", CLType::String),
+        ],
+        CLType::Bool,
         EntryPointAccess::Public,
         EntryPointType::Called,
         EntryPointPayment::Caller,

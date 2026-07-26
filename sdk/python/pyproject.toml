@@ -1,39 +1,44 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
 
 [project]
-name = "casperprover-sdk"
+name = "casperprover"
 version = "0.1.0"
-description = "CasperProver Python SDK + cp CLI — submit and verify agent proofs."
+description = "CasperProver Python SDK — prove, verify, batch, anchor with client-side receipt validation."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [
-    { name = "CasperProver", email = "hello@casperprover.xyz" },
-]
-keywords = ["casper", "casperprover", "zk", "proof", "agent", "hackathon"]
+authors = [{ name = "CasperProver", email = "anna.stolbovskaja@gmail.com" }]
+keywords = ["casperprover", "zk", "groth16", "attestation", "casper"]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = []
 
-[project.scripts]
-cprover = "casperprover_sdk.cli:main"
-casperprover = "casperprover_sdk.cli:main"
-
 [project.urls]
-Homepage = "https://casperprover.xyz"
-Source = "https://github.com/anna-stolbovskaja/CasperProver"
+Homepage = "https://github.com/anna-stolbovskaja/CasperProver"
+Repository = "https://github.com/anna-stolbovskaja/CasperProver"
+Issues = "https://github.com/anna-stolbovskaja/CasperProver/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["casperprover_sdk*"]
+[tool.hatch.build.targets.wheel]
+packages = ["casperprover"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "casperprover/**/*.py",
+  "README.md",
+  "pyproject.toml",
+]
+exclude = [
+  "casperprover/tests/**",
+  "**/__pycache__",
+]

@@ -2,6 +2,8 @@
 
 Ref: `handoff/CP_FINAL_TASKS_V2.md` §D.
 
+**Status (2026-07-26): PARTIALLY SHIPPED.** The receipts package, W3C VC / Agent Receipt emitters, HTTP surface, and JSONL OTel sink are live in `engine/internal/receipts/` (Pack AR — backlog items 5.1 / 5.2 / 5.3). Honest contract in `docs/PROVENANCE_LINEAGE.md`. Remaining: Postgres-backed store driver, provider-side signatures, retention policy, non-W3C schema bridging — see the honest doc for the exact out-of-scope list.
+
 ## Problem
 
 CP already emits a signed decision receipt (see `docs/DECISION_LAYER.md`).

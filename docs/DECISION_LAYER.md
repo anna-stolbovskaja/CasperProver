@@ -145,3 +145,14 @@ listed in `docs/KNOWN_LIMITATIONS.md` with a link back to the roadmap:
 - **Incremental Merkle batch receipt.** Each decision emits its own
   receipt; batching several receipts into one Merkle root with an
   inclusion proof is a roadmap item.
+
+## Provenance lineage
+
+The receipt-emission surface is `docs/PROVENANCE_LINEAGE.md` —
+`receipts.Service` (in `engine/internal/receipts/`) signs each
+`DecisionCommit` under the active PQ key and returns it in three
+interoperable shapes: internal `DecisionReceipt`, W3C VC 2.0, and
+Agent Receipt draft v0.3. Upstream providers are referenced by
+canonical hash so receipts form a DAG walkable via
+`GET /v1/receipts/{id}/lineage`. See the honest contract for the
+OTel-span attribute mapping and the exact out-of-scope list.

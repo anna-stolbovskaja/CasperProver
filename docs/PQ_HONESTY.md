@@ -24,6 +24,8 @@ Authoritative for §F of `handoff/CP_FINAL_TASKS_V2.md`.
 | Hybrid Ed25519 + ML-DSA-65 | draft-ietf-hybrid-signatures (transitional) | `circl` + `crypto/ed25519` | Provides `Ed25519 AND ML-DSA` — an attacker must break both to forge. Compatible transition path. |
 | Lamport one-time signature | Lamport 1979 | in-tree | Hash-based OTS. Genuinely PQ, but each keypair signs exactly one message. |
 | BN254 Groth16 (off-chain) | Groth 2016 | `github.com/consensys/gnark` | Real Groth16 over MiMC preimage. Not "ZK proof of ML inference" — the circuit encodes only the MiMC relation. |
+| PQ keyring rotation + versioning | in-tree | `internal/crypto/keyring.go` | Monotone versions per algo, retired keys stay verify-only, migrate primitive. Private keys in process memory only by default — see keystore row. |
+| Keystore backends | in-tree | `internal/crypto/keystore/` | `memory` (default), `file` (ChaCha20-Poly1305 + Argon2id at rest), `remote` HSM/KMS gateway stub with a documented HTTP contract. A real HSM driver lives per-deployment, not in this repo. |
 
 ## What is educational-only
 
@@ -66,7 +68,7 @@ Quantum-inspired simulated annealing (QISA) is a **classical heuristic**. If any
 
 All of the following are **roadmap**, not shipped:
 
-- Nova / SuperNova / folding schemes for proof aggregation
+- Nova / SuperNova / folding schemes for proof aggregation (a **harness** with a hash-chain stand-in labelled `hash-fold-v1` ships in `internal/aggregator/nova.go` — see `docs/roadmap/NOVA_HARNESS.md`. It is explicitly NOT a folding scheme; it stabilises the API contract while the Pallas/Vesta curve cycle in Go matures.)
 - Recursive Groth16 / Halo-2-style accumulation
 - Full bisection games (interactive verification) beyond the current single-shot challenge/slash path
 - VRF-based sortition for verifier committees

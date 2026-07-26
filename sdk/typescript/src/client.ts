@@ -168,7 +168,7 @@ export class Client {
       body,
       ro,
     );
-    return { ...(raw as ProveResponse), raw };
+    return { ...(raw as unknown as ProveResponse), raw };
   }
 
   async verify(proofId: string, ro?: RequestOptions): Promise<VerifyResponse> {
@@ -178,7 +178,7 @@ export class Client {
       { proof_id: proofId },
       ro,
     );
-    return { ...(raw as VerifyResponse), raw };
+    return { ...(raw as unknown as VerifyResponse), raw };
   }
 
   async batch(
