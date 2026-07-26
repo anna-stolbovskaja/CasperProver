@@ -47,3 +47,25 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+## Hash primitive posture
+
+`docs/HASH_ALGORITHM_ANALYSIS.md` catalogues every hash usage in the tree with
+its security property, honesty label, post-quantum posture, and migration
+urgency. Key open questions routed from that document (do not close without
+reviewing them):
+
+- **Q1 domain-sep prefixes** — confirm Merkle internal nodes and receipt hashes
+  use distinct domain-separation prefixes. Missing prefix = real defect.
+- **Q2 canonical serialisation** — confirm receipt canonical serialisation
+  carries version + purpose tags before payload.
+- **Q3 SHA-256 monoculture** — acceptable under current review; any diversity
+  change deferred to G2.
+- **Q4 SLH-DSA parameter set** — production target (`SHA2-192s` vs
+  `SHA2-256s`) deferred to G2.
+- **Q5 Poseidon-family immaturity** — any STARK-based ZK-ML prototype stays
+  SIMULATION until independent cryptanalytic review.
+- **Q6 HKDF info labels** — every KDF call site must be catalogued with its
+  label. Missing labels = defect.
+- **Q7 length-extension surface** — confirm no `H(key || message)` MAC
+  substitute exists anywhere in the tree.
