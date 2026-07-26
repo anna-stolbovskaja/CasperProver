@@ -31,7 +31,7 @@
 
 ---
 
-> **8 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
+> **8 smart contracts** live on Casper testnet · **250+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs (off-chain, gnark BN254 MiMC) · Post-quantum cryptography (ML-DSA-65 + Ed25519 hybrid) · Merkle-anchored proof-chain DAG
 
 ## 📸 Screenshots
 
@@ -225,16 +225,20 @@ curl https://casperprover-api-ylsh.onrender.com/pq/hybrid-sign \
 
 ## Smart Contracts (Casper Testnet)
 
-| Contract | Address | Purpose | Deployed |
-|---|---|---|---|
-| **proof-registry** | [`96e97c4d...a10708`](https://testnet.cspr.live/contract/e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5) | Immutable proof store | 2026-06-29 |
-| **verifier-gate** | [`a37f9cde...9f77d3`](https://testnet.cspr.live/contract/06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66) | Merkle inclusion checker | 2026-06-29 |
-| **defi-mock** | [`fe0c45f6...0b39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | KYC-gated DeFi vault | 2026-07-07 |
-| **stake-slashing** | [`1ad1b3d9...983d52`](https://testnet.cspr.live/contract/1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52) | Economic penalties (hardened redeploy) | 2026-07-19 |
+All eight contracts are live — canonical manifest: [`deploy-out/onchain.json`](deploy-out/onchain.json).
 
-**Prototype contracts** (buildable, not deploy-ready or deployed): `proof-of-inference`, `model-registry`, `proof-aggregation`. Their pre-deploy security blockers and execution-test gate are tracked in `docs/UNDEPLOYED_CONTRACTS.md`.
+| Contract | Hash (first…last) | Purpose |
+|---|---|---|
+| **proof-registry** | [`e11088f1…7bc5`](https://testnet.cspr.live/contract/e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5) | Immutable proof store + reputation |
+| **verifier-gate** | [`06d69182…9b66`](https://testnet.cspr.live/contract/06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66) | Merkle inclusion checker + whitelist |
+| **defi-mock** | [`fe0c45f6…39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | KYC-gated DeFi vault |
+| **stake-slashing** | [`1ad1b3d9…3d52`](https://testnet.cspr.live/contract/1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52) | Economic penalties (hardened) |
+| **proof-aggregation** | [`b29f32ab…d2bb`](https://testnet.cspr.live/contract/b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb) | Batched proof anchoring |
+| **model-registry** | [`b3cdd1df…340a`](https://testnet.cspr.live/contract/b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a) | Model provenance registry |
+| **proof-of-inference** | [`3d772fe1…b318`](https://testnet.cspr.live/contract/3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318) | Inference attestation ledger |
+| **governance** | [`38d2fbd2…cf3e`](https://testnet.cspr.live/contract/38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e) | Timelock (48h) + 2-of-3 guardian recovery |
 
-**On-chain activity:** 248+ testnet transactions across contract deploys and entry-point calls.
+**On-chain activity:** 250+ testnet transactions across contract deploys and entry-point calls.
 
 ---
 
@@ -349,7 +353,7 @@ Extended infrastructure — real code, wired to the API:
 | GPU required | **None** |
 | API endpoints | **32** |
 | SDK/MCP tools | **32** |
-| Smart contracts | **8 live** + 2 written (zk-verifier, stake-slashing-session — compiled, awaiting deploy) |
+| Smart contracts | **8 live** on Casper testnet |
 | Testnet transactions | **248+** |
 
 ---
@@ -375,7 +379,7 @@ Extended infrastructure — real code, wired to the API:
 
 ```
 CasperProver/
-├── contracts/              # Rust smart contracts (10 total, 8 deployed)
+├── contracts/              # Rust smart contracts (8 deployed on testnet)
 │   ├── proof-registry/     # Immutable proof store
 │   ├── verifier-gate/      # Merkle inclusion checker
 │   ├── defi-mock/          # KYC-gated DeFi vault

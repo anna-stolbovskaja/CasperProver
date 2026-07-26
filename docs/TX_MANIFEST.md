@@ -21,7 +21,7 @@
 | **proof-aggregation** | [`b29f32ab...63d2bb`](https://testnet.cspr.live/contract/b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `35c003e5...`, verified via CSPR.cloud, `create_batch` guard suite — 28 tests) |
 | **model-registry** | [`b3cdd1df...5e64a340a`](https://testnet.cspr.live/contract/b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `fd21b26e...`, verified via CSPR.cloud) |
 | **proof-of-inference** | [`3d772fe1...12498b318`](https://testnet.cspr.live/contract/3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `bde5cfb7...`, verified via CSPR.cloud) |
-| **governance** | [`03189ea1...7f9548e`](https://testnet.cspr.live/contract/03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e) | 2026-07-26 | 2026-07-26 | ✅ Live (deploy `1d7c9e8f...`, verified via CSPR.cloud; guardians: anna/alexbelij/triumphkrug account-hashes) |
+| **governance** | [`38d2fbd2...84063a0cf3e`](https://testnet.cspr.live/contract/38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e) | 2026-07-26 | 2026-07-26 | ✅ Live (deploy `5f20ecfe...`, block 8635118, deployer anna-stolbovskaja, verified via CSPR.cloud; timelock 48h + 2-of-3 guardian recovery: anna/defi_mock_owner/reserved-slot. Prior install `03189ea1...548e` under defi_mock_owner is deprecated — retained on-chain but not authoritative.) |
 
 All three were deployed 2026-07-25 from the secondary account
 (`0202da6cfba1...`) using an MVP-clean WASM toolchain fix (Rust nightly

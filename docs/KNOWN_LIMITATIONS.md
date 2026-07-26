@@ -12,7 +12,7 @@
 - **proof-of-inference** — on-chain verification of ZK inference proofs (deployed 2026-07-25)
 - **model-registry** — canonical model-hash registry with owner controls (deployed 2026-07-25)
 - **proof-aggregation** — batch anchor of aggregated proof roots (deployed 2026-07-25)
-- **governance** — commit-reveal governance with guardian set (anna / alexbelij / triumphkrug), downstream contracts opt in via `is_executed(pid)` (deployed 2026-07-26)
+- **governance** — timelock (48h) + 2-of-3 guardian recovery (anna-stolbovskaja / defi_mock_owner / reserved slot for mainnet ceremony), downstream contracts opt in via `is_executed(pid)`. Canonical deploy `38d2fbd2...84063a0cf3e` under anna-stolbovskaja (deployed 2026-07-26); a prior install `03189ea1...548e` under defi_mock_owner is deprecated and not referenced anywhere live.
 
 All contract WASM is built in CI (`.github/workflows/check.yml →
 build-contracts`) with a size gate: `scripts/contract-size-report.sh`
