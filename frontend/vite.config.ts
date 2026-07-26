@@ -7,12 +7,22 @@ export default defineConfig({
     chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          csprclick: [
-            '@make-software/csprclick-ui',
-            'styled-components',
-          ],
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('react-router-dom') ||
+              id.includes('/react/') ||
+              id.includes('/react-dom/')
+            ) {
+              return 'vendor'
+            }
+            if (
+              id.includes('@make-software/csprclick-ui') ||
+              id.includes('styled-components')
+            ) {
+              return 'csprclick'
+            }
+          }
         }
       }
     }

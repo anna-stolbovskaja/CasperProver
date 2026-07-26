@@ -6,7 +6,7 @@ export default function Benchmarks() {
     { metric: 'Groth16 ZK verify', value: '<5ms', note: 'Pairing-based check' },
     { metric: 'Proof size', value: '~512 bytes', note: 'Hash + path + metadata' },
     { metric: 'PQ hybrid sign', value: '<15ms', note: 'Ed25519 + ML-DSA-65' },
-    { metric: 'Smart contracts', value: '7 total', note: '4 deployed + 3 written' },
+    { metric: 'Smart contracts', value: '8 total', note: 'all 8 deployed on testnet' },
     { metric: 'Testnet transactions', value: '248+', note: 'Deploys + contract calls' },
     { metric: 'SDK / MCP tools', value: '32', note: 'All backed by real API' },
     { metric: 'GPU required', value: 'None', note: 'Pure cryptographic ops' },
