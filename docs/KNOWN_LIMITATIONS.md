@@ -151,3 +151,28 @@ output_hash) are self-witnessing evidence; entrypoint is permissionless
 `report_and_slash`, because equivocation is the strictest failure mode);
 composite key `min(a,b)|max(a,b)` prevents order-swap replay; optional
 `evidence_hash` lane is reserved for future dispute-resolver, NOT in MVP.
+## Off-repo design plans (`SIMULATION` / DRAFT)
+These plans ship no code and change no runtime behaviour. They exist so the
+honesty ladder is discoverable from the front door.
+- `docs/ZKML_RESEARCH_SPIKE.md` — full landscape survey and feasibility matrix
+  for ZK-ML proving approaches (Groth16/PLONK-family, STARK/FRI, zkVM,
+  lookup+PLONK, recursion). Non-endorsement, non-procurement.
+- `docs/ZKML_HONEST_VERDICT.md` — single-page decision record explaining why
+  every ML-inference claim in the tree is currently labelled `SIMULATION` and
+  what four conditions would all have to hold before any of them could
+  honestly be relabelled `REAL (ZK-ML)`. Bound to G2 in the mainnet launch
+  plan.
+### `SIMULATION` label — not negotiable until conditions met
+Any claim that implies a cryptographic proof of a model's inference (as
+opposed to an attestation of inputs, outputs, and a model identifier) is
+labelled `SIMULATION`. Relabelling to `REAL (ZK-ML)` requires ALL of:
+1. A named model with a compiled circuit and both **weights hash** and
+   **circuit hash** published and anchored.
+2. Independent third-party audit sign-off on both the circuit and the
+   underlying IOP/lookup argument (reserved for mainnet-plan gate G2).
+3. Per-inference proving cost that fits under the Challenger dispute cost
+   ceiling from the reputation economics draft.
+4. Receipt-format extension carrying circuit hash, verifying-key hash,
+   weights hash, and toolchain version (breaking schema change; must be
+   scheduled as such).
+Skipping any one turns `REAL` into laundered `SIMULATION`. Explicitly rejected.
