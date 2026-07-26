@@ -22,6 +22,11 @@
 
 [**Live Demo →**](https://casperprover.xyz/lab) · [Judge Verification](docs/JUDGE_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md) · [SDK](docs/SDK.md) · [Status & Roadmap](docs/KNOWN_LIMITATIONS.md)
 
+**Three entry points on the landing page:**
+[Try the product](https://casperprover.xyz/lab/playground) ·
+[For developers (API / SDK / MCP)](https://casperprover.xyz/docs/api) ·
+[For evaluators (Proof & architecture)](https://casperprover.xyz/lab/contracts)
+
 </div>
 
 ---

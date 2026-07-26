@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import SectionIntro from './SectionIntro';
+import TrustStatus from '../TrustStatus';
 import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink } from 'lucide-react';
 import { loadManifest, OnChainManifest } from '../../lib/onchain';
 
@@ -105,8 +106,9 @@ const Contracts: React.FC = () => {
             <div className="flex items-center gap-3 mb-3">
               {React.createElement(c.icon, { size: 24, className: 'text-red-500' })}
               <h3 className="text-lg font-semibold text-gray-100">{c.name}</h3>
+              <TrustStatus kind="on-chain" className="ml-auto" />
               {c.deployDate && (
-                <span className="ml-auto text-xs text-green-400/70 border border-green-500/20 px-2 py-0.5 rounded">
+                <span className="text-xs text-green-400/70 border border-green-500/20 px-2 py-0.5 rounded">
                   {c.deployDate}
                 </span>
               )}
@@ -147,6 +149,7 @@ const Contracts: React.FC = () => {
             <div className="flex items-center gap-3 mb-3">
               {React.createElement(c.icon, { size: 24, className: 'text-yellow-500' })}
               <h3 className="text-lg font-semibold text-gray-100">{c.name}</h3>
+              <TrustStatus kind="built-not-deployed" className="ml-auto" />
             </div>
             <p className="text-gray-400 text-sm mb-3">{c.purpose}</p>
             <a
