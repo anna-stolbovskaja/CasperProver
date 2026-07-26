@@ -20,6 +20,7 @@ import (
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/siwe"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/tenant"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/config"
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
@@ -67,6 +68,12 @@ type Server struct {
 
 	obsRegistry *obs.Registry // populated on Start() for /metrics exposition
 
+	// Optional tenant store (BA / backlog 10.1 + 10.2). Non-nil when
+	// TENANTS_FILE is set at boot. When nil, all requests are
+	// attributed to the synthetic _default tenant and existing
+	// behaviour is preserved bit-for-bit.
+	tenants *tenant.Store
+
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
 
@@ -74,6 +81,22 @@ type Server struct {
 	// Multi-provider judge for /inference/judge. Set via SetJudge; nil = 503.
 	judge    JudgeService
 	hitlSink hitl.Sink // optional HITL delivery sink; set via SetHITLSink
+}
+
+// ctxTenantKey is the context.WithValue key for the resolved tenant
+// on a request. Handlers that want the tenant call tenantFromCtx(r).
+type ctxTenantKey struct{}
+
+func tenantFromCtx(r *http.Request) *tenant.Tenant {
+	if r == nil {
+		return nil
+	}
+	if v := r.Context().Value(ctxTenantKey{}); v != nil {
+		if t, ok := v.(*tenant.Tenant); ok {
+			return t
+		}
+	}
+	return nil
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -172,6 +195,21 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 		slog.Info("API_KEY configured - write endpoints require X-API-Key header")
 	}
 
+	// Optional tenant store (BA / backlog 10.1 + 10.2). Off by default:
+	// TENANTS_FILE points at a JSON registry per docs/TENANT_ISOLATION.md.
+	// When absent, the server behaves exactly as before — single shared
+	// API_KEY authenticates every write.
+	var tenants *tenant.Store
+	if path := os.Getenv("TENANTS_FILE"); path != "" {
+		ts := tenant.NewStore()
+		if err := ts.LoadFile(path); err != nil {
+			slog.Warn("TENANTS_FILE load failed, tenant mode disabled", "err", err)
+		} else {
+			tenants = ts
+			slog.Info("tenant mode ENABLED", "file", path, "tenants", len(ts.List()))
+		}
+	}
+
 	demoKYC := kyc.NewDemo(eng)
 	if db != nil {
 		entries, err := db.LoadKYC()
@@ -200,6 +238,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 		start:  time.Now(),
 		apiKey: apiKey,
 		strict: strict,
+		tenants:   tenants,
 
 		aggBatches: make(map[string]*aggBatch),
 
@@ -315,6 +354,18 @@ func (s *Server) Start() error {
 
 	instrumented := httpMetrics.MiddlewareRoute(tracer, mux, obs.MuxRouteResolver(mux))
 
+	// Tenant admin routes (BA / backlog 10.1 + 10.2). Registered only
+	// when tenant mode is enabled; otherwise these paths 404 through
+	// the default mux miss.
+	if s.tenants != nil {
+		mux.HandleFunc("GET /admin/tenants", s.tenantList)
+		mux.HandleFunc("POST /admin/tenants", s.tenantCreate)
+		mux.HandleFunc("POST /admin/tenants/{id}/keys", s.tenantAddKey)
+		mux.HandleFunc("POST /admin/tenants/{id}/keys/revoke", s.tenantRevokeKeys)
+		mux.HandleFunc("GET /admin/tenants/{id}/audit", s.tenantAudit)
+		mux.HandleFunc("GET /admin/tenants/audit", s.tenantAudit)
+	}
+
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
@@ -383,6 +434,47 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 // (documented in KNOWN_LIMITATIONS.md as the local-dev/demo default).
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Tenant mode: resolve X-API-Key against the tenant store, enforce
+		// per-tenant rate + quota, audit outcome, and stash the tenant on
+		// the request context. This runs *in addition to* the shared-key
+		// path below; when tenants is non-nil the shared apiKey is
+		// ignored on write requests — the tenant key is the only
+		// authorised credential.
+		if s.tenants != nil {
+			if r.Method == http.MethodGet || r.Method == http.MethodHead {
+				next.ServeHTTP(w, r)
+				return
+			}
+			raw := r.Header.Get("X-API-Key")
+			t := s.tenants.Resolve(raw)
+			if t == nil {
+				s.tenants.Log(tenant.AuditEvent{
+					Kind:   tenant.AuditAuthRejected,
+					Detail: fmt.Sprintf("path=%s remote=%s", r.URL.Path, r.RemoteAddr),
+				})
+				s.jsonError(w, "missing or invalid X-API-Key", http.StatusUnauthorized)
+				return
+			}
+			if d := s.tenants.CheckRate(t.ID); !d.Allowed {
+				s.tenants.Log(tenant.AuditEvent{
+					TenantID: t.ID,
+					Kind:     tenant.AuditRateBlocked,
+					Detail:   d.Reason + " path=" + r.URL.Path,
+				})
+				s.jsonError(w, d.Reason, http.StatusTooManyRequests)
+				return
+			}
+			s.tenants.Log(tenant.AuditEvent{
+				TenantID: t.ID,
+				Kind:     tenant.AuditAuthAccepted,
+				Detail:   fmt.Sprintf("method=%s path=%s", r.Method, r.URL.Path),
+			})
+			ctx := context.WithValue(r.Context(), ctxTenantKey{}, t)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
+
+		// Legacy single-shared-key path (unchanged).
 		if s.apiKey == "" {
 			next.ServeHTTP(w, r)
 			return
