@@ -4,11 +4,23 @@
 
 ## ✅ What's Live
 
-### Smart Contracts (4 on testnet)
+### Smart Contracts (5 on testnet)
 - **proof-registry** — immutable proof store with on-chain anchoring
 - **verifier-gate** — Merkle inclusion proof checker, cross-contract verification
 - **defi-mock** — KYC-gated DeFi vault with admin-controlled whitelisting
 - **stake-slashing** — economic penalty system for revoked/invalid proofs
+- **stake-slashing-session** — session-scoped stake operations
+
+### Built in CI but not yet deployed (3 crates)
+Each is compiled on every push (`.github/workflows/check.yml → build-contracts`)
+and its `.wasm` size is emitted in the `contract-sizes` artifact:
+- **proof-of-inference** — on-chain verification of ZK inference proofs
+- **model-registry** — canonical model-hash registry with owner controls
+- **proof-aggregation** — batch anchor of aggregated proof roots
+
+Size gate: `scripts/contract-size-report.sh` fails CI if any `.wasm` exceeds
+200KB (hard gas ceiling); a warning fires above 65KB (historical
+`installOrUpgrade` limit under casper-js-sdk 5.0.12).
 
 ### Proof Engine (32 API endpoints)
 - SHA-256 Merkle proof generation & verification (<50ms)
