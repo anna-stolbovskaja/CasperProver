@@ -293,6 +293,13 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 	srv.metrics = observability.NewRegistry()
 	srv.httpMetric = observability.NewHTTPMetrics(srv.metrics, "cp_http")
 
+	// Webhook subsystem metrics — enqueue/attempts/delivered/
+	// dead_lettered/replayed counters + attempt-duration histogram
+	// + queue/dead-letter gauges, all on the same /metrics endpoint.
+	if srv.webhooks != nil {
+		srv.webhooks.SetMetrics(observability.NewWebhookMetrics(srv.metrics, "cp_webhook"))
+	}
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()

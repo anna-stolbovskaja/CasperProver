@@ -45,7 +45,7 @@
       "deployed_at": "2026-07-19T07:33:00Z",
       "source": "contracts/stake-slashing/src/main.rs",
       "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"],
-      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit)."
+      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from a secondary account (Anna's account had a prior storage::new_dictionary collision on stakes/slashed_proofs named keys)."
     },
     "proof_aggregation": {
       "contract_hash": "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb",
@@ -55,7 +55,7 @@
       "version": 1,
       "deployed_at": "2026-07-25T23:12:48Z",
       "source": "contracts/proof-aggregation/src/main.rs",
-      "notes": "MVP-clean WASM (40928B) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with bulk-memory-opt/sign-ext/reference-types disabled + wasm-opt --signext-lowering + strip target_features section. 0 non-MVP opcodes, 0 rust_begin_unwind imports. Deployed from defi_mock_owner (Anna funded with 200 CSPR transfer)."
+      "notes": "MVP-clean WASM (40928B) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with bulk-memory-opt/sign-ext/reference-types disabled + wasm-opt --signext-lowering + strip target_features section. 0 non-MVP opcodes, 0 rust_begin_unwind imports. Deployed from a secondary account (Anna funded with 200 CSPR transfer)."
     },
     "model_registry": {
       "contract_hash": "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a",
