@@ -45,5 +45,14 @@
 
 ### Long-term
 - Full-circuit ZK proofs for arbitrary ML models
-- Formal verification of proof pipeline
+- Formal verification of proof pipeline (current TLC pass is *small-model* model-checking, not a full verification)
 - Mainnet deployment with gas optimization
+
+## ⚠️ Cryptographic honesty audit
+
+Before claiming anything PQ / ZK / quantum related, read `docs/PQ_HONESTY.md`. In particular:
+
+- SHA-256 → SHAKE-256 with the same output length is **not** an automatic PQ uplift. Grover gives at most a quadratic speedup against generic preimage/collision search; SHA-256 already meets ≥128-bit post-quantum resistance for its output length.
+- "Quantum-inspired simulated annealing" is a classical heuristic. Never claim "quantum speedup" for QISA.
+- Recursive ZK / folding / on-chain pairings / VRF sortition / range proofs are **roadmap**, not shipped.
+- Citing a patent or academic publication is prior-art context, not evidence of patentability or freedom-to-operate. A professional FTO review is required before any commercialisation step.
