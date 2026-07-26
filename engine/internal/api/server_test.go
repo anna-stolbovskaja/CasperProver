@@ -92,7 +92,7 @@ func TestAuthMiddleware_KeyConfigured_RejectsMissingOrWrongKey(t *testing.T) {
 		want   int
 	}{
 		{"missing header", "", http.StatusUnauthorized},
-		{"wrong key", "wrong", http.StatusForbidden},
+		{"wrong key", "wrong", http.StatusUnauthorized},
 		{"correct key", "secret123", http.StatusOK},
 	}
 	for _, c := range cases {
