@@ -47,3 +47,13 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+## Integrations roadmap
+
+`docs/INTEGRATIONS_ROADMAP.md` classifies integration surfaces by category
+(SDK-side, sinks, sources, chains, verifier-side, standards conformance),
+labels each honestly (REAL / SIMULATION), and gates each on the correct
+mainnet-plan gate. Bridge-based cross-chain anchoring is **permanently
+rejected** in the current design (bridges are the least-audited surface in
+the ecosystem; adopting one imports its risk profile wholesale). Multi-chain
+is reachable only via §5.2 per-chain writes with per-chain G2 audit.
