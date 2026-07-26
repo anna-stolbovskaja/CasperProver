@@ -251,6 +251,11 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 	// Phase 2: proof chains (DAG validation)
 	mux.HandleFunc("POST /proof-chain/validate", s.proofChainValidate)
+	// Auditable decision logging (backlog 3.2)
+	mux.HandleFunc("POST /decisions/log", s.decisionLog)
+	mux.HandleFunc("GET /decisions/log", s.decisionRecent)
+	mux.HandleFunc("GET /decisions/log/{id}", s.decisionGet)
+	mux.HandleFunc("GET /decisions/log/{id}/lineage", s.decisionLineage)
 	// Post-quantum routes
 	mux.HandleFunc("POST /pq/sign-sphincs", s.pqSignSPHINCS)
 	mux.HandleFunc("POST /pq/verify-sphincs", s.pqVerifySPHINCS)
