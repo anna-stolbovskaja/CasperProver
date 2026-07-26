@@ -26,6 +26,7 @@ import AgentDemo from './components/lab/AgentDemo'
 import LabPlayground from './components/lab/Playground'
 import KYC from './components/lab/KYC'
 import ZKProofs from './components/lab/ZKProofs'
+import AttackEvidence from './components/lab/AttackEvidence'
 import ApiDocs from './components/docs/ApiDocs'
 import SdkDocs from './components/docs/SdkDocs'
 import McpDocs from './components/docs/McpDocs'
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="agent-demo" element={<AgentDemo />} />
             <Route path="playground" element={<LabPlayground />} />
             <Route path="kyc" element={<KYC />} />
+            <Route path="attack-evidence" element={<AttackEvidence />} />
           </Route>
           <Route path="/docs/api" element={<ApiDocs />} />
           <Route path="/docs/sdk" element={<SdkDocs />} />
