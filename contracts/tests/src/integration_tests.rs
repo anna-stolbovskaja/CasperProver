@@ -539,3 +539,245 @@ mod governance_tests {
         assert_eq!(try_execute_recovery(&mut rec, &mut owner, "new-owner", true).unwrap_err(), ERR_ALREADY_EXECUTED);
     }
 }
+
+// Tests added in commit G (zk-verifier).
+#[cfg(test)]
+mod zk_verifier_tests {
+    use std::collections::HashMap;
+
+    // Mirror of the on-chain contract's error codes (see contracts/zk-verifier/src/main.rs).
+    const ERR_NOT_OWNER: u16 = 1;
+    const ERR_NOT_VERIFIER: u16 = 2;
+    const ERR_VK_NOT_FOUND: u16 = 3;
+    const ERR_VK_INACTIVE: u16 = 4;
+    const ERR_VERDICT_EXISTS: u16 = 6;
+    const ERR_VERDICT_NOT_FOUND: u16 = 7;
+    const ERR_INPUT_TOO_LONG: u16 = 8;
+    const ERR_INVALID_HEX: u16 = 9;
+    const ERR_PAUSED: u16 = 10;
+
+    const MAX_STRING_LEN: usize = 256;
+    const HASH_LEN: usize = 64;
+
+    fn validate_string(s: &str) -> Result<(), u16> {
+        if s.is_empty() || s.len() > MAX_STRING_LEN { return Err(ERR_INPUT_TOO_LONG); }
+        Ok(())
+    }
+    fn validate_hash(s: &str) -> Result<(), u16> {
+        if s.len() != HASH_LEN { return Err(ERR_INVALID_HEX); }
+        for c in s.chars() { if !c.is_ascii_hexdigit() { return Err(ERR_INVALID_HEX); } }
+        Ok(())
+    }
+
+    // Reference state model (pure-Rust mirror of on-chain storage).
+    struct State {
+        owner: String,
+        paused: bool,
+        verifiers: HashMap<String, bool>, // name -> active
+        vks: HashMap<String, (String, u64, u64)>, // circuit_id -> (vk_hash, active, version)
+        verdicts: HashMap<String, (u64, u64)>, // key -> (verdict, revoked)
+    }
+    impl State {
+        fn new(owner: &str) -> Self {
+            State { owner: owner.to_string(), paused: false, verifiers: HashMap::new(), vks: HashMap::new(), verdicts: HashMap::new() }
+        }
+    }
+
+    fn require_owner_or_gov(caller: &str, owner: &str, gov_ok: u64) -> Result<(), u16> {
+        if caller == owner { return Ok(()); }
+        if gov_ok == 1 { return Ok(()); }
+        Err(ERR_NOT_OWNER)
+    }
+    fn add_verifier(s: &mut State, caller: &str, v: &str) -> Result<(), u16> {
+        if caller != s.owner { return Err(ERR_NOT_OWNER); }
+        s.verifiers.insert(v.to_string(), true);
+        Ok(())
+    }
+    fn remove_verifier(s: &mut State, caller: &str, v: &str) -> Result<(), u16> {
+        if caller != s.owner { return Err(ERR_NOT_OWNER); }
+        if !s.verifiers.contains_key(v) { return Err(ERR_NOT_VERIFIER); }
+        s.verifiers.insert(v.to_string(), false);
+        Ok(())
+    }
+    fn register_vk(s: &mut State, caller: &str, gov_ok: u64, cid: &str, vk_hash: &str) -> Result<u64, u16> {
+        require_owner_or_gov(caller, &s.owner, gov_ok)?;
+        validate_string(cid)?;
+        validate_hash(vk_hash)?;
+        let ver = s.vks.get(cid).map(|(_, _, v)| v + 1).unwrap_or(1);
+        s.vks.insert(cid.to_string(), (vk_hash.to_string(), 1, ver));
+        Ok(ver)
+    }
+    fn disable_vk(s: &mut State, caller: &str, gov_ok: u64, cid: &str) -> Result<(), u16> {
+        require_owner_or_gov(caller, &s.owner, gov_ok)?;
+        let (h, _, v) = s.vks.get(cid).ok_or(ERR_VK_NOT_FOUND)?.clone();
+        s.vks.insert(cid.to_string(), (h, 0, v));
+        Ok(())
+    }
+    fn verdict_key(cid: &str, phash: &str) -> String { format!("{}|{}", cid, phash) }
+    fn record_verdict(s: &mut State, caller: &str, cid: &str, phash: &str, pubh: &str, verdict: u64) -> Result<(), u16> {
+        if s.paused { return Err(ERR_PAUSED); }
+        match s.verifiers.get(caller) {
+            Some(true) => {}
+            _ => return Err(ERR_NOT_VERIFIER),
+        }
+        validate_string(cid)?;
+        validate_hash(phash)?;
+        validate_hash(pubh)?;
+        let vk = s.vks.get(cid).ok_or(ERR_VK_NOT_FOUND)?;
+        if vk.1 != 1 { return Err(ERR_VK_INACTIVE); }
+        let k = verdict_key(cid, phash);
+        if s.verdicts.contains_key(&k) { return Err(ERR_VERDICT_EXISTS); }
+        let v = if verdict == 0 { 0 } else { 1 };
+        s.verdicts.insert(k, (v, 0));
+        Ok(())
+    }
+    fn revoke_verdict(s: &mut State, caller: &str, cid: &str, phash: &str) -> Result<(), u16> {
+        if caller != s.owner { return Err(ERR_NOT_OWNER); }
+        let k = verdict_key(cid, phash);
+        let (v, _) = s.verdicts.get(&k).ok_or(ERR_VERDICT_NOT_FOUND)?.clone();
+        s.verdicts.insert(k, (v, 1));
+        Ok(())
+    }
+    fn is_valid(s: &State, cid: &str, phash: &str) -> bool {
+        let k = verdict_key(cid, phash);
+        match s.verdicts.get(&k) { Some((1, 0)) => true, _ => false }
+    }
+
+    fn h64(c: char) -> String { std::iter::repeat(c).take(64).collect() }
+
+    #[test]
+    fn owner_registers_and_gets_vk() {
+        let mut s = State::new("anna");
+        let ver = register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        assert_eq!(ver, 1);
+        let ver2 = register_vk(&mut s, "anna", 0, "mimc", &h64('b')).unwrap();
+        assert_eq!(ver2, 2); // version bump on re-register
+    }
+    #[test]
+    fn non_owner_register_rejected_without_gov() {
+        let mut s = State::new("anna");
+        assert_eq!(register_vk(&mut s, "alex", 0, "mimc", &h64('a')).unwrap_err(), ERR_NOT_OWNER);
+    }
+    #[test]
+    fn gov_approved_call_accepted_from_non_owner() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "gov-session", 1, "mimc", &h64('a')).unwrap();
+    }
+    #[test]
+    fn register_vk_bad_hash_rejected() {
+        let mut s = State::new("anna");
+        assert_eq!(register_vk(&mut s, "anna", 0, "mimc", "deadbeef").unwrap_err(), ERR_INVALID_HEX);
+        assert_eq!(register_vk(&mut s, "anna", 0, "mimc", &"g".repeat(64)).unwrap_err(), ERR_INVALID_HEX);
+    }
+    #[test]
+    fn disable_vk_flips_active() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        disable_vk(&mut s, "anna", 0, "mimc").unwrap();
+        assert_eq!(s.vks.get("mimc").unwrap().1, 0);
+    }
+    #[test]
+    fn disable_unknown_vk_rejected() {
+        let mut s = State::new("anna");
+        assert_eq!(disable_vk(&mut s, "anna", 0, "unknown").unwrap_err(), ERR_VK_NOT_FOUND);
+    }
+    #[test]
+    fn verifier_records_valid_verdict() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap();
+        assert!(is_valid(&s, "mimc", &h64('b')));
+    }
+    #[test]
+    fn non_verifier_record_rejected() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        assert_eq!(record_verdict(&mut s, "nobody", "mimc", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_NOT_VERIFIER);
+    }
+    #[test]
+    fn record_against_inactive_vk_rejected() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        disable_vk(&mut s, "anna", 0, "mimc").unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        assert_eq!(record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_VK_INACTIVE);
+    }
+    #[test]
+    fn record_against_missing_vk_rejected() {
+        let mut s = State::new("anna");
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        assert_eq!(record_verdict(&mut s, "v1", "none", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_VK_NOT_FOUND);
+    }
+    #[test]
+    fn duplicate_verdict_rejected() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap();
+        assert_eq!(record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_VERDICT_EXISTS);
+    }
+    #[test]
+    fn revoked_verifier_cant_record() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        remove_verifier(&mut s, "anna", "v1").unwrap();
+        assert_eq!(record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_NOT_VERIFIER);
+    }
+    #[test]
+    fn revoke_verdict_flips_to_invalid() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap();
+        assert!(is_valid(&s, "mimc", &h64('b')));
+        revoke_verdict(&mut s, "anna", "mimc", &h64('b')).unwrap();
+        assert!(!is_valid(&s, "mimc", &h64('b')));
+    }
+    #[test]
+    fn non_owner_cant_revoke() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap();
+        assert_eq!(revoke_verdict(&mut s, "alex", "mimc", &h64('b')).unwrap_err(), ERR_NOT_OWNER);
+    }
+    #[test]
+    fn paused_blocks_record() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        s.paused = true;
+        assert_eq!(record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 1).unwrap_err(), ERR_PAUSED);
+    }
+    #[test]
+    fn invalid_verdict_returns_false() {
+        let mut s = State::new("anna");
+        register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        record_verdict(&mut s, "v1", "mimc", &h64('b'), &h64('c'), 0).unwrap();
+        assert!(!is_valid(&s, "mimc", &h64('b')));
+    }
+    #[test]
+    fn missing_verdict_returns_false() {
+        let s = State::new("anna");
+        assert!(!is_valid(&s, "none", &h64('b')));
+    }
+    #[test]
+    fn revoked_verifier_can_be_readded() {
+        let mut s = State::new("anna");
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        remove_verifier(&mut s, "anna", "v1").unwrap();
+        add_verifier(&mut s, "anna", "v1").unwrap();
+        assert_eq!(*s.verifiers.get("v1").unwrap(), true);
+    }
+    #[test]
+    fn vk_version_bumps_monotonically() {
+        let mut s = State::new("anna");
+        for i in 1..=5u64 {
+            let v = register_vk(&mut s, "anna", 0, "mimc", &h64('a')).unwrap();
+            assert_eq!(v, i);
+        }
+    }
+}

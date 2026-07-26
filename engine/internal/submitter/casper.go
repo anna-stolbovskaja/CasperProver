@@ -173,3 +173,57 @@ func (s *CasperSubmitter) SubmitModelRegistration(modelID, modelHash, verifierCo
 
 	return s.putTransaction(contractHash, "register_model", args)
 }
+
+// RegisterZkVk pins a verifying-key digest for a circuit_id on the on-chain
+// zk-verifier contract (BACKLOG 1.8 + 2.6 anchor). governanceApproved=0 for
+// direct-owner calls, 1 for calls proved off-chain against governance's
+// is_executed(proposal_id)==1.
+func (s *CasperSubmitter) RegisterZkVk(circuitID, vkHash, curve, backend string, governanceApproved uint64) (string, error) {
+	contractHash := os.Getenv("CONTRACT_ZK_VERIFIER")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_ZK_VERIFIER env var not set")
+	}
+	args := &types.Args{}
+	args.AddArgument("governance_approved", *clvalue.NewCLUInt64(governanceApproved)).
+		AddArgument("circuit_id", *clvalue.NewCLString(circuitID)).
+		AddArgument("vk_hash", *clvalue.NewCLString(vkHash)).
+		AddArgument("curve", *clvalue.NewCLString(curve)).
+		AddArgument("backend", *clvalue.NewCLString(backend))
+	return s.putTransaction(contractHash, "register_vk", args)
+}
+
+// RecordZkVerdict anchors an off-chain Groth16 verification verdict on-chain
+// against a specific (circuit_id, proof_hash). Public inputs are hashed off-chain
+// (sha256 of their canonical encoding) so the on-chain record stays fixed-size.
+func (s *CasperSubmitter) RecordZkVerdict(circuitID, proofHash, publicInputsHash, modelID string, valid bool) (string, error) {
+	contractHash := os.Getenv("CONTRACT_ZK_VERIFIER")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_ZK_VERIFIER env var not set")
+	}
+	var verdict uint64
+	if valid {
+		verdict = 1
+	}
+	args := &types.Args{}
+	args.AddArgument("circuit_id", *clvalue.NewCLString(circuitID)).
+		AddArgument("proof_hash", *clvalue.NewCLString(proofHash)).
+		AddArgument("public_inputs_hash", *clvalue.NewCLString(publicInputsHash)).
+		AddArgument("model_id", *clvalue.NewCLString(modelID)).
+		AddArgument("verdict", *clvalue.NewCLUInt64(verdict))
+	return s.putTransaction(contractHash, "record_verdict", args)
+}
+
+// AddZkVerifier authorizes an account hash to record verdicts.
+func (s *CasperSubmitter) AddZkVerifier(verifierAccountHash string) (string, error) {
+	contractHash := os.Getenv("CONTRACT_ZK_VERIFIER")
+	if contractHash == "" {
+		return "", fmt.Errorf("CONTRACT_ZK_VERIFIER env var not set")
+	}
+	acc, err := key.NewAccountHash(verifierAccountHash)
+	if err != nil {
+		return "", fmt.Errorf("parse verifier account hash: %w", err)
+	}
+	args := &types.Args{}
+	args.AddArgument("verifier", clvalue.NewCLByteArray(acc.Bytes()))
+	return s.putTransaction(contractHash, "add_verifier", args)
+}

@@ -170,6 +170,7 @@ var routeScopes = map[string]string{
 	"GET /v1/circuits/{id}/vk":      "zk:read",
 	"POST /v1/zk/prove":             "zk:write",
 	"POST /v1/zk/verify":            "zk:read",
+	"POST /v1/zk/anchor-verdict":    "zk:write",
 }
 
 // enforceScope checks that the caller (identified by X-API-Key) has
