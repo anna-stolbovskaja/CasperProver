@@ -34,7 +34,7 @@ Do not open public issues for vulnerabilities.
 | Overflow in contract arithmetic | All U512 ops use `checked_add`/`checked_sub` with revert on overflow |
 | Double-slash same proof | `SLASHED_DICT` tracks by `proof_id`, reverts on duplicate |
 | Unauthorized revocation | `revoke_proof` checks caller == original submitter |
-| API abuse | Rate-limit middleware (10 req/s per IP, 3 POST/s) |
+| API abuse | Rate-limit middleware (60 req/min per IP, sliding 1-min window) — `engine/internal/api/server.go:250-289` |
 | Server crash on bad RNG | `genID()` falls back to timestamp instead of panicking |
 | Log injection | All logging via `slog` structured JSON, no user-controlled format strings |
 

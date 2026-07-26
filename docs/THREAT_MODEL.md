@@ -46,7 +46,7 @@ document whenever a new contract, endpoint, or trust boundary is added.
 - Rationale: an untrusted/unreliable RPC endpoint should degrade the *submitter's* behavior (fail fast, retry, recover) — it must never be treated as ground truth for consensus.
 
 ### 3.4 Backend API
-- **Authentication/authorization** — API-key auth on mutating endpoints; rate-limit middleware (10 req/s per IP, 3 POST/s).
+- **Authentication/authorization** — API-key auth on mutating endpoints (via `X-API-Key` header when `API_KEY` env is set); rate-limit middleware caps every request path at **60 requests per rolling 1-minute window per source IP** — single global cap, no separate/stricter POST-specific limit. Implementation: `engine/internal/api/server.go:250-289` (`rateLimitMiddleware` + `rateLimiter` struct with bounded per-IP counter map).
 - **Log injection** — all logging via `slog` structured JSON; no user-controlled format strings.
 - **XSS (frontend)** — React auto-escaping throughout; no `dangerouslySetInnerHTML` usage. Judge dashboard (`/judge` route) follows the same pattern.
 - **Secret leakage** — no secrets in frontend bundle; API key is server-side only. `.env.example` ships placeholders only; testnet keys are disposable.
@@ -54,6 +54,32 @@ document whenever a new contract, endpoint, or trust boundary is added.
 ### 3.5 Cryptography
 - **ZK soundness** — real BN254 Groth16 prove+verify (gnark) for the MiMC preimage circuit; conceptual/rapid-test verification path is explicitly labeled non-binding (see Known Limitations).
 - **PQ transition risk** — hybrid Ed25519 + ML-DSA-65 signing means a break in either scheme alone does not forge a valid signature; Lamport-OTS available for one-time-use high-assurance paths.
+
+### 3.6 Threat enumeration (STRIDE-style summary)
+
+Compact index of the concrete threats sections 3.1–3.5 mitigate, with likelihood/impact ratings and pointer to the enforcing code. Ratings are hackathon-scope: post-mainnet deployment would re-rate several `L`-likelihood items as `M` under real adversarial pressure.
+
+| # | Category | Threat | Asset | Likelihood | Impact | Mitigation | Enforcement |
+|---|---|---|---|---|---|---|---|
+| T-01 | Tampering | Double-slash on same `proof_id` | Staked funds | L | H | `SLASHED_DICT` tombstone reverts repeat slash | `contracts/stake-slashing/src/main.rs` |
+| T-02 | Elevation of Privilege | Non-owner mutates DeFi-mock whitelist | KYC whitelist | L | H | `caller != admin` reverts | `contracts/defi-mock/src/main.rs:69-71,107-109` |
+| T-03 | Elevation of Privilege | Non-submitter revokes a proof | Proof registry | L | M | `caller == original_submitter` check | `contracts/proof-registry/src/main.rs:126` |
+| T-04 | Denial of Service | On-chain verify flood | Verifier throughput | M | M | `MAX_VERIFY_PER_BLOCK=100` per-block cap | `contracts/verifier-gate/src/main.rs:24` |
+| T-05 | Denial of Service | API request flood | Backend availability | M | M | Rate-limit middleware, 60 req/min per IP | `engine/internal/api/server.go:250-289` |
+| T-06 | Tampering | Integer overflow in slash arithmetic | Staked funds | L | H | `checked_add`/`checked_sub` with revert | `contracts/stake-slashing/src/main.rs:169,182,226` |
+| T-07 | Spoofing | Forged proof accepted via `/verify` | Proof registry | L | H | Server independently re-derives hash + commit + Merkle-path; client `valid` claim never trusted | `engine/internal/api/server.go` `/verify`, `/verify/batch` |
+| T-08 | Tampering | Forged Merkle inclusion path | Proof registry | L | H | Path verified against `Root`; property tests cover tamper detection | `engine/internal/prover`, `merkle_property_test.go` |
+| T-09 | Repudiation | Verifier claims tampered result | Verification integrity | L | M | Structured `slog` audit log per request; deterministic re-derivation | `engine/internal/api/server.go` `logMiddleware` |
+| T-10 | Information Disclosure | XSS via judge dashboard | User session | L | M | React auto-escaping, no `dangerouslySetInnerHTML` | `frontend/` |
+| T-11 | Information Disclosure | API key leak via frontend bundle | Mutating endpoints | L | H | API key server-side only, `.env.example` placeholders | `.env.example`, frontend bundle |
+| T-12 | Denial of Service | Casper RPC failure blocks verification | Backend availability | M | L | Circuit breaker + exponential backoff; verification correctness independent of RPC | `engine/internal/submitter/resilience.go` |
+| T-13 | Spoofing | Forged signature via classical break | Signing keys | L (short-term) / M (long-term) | H | Hybrid Ed25519 + ML-DSA-65 — requires break of *both* schemes | proof-generation signing path |
+| T-14 | Tampering | Log injection via user input | Audit trail | L | L | All logging via `slog` structured JSON, no format-string interpolation | `engine/internal/api/server.go` |
+| T-15 | Denial of Service | RNG failure crashes ID generation | Backend availability | L | L | `genID()` falls back to timestamp-based ID, never panics | `engine/internal/model/registry.go:83-90` |
+| T-16 | Tampering | Batch verify short-circuits on one bad item | Verification integrity | L | M | Per-item independent check; missing `proof_id` reported inline, batch still processes remainder | `engine/internal/api/server.go` `/verify/batch` |
+
+Likelihood scale: `L` = requires adversary with privileged access or unlikely conditions; `M` = plausible under normal adversarial pressure; `H` = attempted routinely.
+Impact scale: `L` = degrades UX; `M` = loss of verification/audit trust; `H` = direct financial loss or full compromise.
 
 ## 4. Explicit Non-Goals / Accepted Risk
 
