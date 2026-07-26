@@ -2,11 +2,11 @@
 
 **Date:** 2026-07-25 → verified 2026-07-26
 **Network:** casper-test
-**Deployer account:** `0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7`
-(alias `defi_mock_owner` — Anna's account has a `storage::new_dictionary`
-name-collision on prior `stakes` / `slashed_proofs` named keys, so the three
-new contracts were deployed from the alternate account. Old `stake_slashing`
-contract was already redeployed from the same account on 2026-07-19.)
+**Deployer account:** secondary signer (redacted — non-Anna).
+Anna's account has a `storage::new_dictionary` name-collision on prior
+`stakes` / `slashed_proofs` named keys, so the three new contracts were
+deployed from the alternate account. Old `stake_slashing` contract was
+already redeployed from the same alternate account on 2026-07-19.
 
 The three previously-`undeployed` contracts are now on-chain and observable
 on the public RPC + explorer indexer:

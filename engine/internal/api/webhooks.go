@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/observability"
 )
 
 // Webhook subsystem — outbound event delivery to caller-registered URLs.
@@ -134,6 +136,28 @@ type webhookStore struct {
 	stopping chan struct{}
 	client   *http.Client
 	now      func() time.Time // injectable for tests
+	// metrics is optional; nil disables instrumentation. Set via
+	// webhookStore.SetMetrics after construction so tests do not have
+	// to touch Prometheus at all.
+	metrics *observability.WebhookMetrics
+}
+
+// SetMetrics wires a WebhookMetrics into the store. Safe to call
+// once at startup; passing nil is a no-op (default).
+func (s *webhookStore) SetMetrics(m *observability.WebhookMetrics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.metrics = m
+}
+
+// sampleGauges pushes queue / dead-letter depth into metrics. Caller
+// must hold s.mu (any mode). No-op when metrics is nil.
+func (s *webhookStore) sampleGaugesLocked() {
+	if s.metrics == nil {
+		return
+	}
+	s.metrics.QueueDepth.Set(float64(len(s.queue)))
+	s.metrics.DeadLetterDepth.Set(float64(len(s.dead)))
 }
 
 const (
@@ -242,7 +266,11 @@ func (s *webhookStore) enqueue(kind string, body []byte) int {
 			CreatedAt: now,
 		})
 		added++
+		if s.metrics != nil {
+			s.metrics.Enqueued.Inc(kind)
+		}
 	}
+	s.sampleGaugesLocked()
 	return added
 }
 
@@ -288,9 +316,11 @@ func (s *webhookStore) deliverOnce(ctx context.Context) int {
 func (s *webhookStore) deliverEvent(ctx context.Context, sub *webhookSubscription, ev *webhookEvent) {
 	sig := signWebhook(sub.secret, ev.Body)
 	deliveryID := fmt.Sprintf("%s-%d", sub.ID, ev.Attempts+1)
+	start := s.now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sub.URL, bytes.NewReader(ev.Body))
 	if err != nil {
 		s.recordFailure(sub, ev, fmt.Sprintf("build request: %v", err), 0)
+		s.observeAttempt(ev.Kind, 0, start)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -303,15 +333,36 @@ func (s *webhookStore) deliverEvent(ctx context.Context, sub *webhookSubscriptio
 	resp, err := s.client.Do(req)
 	if err != nil {
 		s.recordFailure(sub, ev, err.Error(), 0)
+		s.observeAttempt(ev.Kind, 0, start)
 		return
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		s.recordSuccess(sub, ev, resp.StatusCode)
+	code := resp.StatusCode
+	if code >= 200 && code < 300 {
+		s.recordSuccess(sub, ev, code)
+		s.observeAttempt(ev.Kind, code, start)
 		return
 	}
-	s.recordFailure(sub, ev, fmt.Sprintf("http %d", resp.StatusCode), resp.StatusCode)
+	s.recordFailure(sub, ev, fmt.Sprintf("http %d", code), code)
+	s.observeAttempt(ev.Kind, code, start)
+}
+
+// observeAttempt records the outcome of one HTTP dispatch attempt.
+// No-op when metrics is nil.
+func (s *webhookStore) observeAttempt(kind string, code int, start time.Time) {
+	s.mu.RLock()
+	m := s.metrics
+	now := s.now
+	s.mu.RUnlock()
+	if m == nil {
+		return
+	}
+	class := observability.StatusClass(code)
+	m.Attempts.Inc(kind, class)
+	if now != nil {
+		m.AttemptDuration.Observe(now().Sub(start).Seconds(), kind, class)
+	}
 }
 
 func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent, code int) {
@@ -322,6 +373,10 @@ func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent,
 	sub.LastAttemptAt = s.now()
 	sub.LastStatusCode = code
 	sub.LastError = ""
+	if s.metrics != nil {
+		s.metrics.Delivered.Inc(ev.Kind)
+	}
+	s.sampleGaugesLocked()
 }
 
 func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent, msg string, code int) {
@@ -345,6 +400,10 @@ func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent,
 		if len(s.dead) > webhookDeadLetterLimit {
 			s.dead = s.dead[len(s.dead)-webhookDeadLetterLimit:]
 		}
+		if s.metrics != nil {
+			s.metrics.DeadLettered.Inc(ev.Kind)
+		}
+		s.sampleGaugesLocked()
 		s.mu.Unlock()
 		return
 	}
@@ -403,6 +462,10 @@ func (s *webhookStore) replay(deliveryID, ownerKeyHash string) (string, error) {
 	s.queue = append(s.queue, &ev)
 	// Remove from dead list.
 	s.dead = append(s.dead[:idx], s.dead[idx+1:]...)
+	if s.metrics != nil {
+		s.metrics.Replayed.Inc(ev.Kind)
+	}
+	s.sampleGaugesLocked()
 	// Preserve the replay counter — useful for observability if the
 	// same event gets dead-lettered a second time.
 	return dl.DeliveryID, nil
