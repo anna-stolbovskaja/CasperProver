@@ -34,6 +34,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 - `docs/SECURITY_AUDIT.md` — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
 - **Gate 4 — ZK primary path.** `/zk/groth16-real/*` (gnark BN254, real R1CS + trusted setup + pairing verification) promoted to the canonical ZK path in the router, README, `docs/KNOWN_LIMITATIONS.md` and `docs/JUDGE_GUIDE.md`. Hash-based `/zk/verify-groth16` and `/zk/batch-verify` are marked as `[sim]` — responses now carry `simulation:true, deprecated:true, use:"/zk/groth16-real/verify"` plus `Warning`, `Deprecation` and `Sunset` HTTP headers. Canonical simulation spellings `/zk/verify-groth16-sim` / `/zk/batch-verify-sim` added; the older paths remain as deprecated aliases for backwards compatibility. 3 new tests in `engine/internal/api/zk_gate4_test.go` (sim banner + real round-trip; passes with `-race`).
+- `/v1/*` API alias with backward-compat: every existing endpoint reachable under `/v1/...`; legacy unprefixed paths keep working but respond with `X-CP-Deprecation`, `Sunset: 2027-01-01`, and `Link` successor-version headers (RFC 8594).
+- `X-Idempotency-Key` server middleware for POST/PUT/PATCH/DELETE: 15-minute TTL cache; replayed responses carry `X-Idempotency-Replay: true`; same key + different payload returns `409 Conflict` (surface client bugs, don't hide them).
+- `X-CP-API-Version: v1` response header on every API call for client-side introspection.
+- `docs/API_CHANGELOG.md` — versioning policy, deprecation timeline, migration guide.
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
 - `CopyButton` with checkmark feedback and legacy-browser fallback.
