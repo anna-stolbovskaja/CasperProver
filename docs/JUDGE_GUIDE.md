@@ -25,7 +25,7 @@ The secondary row also links to the full Lab (`/lab`) and the GitHub source. No 
 python3 scripts/judge_demo.py
 ```
 
-Default mode is read-only: it queries all four Casper testnet contracts, API health/proofs, and the frontend. For the real Groth16 round-trip, obtain the temporary judge key from the submission notes and run:
+Default mode is read-only: it queries all **eight** Casper testnet contracts, API health/proofs, and the frontend. For the real Groth16 round-trip, obtain the temporary judge key from the submission notes and run:
 
 ```bash
 CP_JUDGE_API_KEY='provided-out-of-band' python3 scripts/judge_demo.py
@@ -37,7 +37,7 @@ The key is never embedded in the script, URL, repository, or shell history examp
 
 | # | Action | Expected evidence | Boundary |
 |---|---|---|---|
-| 1 | Open `https://casperprover.xyz/lab/contracts` | Four deployed contracts, hashes and explorer links | **ON-CHAIN** |
+| 1 | Open `https://casperprover.xyz/lab/contracts` | Eight deployed contracts (proof_registry, verifier_gate, defi_mock, stake_slashing, proof_aggregation, model_registry, proof_of_inference, governance), hashes and explorer links | **ON-CHAIN** |
 | 2 | Run `python3 scripts/judge_demo.py` | Contract queries + API/frontend checks pass | **ON-CHAIN / LIVE SERVICE** |
 | 3 | Open `/lab/zk-proofs`, prove preimage `42`, then verify | Valid gnark BN254/MiMC proof | **REAL CRYPTO, OFF-CHAIN** |
 | 4 | Change one byte of `proof_hex` and verify | Verification fails | **NEGATIVE SECURITY TEST** |

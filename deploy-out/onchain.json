@@ -2,7 +2,7 @@
   "network": "casper-test",
   "chain_name": "casper-test",
   "project": "CasperProver",
-  "deployer_note": "Contracts are split across two accounts. See per-contract deployer field. The prior root-level `deployer` (0203975636…) did not match any actual on-chain signer and has been removed.",
+  "deployer_note": "Contracts are split across two accounts. See per-contract `deployer` field. proof_registry/verifier_gate were deployed by anna-stolbovskaja; defi_mock/stake_slashing/proof_aggregation/model_registry/proof_of_inference/governance were deployed by defi_mock_owner.",
   "explorer": "https://testnet.cspr.live",
   "cspr_cloud": "https://testnet.cspr.cloud",
   "contracts": {
@@ -45,7 +45,7 @@
       "deployed_at": "2026-07-19T07:33:00Z",
       "source": "contracts/stake-slashing/src/main.rs",
       "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"],
-      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from a secondary account (Anna's account had a prior storage::new_dictionary collision on stakes/slashed_proofs named keys)."
+      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit)."
     },
     "proof_aggregation": {
       "contract_hash": "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb",
@@ -55,7 +55,8 @@
       "version": 1,
       "deployed_at": "2026-07-25T23:12:48Z",
       "source": "contracts/proof-aggregation/src/main.rs",
-      "notes": "MVP-clean WASM (40928B) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with bulk-memory-opt/sign-ext/reference-types disabled + wasm-opt --signext-lowering + strip target_features section. 0 non-MVP opcodes, 0 rust_begin_unwind imports. Deployed from a secondary account (Anna funded with 200 CSPR transfer)."
+      "entry_points": ["create_batch", "add_to_batch", "finalize_batch", "verify_batch_membership", "get_batch", "get_stats"],
+      "notes": "MVP-clean WASM (~41 KB) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with target-cpu=mvp and features -bulk-memory,-sign-ext,-mutable-globals,-reference-types; wasm-opt -Oz --signext-lowering + strip target_features section. Deployed from defi_mock_owner."
     },
     "model_registry": {
       "contract_hash": "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a",
@@ -63,9 +64,10 @@
       "deploy_hash": "fd21b26ec69023aefd6d44d07963f3586b9084addc5ef810422acd6bed07c267",
       "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 1,
-      "deployed_at": "2026-07-25T23:14:00Z",
+      "deployed_at": "2026-07-25T23:13:45Z",
       "source": "contracts/model-registry/src/main.rs",
-      "notes": "MVP-clean WASM (46540B). Same toolchain fix as proof_aggregation."
+      "entry_points": ["register_model", "get_model", "set_price_bps", "get_price_bps", "revoke_model"],
+      "notes": "MVP-clean WASM. Deployed from defi_mock_owner."
     },
     "proof_of_inference": {
       "contract_hash": "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318",
@@ -73,16 +75,33 @@
       "deploy_hash": "bde5cfb70715f01b1fc7f6bfeb6f331113082ede7dd7973a8fafffb9937da95e",
       "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 1,
-      "deployed_at": "2026-07-25T23:15:00Z",
+      "deployed_at": "2026-07-25T23:14:00Z",
       "source": "contracts/proof-of-inference/src/main.rs",
-      "notes": "MVP-clean WASM (50563B). Same toolchain fix."
-    }
-  },
-  "undeployed_contracts": {
-    "stake_slashing_session": {
-      "source": "contracts/stake-slashing-session/src/main.rs",
-      "status": "compiled",
-      "reason": "session-code helper for purse transfer"
+      "entry_points": ["record_inference", "get_inference", "get_stats"],
+      "notes": "MVP-clean WASM. Deployed from defi_mock_owner."
+    },
+    "governance": {
+      "contract_hash": "03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e",
+      "contract_package_hash": "0cf2674d2ff1f1b78e90cd1ce6c07099850aa3a58076ecb448806e2c865b4dbb",
+      "deploy_hash": "1d7c9e8fa8a249977003fc1b36e443cf35c021b20c82e14513725b028ae77440",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "version": 1,
+      "deployed_at": "2026-07-26T20:14:00Z",
+      "source": "contracts/governance/src/main.rs",
+      "entry_points": [
+        "propose", "execute", "cancel", "get_proposal", "is_executed",
+        "emergency_pause", "propose_unpause", "execute_unpause",
+        "propose_owner_transfer", "execute_owner_transfer",
+        "sign_recovery", "execute_recovery"
+      ],
+      "install_args": {
+        "guardian_1_acct_hash": "cac1862d745c06860c6acfa275d6afec3be692dedf6c46253ce813dba74ad298",
+        "guardian_2_acct_hash": "74c96cd0073c4c973b70e7925adca8a4ba58ffcb9737304631381b82695007a8",
+        "guardian_3_acct_hash": "535a3d80c9c1cba0190b036f8edd5a9623551a5eca4ab01a0d24dda537895467"
+      },
+      "bootstrapped_owner_acct_hash": "84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10",
+      "block_height": 8634452,
+      "notes": "MVP-clean WASM (53762 bytes < 65536 cap). Timelock 48h. Owner bootstraps from get_caller at install (defi_mock_owner). 3 guardians: anna, alexbelij, triumphkrug (acct hashes above). 2-of-3 recovery for lost-key case. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
     }
   },
   "verification": {
