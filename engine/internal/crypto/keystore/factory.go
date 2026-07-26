@@ -12,11 +12,14 @@ import (
 //
 // Selection:
 //
-//   CP_KEYSTORE_KIND=memory  (default)          -> MemoryKeystore
-//   CP_KEYSTORE_KIND=file    + CP_KEYSTORE_PATH -> FileKeystore
-//                            + CP_KEYSTORE_PASSPHRASE
-//   CP_KEYSTORE_KIND=remote  + CP_KEYSTORE_URL  -> RemoteKeystoreStub
-//                            + CP_KEYSTORE_TOKEN
+//   CP_KEYSTORE_KIND=memory        (default)             -> MemoryKeystore
+//   CP_KEYSTORE_KIND=file          + CP_KEYSTORE_PATH    -> FileKeystore
+//                                  + CP_KEYSTORE_PASSPHRASE
+//   CP_KEYSTORE_KIND=remote        + CP_KEYSTORE_URL     -> RemoteKeystoreStub
+//                                  + CP_KEYSTORE_TOKEN
+//   CP_KEYSTORE_KIND=vault-transit + CP_VAULT_ADDR       -> VaultTransitKeystore
+//                                  + CP_VAULT_TOKEN
+//                                  + [CP_VAULT_TRANSIT_MOUNT=transit]
 //
 // Any parse/setup error is returned; the caller (server bootstrap) decides
 // whether to fall back to MemoryKeystore or fail-fast.
@@ -43,7 +46,15 @@ func FromEnv() (Keystore, string, error) {
 		url := os.Getenv("CP_KEYSTORE_URL")
 		token := os.Getenv("CP_KEYSTORE_TOKEN")
 		return NewRemote(url, token), "remote gateway " + url, nil
+	case KindVaultTransit:
+		addr := os.Getenv("CP_VAULT_ADDR")
+		token := os.Getenv("CP_VAULT_TOKEN")
+		mount := os.Getenv("CP_VAULT_TRANSIT_MOUNT")
+		if addr == "" || token == "" {
+			return nil, "", fmt.Errorf("%w: vault-transit backend needs CP_VAULT_ADDR and CP_VAULT_TOKEN", ErrNotConfigured)
+		}
+		return NewVaultTransit(addr, token, mount), "vault-transit at " + addr, nil
 	default:
-		return nil, "", fmt.Errorf("keystore: unknown CP_KEYSTORE_KIND=%q (memory|file|remote)", kind)
+		return nil, "", fmt.Errorf("keystore: unknown CP_KEYSTORE_KIND=%q (memory|file|remote|vault-transit)", kind)
 	}
 }
