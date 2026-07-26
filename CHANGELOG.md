@@ -11,6 +11,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 *Frontend polish, DoraHacks submission prep, docs hardening.*
 
 ### Added
+- **`docs/SECURITY_AUDIT.md`** — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
 - `CopyButton` with checkmark feedback and legacy-browser fallback.

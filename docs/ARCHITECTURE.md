@@ -152,3 +152,12 @@ verify(L, P, R):
         h = H(p_i || h)   if index is odd
     return h == R
 ```
+
+## Security posture
+
+Ownership model per contract, cross-contract call graph, reentrancy analysis and
+renounce/timelock policy live in [`docs/SECURITY_AUDIT.md`](./SECURITY_AUDIT.md).
+Short version: single-owner-per-contract, no irreversible `renounce_ownership`
+anywhere, every cross-contract call is either read-only or a native purse
+transfer (no callback surface). Any new privileged entry point MUST be added to
+that audit before it merges.
