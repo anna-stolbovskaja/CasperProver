@@ -232,3 +232,80 @@ mod defi_mock_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod proof_aggregation_tests {
+    //! Mirrors the guards enforced by `contracts/proof-aggregation/src/main.rs::create_batch`.
+    //! See docs/SECURITY_AUDIT.md P1 and the commit that added the guards.
+
+    const ERR_EMPTY_BATCH_ID: u16 = 20;
+    const ERR_ZERO_MAX_PROOFS: u16 = 21;
+    const ERR_DUPLICATE_BATCH_ID: u16 = 22;
+
+    /// Mirror of `create_batch` guards. Returns Ok when a fresh insert would
+    /// be accepted, Err(code) matching the on-chain revert code otherwise.
+    fn validate_create_batch(
+        batch_id: &str,
+        max_proofs: u64,
+        already_exists: bool,
+    ) -> Result<(), u16> {
+        if batch_id.is_empty() {
+            return Err(ERR_EMPTY_BATCH_ID);
+        }
+        if max_proofs == 0 {
+            return Err(ERR_ZERO_MAX_PROOFS);
+        }
+        if already_exists {
+            return Err(ERR_DUPLICATE_BATCH_ID);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn happy_path_accepted() {
+        assert!(validate_create_batch("batch-001", 100, false).is_ok());
+    }
+
+    #[test]
+    fn empty_batch_id_rejected() {
+        assert_eq!(
+            validate_create_batch("", 100, false).unwrap_err(),
+            ERR_EMPTY_BATCH_ID
+        );
+    }
+
+    #[test]
+    fn zero_max_proofs_rejected() {
+        assert_eq!(
+            validate_create_batch("batch-001", 0, false).unwrap_err(),
+            ERR_ZERO_MAX_PROOFS
+        );
+    }
+
+    #[test]
+    fn duplicate_batch_id_rejected() {
+        // The critical P1 case: silent overwrite must now revert.
+        assert_eq!(
+            validate_create_batch("batch-001", 100, true).unwrap_err(),
+            ERR_DUPLICATE_BATCH_ID
+        );
+    }
+
+    #[test]
+    fn empty_id_takes_priority_over_duplicate() {
+        // Order of guards: empty batch_id short-circuits before existence lookup,
+        // which matches the on-chain order (cheaper checks first).
+        assert_eq!(
+            validate_create_batch("", 100, true).unwrap_err(),
+            ERR_EMPTY_BATCH_ID
+        );
+    }
+
+    #[test]
+    fn zero_max_takes_priority_over_duplicate() {
+        assert_eq!(
+            validate_create_batch("batch-001", 0, true).unwrap_err(),
+            ERR_ZERO_MAX_PROOFS
+        );
+    }
+}

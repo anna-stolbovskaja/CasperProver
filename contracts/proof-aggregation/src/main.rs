@@ -29,10 +29,28 @@ pub extern "C" fn create_batch() {
     let merkle_root: String = runtime::get_named_arg("merkle_root");
     let max_proofs: u64 = runtime::get_named_arg("max_proofs");
 
+    // Guard: reject empty batch_id (would collide with dictionary internal keys).
+    if batch_id.is_empty() {
+        runtime::revert(ApiError::User(20));
+    }
+    // Guard: reject non-positive capacity (batch would accept no proofs anyway).
+    if max_proofs == 0 {
+        runtime::revert(ApiError::User(21));
+    }
+
     let batches_uref: URef = runtime::get_key(BATCHES_DICT)
         .unwrap_or_revert_with(ApiError::MissingKey)
         .into_uref()
         .unwrap_or_revert_with(ApiError::UnexpectedKeyVariant);
+
+    // Guard: reject duplicate batch_id — silent overwrite would erase
+    // proofs already added to an open batch and desync the batch counter
+    // (see docs/SECURITY_AUDIT.md P1).
+    let existing: Option<String> =
+        storage::dictionary_get(batches_uref, &batch_id).unwrap_or_revert();
+    if existing.is_some() {
+        runtime::revert(ApiError::User(22));
+    }
 
     let value = format!("{}|{}|{}|0|open", batch_id, merkle_root, max_proofs);
     storage::dictionary_put(batches_uref, &batch_id, value);
