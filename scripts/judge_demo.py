@@ -29,6 +29,10 @@ _MANIFEST_KEYS = {
     "Verifier Gate": "verifier_gate",
     "DeFi Mock": "defi_mock",
     "Stake Slashing": "stake_slashing",
+    "Proof Aggregation": "proof_aggregation",
+    "Model Registry": "model_registry",
+    "Proof of Inference": "proof_of_inference",
+    "Governance": "governance",
 }
 
 
