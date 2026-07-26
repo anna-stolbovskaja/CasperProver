@@ -33,7 +33,8 @@
 
 ### Near-term
 - Real Groth16 circuit for full model-inference verification (current: MiMC preimage)
-- Production trusted setup ceremony (current: per-start generation)
+- Production trusted setup ceremony (current: per-start generation) — see `docs/KEY_CEREMONY_PLAN.md`
+- HSM-resident anchor and attestation signing — see `docs/HSM_PLAN.md`
 - Deploy `proof-of-inference`, `model-registry`, `proof-aggregation` contracts
 - Demo/Real data toggle in lab
 
