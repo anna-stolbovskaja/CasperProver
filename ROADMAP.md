@@ -6,8 +6,8 @@
 
 ## ✅ Shipped
 
-- [x] 4 smart contracts on Casper testnet (proof-registry, verifier-gate, defi-mock, stake-slashing)
-- [x] 3 additional contracts written (proof-of-inference, model-registry, proof-aggregation)
+- [x] 7 smart contracts on Casper testnet (proof-registry, verifier-gate, defi-mock, stake-slashing, proof-aggregation, model-registry, proof-of-inference)
+- [x] 3 additional contracts written, not yet deployed (zk-verifier, stake-slashing-session, governance)
 - [x] Go API server — 32 endpoints, PostgreSQL persistence, rate limiting
 - [x] Merkle tree builder (SHA-256, configurable depth, <50ms)
 - [x] Real BN254 Groth16 ZK proofs via gnark (R1CS circuit, trusted setup, pairing verification)

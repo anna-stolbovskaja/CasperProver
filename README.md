@@ -105,7 +105,7 @@ For stronger guarantees, the same commitment can be:
 | **Post-Quantum Crypto** | ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA, Lamport OTS | ✅ Live |
 | **Batch Aggregation** | Hash-chain aggregation with Postgres persistence | ✅ Live |
 | **Proof-Chain DAG** | Multi-step proof validation: cycle detection, input continuity, single root | ✅ Live |
-| **On-Chain Anchoring** | 4 smart contracts on Casper testnet | ✅ Live |
+| **On-Chain Anchoring** | 7 smart contracts on Casper testnet | ✅ Live |
 | **Stake & Slash** | Economic penalties for revoked proofs, permissionless reporting bounty | ✅ Live |
 | **KYC Gating** | Proof-based DeFi access control with cross-contract verification | ✅ Live |
 | **SDK (Go)** | 32 methods, 1:1 API mapping | ✅ Live |
@@ -349,7 +349,7 @@ Extended infrastructure — real code, wired to the API:
 | GPU required | **None** |
 | API endpoints | **32** |
 | SDK/MCP tools | **32** |
-| Smart contracts | **4 live** + 3 written |
+| Smart contracts | **7 live** + 3 written (zk-verifier, stake-slashing-session, governance — compiled, awaiting deploy) |
 | Testnet transactions | **248+** |
 
 ---
