@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "casperprover"
-version = "0.1.0"
+version = "0.1.1"
 description = "CasperProver Python SDK — prove, verify, batch, anchor with client-side receipt validation."
 readme = "README.md"
 requires-python = ">=3.9"
