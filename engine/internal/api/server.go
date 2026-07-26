@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -52,7 +53,8 @@ type Server struct {
 	sub       *submitter.CasperSubmitter
 	inf       *inference.InferenceService
 	zk        *zkverifier.Groth16Verifier
-	realZK    *gnarkzk.Setup
+	realZK    *gnarkzk.Setup     // legacy PreimageCircuit-only setup, kept for backwards compat
+	zkReg     *gnarkzk.Registry  // v1 circuit registry (persistent keys via CP_ZK_KEYS_DIR)
 	contracts contractHashes
 	port      int
 	log       *slog.Logger
@@ -127,6 +129,32 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		realZK = nil
 	}
 
+	// v1 circuit registry — bundles the same MiMCPreimage circuit above
+	// under a stable id plus a ModelInference circuit, and persists
+	// ccs/pk/vk to disk when CP_ZK_KEYS_DIR is set so restarts don't
+	// invalidate previously-issued proofs.
+	zkReg := gnarkzk.NewRegistry()
+	_ = zkReg.Register(gnarkzk.MiMCPreimageCircuit{})
+	_ = zkReg.Register(gnarkzk.ModelInferenceCircuit{})
+	zkKeysDir := os.Getenv("CP_ZK_KEYS_DIR")
+	forceRegen := os.Getenv("CP_ZK_REGENERATE") == "1"
+	for _, id := range zkReg.IDs() {
+		if zkKeysDir != "" {
+			if manifest, err := zkReg.LoadOrCreate(id, zkKeysDir, forceRegen); err != nil {
+				slog.Warn("zk registry LoadOrCreate failed, in-memory fallback", "circuit", id, "err", err)
+				if err := zkReg.Compile(id); err != nil {
+					slog.Error("zk registry Compile fallback failed", "circuit", id, "err", err)
+				}
+			} else {
+				slog.Info("zk circuit ready", "id", id, "vk_digest", manifest.VKDigest, "constraints", manifest.Constraints, "keys_dir", filepath.Join(zkKeysDir, id))
+			}
+		} else {
+			if err := zkReg.Compile(id); err != nil {
+				slog.Warn("zk registry in-memory Compile failed", "circuit", id, "err", err)
+			}
+		}
+	}
+
 	strict := os.Getenv("CP_STRICT") == "1"
 	apiKey := os.Getenv("API_KEY")
 	if apiKey == "" {
@@ -157,6 +185,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		inf:       inference.New(eng, db, sub),
 		zk:        zkverifier.NewGroth16Verifier(),
 		realZK:    realZK,
+		zkReg:     zkReg,
 		contracts: contracts,
 		port:      port,
 		log:    slog.Default(),
@@ -244,6 +273,12 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)
 	mux.HandleFunc("POST /zk/groth16-real/prove", s.zkGroth16RealProve)
 	mux.HandleFunc("POST /zk/groth16-real/verify", s.zkGroth16RealVerify)
+	// v1 circuit registry
+	mux.HandleFunc("GET /v1/circuits", s.circuitsList)
+	mux.HandleFunc("GET /v1/circuits/{id}", s.circuitsGet)
+	mux.HandleFunc("GET /v1/circuits/{id}/vk", s.circuitsGetVK)
+	mux.HandleFunc("POST /v1/zk/prove", s.zkProveGeneric)
+	mux.HandleFunc("POST /v1/zk/verify", s.zkVerifyGeneric)
 	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 	// Phase 2: proof chains (DAG validation)
@@ -1309,6 +1344,168 @@ func (s *Server) zkGetChallenge(w http.ResponseWriter, r *http.Request) {
 	result := map[string]any{"challenge_id": id, "status": "open"}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
+}
+
+// ---------------------------------------------------------------------------
+// v1 circuit registry — named, versioned circuits, persistent keys
+// ---------------------------------------------------------------------------
+
+func (s *Server) circuitsList(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"circuits":   s.zkReg.Descriptors(),
+		"default_id": s.zkReg.DefaultID(),
+	})
+}
+
+func (s *Server) circuitsGet(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	id := r.PathValue("id")
+	d, ok := s.zkReg.Descriptor(id)
+	if !ok {
+		s.jsonError(w, "unknown circuit id", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(d)
+}
+
+// circuitsGetVK returns the on-chain-deployable verifying key bytes as hex.
+// Callers can copy this into a Casper contract (or another chain) to
+// verify proofs off-server.
+func (s *Server) circuitsGetVK(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	id := r.PathValue("id")
+	vk, err := s.zkReg.VerifyingKey(id)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	var buf bytes.Buffer
+	if _, err := vk.WriteTo(&buf); err != nil {
+		s.jsonError(w, "failed to serialize vk", http.StatusInternalServerError)
+		return
+	}
+	d, _ := s.zkReg.Descriptor(id)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"circuit_id": id,
+		"curve":      d.Curve,
+		"backend":    d.Backend,
+		"vk_hex":     hex.EncodeToString(buf.Bytes()),
+		"vk_sha256":  d.KeyDigest,
+	})
+}
+
+// zkProveGeneric routes a proof request through the registry: the caller
+// picks circuit_id (or gets the registry's default) and supplies a
+// free-form inputs map (values must be base-10 integer strings; the
+// circuits' AssignFull coerces them into *big.Int).
+func (s *Server) zkProveGeneric(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		CircuitID string         `json:"circuit_id"`
+		Inputs    map[string]any `json:"inputs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request: expected {circuit_id, inputs}", http.StatusBadRequest)
+		return
+	}
+	if req.CircuitID == "" {
+		req.CircuitID = s.zkReg.DefaultID()
+	}
+	if _, ok := s.zkReg.Descriptor(req.CircuitID); !ok {
+		s.jsonError(w, "unknown circuit id", http.StatusNotFound)
+		return
+	}
+	if req.Inputs == nil {
+		s.jsonError(w, "inputs required", http.StatusBadRequest)
+		return
+	}
+	proof, err := s.zkReg.Prove(req.CircuitID, req.Inputs)
+	if err != nil {
+		s.log.Warn("registry prove failed", "circuit", req.CircuitID, "error", err)
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var proofBuf bytes.Buffer
+	if _, err := proof.WriteTo(&proofBuf); err != nil {
+		s.jsonError(w, "failed to serialize proof", http.StatusInternalServerError)
+		return
+	}
+	d, _ := s.zkReg.Descriptor(req.CircuitID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"circuit_id": req.CircuitID,
+		"version":    d.Version,
+		"curve":      d.Curve,
+		"backend":    d.Backend,
+		"proof_hex":  hex.EncodeToString(proofBuf.Bytes()),
+		"vk_sha256":  d.KeyDigest,
+		"created_at": time.Now().Unix(),
+	})
+}
+
+// zkVerifyGeneric runs Groth16 verification against a caller-provided
+// public-input map. Public-only witness — the private preimage never
+// touches this handler.
+func (s *Server) zkVerifyGeneric(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		CircuitID    string         `json:"circuit_id"`
+		PublicInputs map[string]any `json:"public_inputs"`
+		ProofHex     string         `json:"proof_hex"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if req.CircuitID == "" {
+		req.CircuitID = s.zkReg.DefaultID()
+	}
+	if _, ok := s.zkReg.Descriptor(req.CircuitID); !ok {
+		s.jsonError(w, "unknown circuit id", http.StatusNotFound)
+		return
+	}
+	proofBytes, err := hex.DecodeString(req.ProofHex)
+	if err != nil {
+		s.jsonError(w, "proof_hex must be valid hex", http.StatusBadRequest)
+		return
+	}
+	proof := groth16.NewProof(ecc.BN254)
+	if _, err := proof.ReadFrom(bytes.NewReader(proofBytes)); err != nil {
+		s.jsonError(w, "failed to deserialize proof", http.StatusBadRequest)
+		return
+	}
+	valid, err := s.zkReg.Verify(req.CircuitID, proof, req.PublicInputs)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	d, _ := s.zkReg.Descriptor(req.CircuitID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"valid":       valid,
+		"circuit_id":  req.CircuitID,
+		"vk_sha256":   d.KeyDigest,
+		"verified_at": time.Now().Unix(),
+	})
 }
 
 // ---------------------------------------------------------------------------
