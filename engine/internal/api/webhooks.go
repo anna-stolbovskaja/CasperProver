@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -11,7 +12,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,6 +96,15 @@ type webhookSubscription struct {
 	LastAttemptAt  time.Time `json:"last_attempt_at,omitempty"`
 	LastStatusCode int       `json:"last_status_code,omitempty"`
 	LastError      string    `json:"last_error,omitempty"`
+
+	// Circuit breaker fields (BF hardening).
+	// ConsecutiveFailures is reset on every 2xx delivery; when it
+	// crosses circuitBreakerThreshold, the subscription is paused —
+	// no attempts are dispatched until CircuitOpenUntil has passed.
+	// A caller can inspect these via GET /v1/webhooks/{id}.
+	ConsecutiveFailures int       `json:"consecutive_failures"`
+	CircuitOpenUntil    time.Time `json:"circuit_open_until,omitempty"`
+	CircuitTrippedTotal int       `json:"circuit_tripped_total,omitempty"`
 }
 
 // webhookEvent is one dispatch unit — one (subscription, event)
@@ -132,6 +144,30 @@ const (
 	webhookInitialBackoff  = time.Second
 	webhookDeadLetterLimit = 1000
 	webhookRequestTimeout  = 10 * time.Second
+
+	// BF hardening constants.
+	//
+	// Full-jitter backoff: instead of the deterministic
+	// initial*2^(attempt-1) schedule, each retry picks a random
+	// duration in [0, cappedBackoff) — this breaks the thundering-herd
+	// synchrony when many subs fail against the same receiver at once.
+	//
+	// Retry-After: if the receiver returns 429 or 503 with a
+	// Retry-After header (seconds or HTTP-date), we honour it up to a
+	// hard ceiling so a hostile receiver cannot pin an event in the
+	// queue indefinitely.
+	//
+	// Circuit breaker: after N consecutive failed attempts against one
+	// subscription (across events), we pause delivery to that sub for
+	// a cool-down window. A 2xx delivery resets the counter and clears
+	// the pause immediately.
+	//
+	// DLQ TTL: dead-letters are evicted after webhookDeadLetterTTL —
+	// documented as a memory-hygiene bound, not a durability promise.
+	webhookRetryAfterCeiling = 15 * time.Minute
+	circuitBreakerThreshold  = 20
+	circuitBreakerCooldown   = 2 * time.Minute
+	webhookDeadLetterTTL     = 24 * time.Hour
 )
 
 func newWebhookStore() *webhookStore {
@@ -239,17 +275,36 @@ func (s *webhookStore) enqueue(kind string, body []byte) int {
 // deliverOnce processes every event whose NextTryAt has passed.
 // Returns the number of events attempted. Idempotent and safe to
 // call from the worker loop or a test.
+//
+// BF hardening — two guards run under the lock while we split the
+// pending set from the queue:
+//
+//   * Circuit breaker: an event whose sub has an open circuit gets
+//     its NextTryAt pushed to CircuitOpenUntil and is put back on
+//     the queue instead of dispatched. The event still counts as
+//     pending work; it just does not fire an HTTP call this tick.
+//
+//   * Dead-letter TTL: entries older than webhookDeadLetterTTL are
+//     evicted here so the eviction cadence matches the worker tick.
 func (s *webhookStore) deliverOnce(ctx context.Context) int {
 	s.mu.Lock()
 	now := s.now()
+	s.evictExpiredDeadLettersLocked(now)
 	pending := make([]*webhookEvent, 0)
 	remaining := make([]*webhookEvent, 0, len(s.queue))
 	for _, ev := range s.queue {
-		if !ev.NextTryAt.After(now) {
-			pending = append(pending, ev)
-		} else {
+		if ev.NextTryAt.After(now) {
 			remaining = append(remaining, ev)
+			continue
 		}
+		sub, ok := s.subs[ev.SubID]
+		if ok && sub.CircuitOpenUntil.After(now) {
+			// Sub is in cool-down — defer this event.
+			ev.NextTryAt = sub.CircuitOpenUntil
+			remaining = append(remaining, ev)
+			continue
+		}
+		pending = append(pending, ev)
 	}
 	s.queue = remaining
 	// Snapshot subs so we can release the lock during delivery.
@@ -272,36 +327,65 @@ func (s *webhookStore) deliverOnce(ctx context.Context) int {
 	return attempted
 }
 
+// evictExpiredDeadLettersLocked drops dead-letters older than
+// webhookDeadLetterTTL. Called with s.mu already held.
+func (s *webhookStore) evictExpiredDeadLettersLocked(now time.Time) {
+	if len(s.dead) == 0 {
+		return
+	}
+	cutoff := now.Add(-webhookDeadLetterTTL)
+	kept := s.dead[:0]
+	for _, dl := range s.dead {
+		if dl.FailedAt.After(cutoff) {
+			kept = append(kept, dl)
+		}
+	}
+	s.dead = kept
+}
+
 // deliverEvent sends one dispatch attempt and mutates the event with
 // the outcome — either finalized (dropped from queue), retried
 // (pushed back with backoff), or dead-lettered.
+// idempotencyKey is a stable per-attempt id the receiver can use to
+// deduplicate a retried delivery — required by BF because a 2xx that
+// crossed the wire but never reached us gets retried, and a
+// well-behaved receiver must be able to tell it's a retry.
+//
+// Format: <sub_id>-<attempt>-<sha256 of body, first 8 hex chars>.
+func idempotencyKey(subID string, attempt int, body []byte) string {
+	h := sha256.Sum256(body)
+	return fmt.Sprintf("%s-%d-%s", subID, attempt, hex.EncodeToString(h[:4]))
+}
+
 func (s *webhookStore) deliverEvent(ctx context.Context, sub *webhookSubscription, ev *webhookEvent) {
 	sig := signWebhook(sub.secret, ev.Body)
 	deliveryID := fmt.Sprintf("%s-%d", sub.ID, ev.Attempts+1)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sub.URL, bytes.NewReader(ev.Body))
 	if err != nil {
-		s.recordFailure(sub, ev, fmt.Sprintf("build request: %v", err), 0)
+		s.recordFailure(sub, ev, fmt.Sprintf("build request: %v", err), 0, 0)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-CP-Event", ev.Kind)
 	req.Header.Set("X-CP-Delivery", deliveryID)
+	req.Header.Set("X-CP-Idempotency-Key", idempotencyKey(sub.ID, ev.Attempts+1, ev.Body))
 	req.Header.Set("X-CP-Timestamp", s.now().UTC().Format(time.RFC3339))
 	if sig != "" {
 		req.Header.Set("X-CP-Signature", sig)
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		s.recordFailure(sub, ev, err.Error(), 0)
+		s.recordFailure(sub, ev, err.Error(), 0, 0)
 		return
 	}
+	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), s.now())
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		s.recordSuccess(sub, ev, resp.StatusCode)
 		return
 	}
-	s.recordFailure(sub, ev, fmt.Sprintf("http %d", resp.StatusCode), resp.StatusCode)
+	s.recordFailure(sub, ev, fmt.Sprintf("http %d", resp.StatusCode), resp.StatusCode, retryAfter)
 }
 
 func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent, code int) {
@@ -312,15 +396,27 @@ func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent,
 	sub.LastAttemptAt = s.now()
 	sub.LastStatusCode = code
 	sub.LastError = ""
+	// Circuit breaker: a 2xx clears both the streak counter and any
+	// active pause — the next event is delivered right away.
+	sub.ConsecutiveFailures = 0
+	sub.CircuitOpenUntil = time.Time{}
 }
 
-func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent, msg string, code int) {
+// recordFailure books one failed attempt. retryAfter, when > 0,
+// forces the next-try-at to at least now+retryAfter regardless of
+// the computed jittered backoff (bounded by webhookRetryAfterCeiling).
+func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent, msg string, code int, retryAfter time.Duration) {
 	s.mu.Lock()
 	sub.Attempts++
 	sub.Failures++
 	sub.LastAttemptAt = s.now()
 	sub.LastStatusCode = code
 	sub.LastError = msg
+	sub.ConsecutiveFailures++
+	if sub.ConsecutiveFailures >= circuitBreakerThreshold && sub.CircuitOpenUntil.Before(s.now()) {
+		sub.CircuitOpenUntil = s.now().Add(circuitBreakerCooldown)
+		sub.CircuitTrippedTotal++
+	}
 	ev.Attempts++
 	ev.LastError = msg
 	if ev.Attempts >= webhookMaxAttempts {
@@ -332,14 +428,74 @@ func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent,
 		s.mu.Unlock()
 		return
 	}
-	// Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s — capped.
-	backoff := webhookInitialBackoff << (ev.Attempts - 1)
-	if backoff > webhookMaxBackoff || backoff < 0 {
-		backoff = webhookMaxBackoff
+	backoff := jitteredBackoff(ev.Attempts)
+	if retryAfter > 0 {
+		if retryAfter > webhookRetryAfterCeiling {
+			retryAfter = webhookRetryAfterCeiling
+		}
+		if retryAfter > backoff {
+			backoff = retryAfter
+		}
 	}
 	ev.NextTryAt = s.now().Add(backoff)
 	s.queue = append(s.queue, ev)
 	s.mu.Unlock()
+}
+
+// jitteredBackoff returns a random duration in [0, cap) where cap =
+// min(initial*2^(attempt-1), webhookMaxBackoff). This is the
+// "full-jitter" variant recommended by AWS's exponential-backoff
+// guidance — every retry pulls a fresh random point in the growing
+// window, which is empirically the best decorrelator for a herd of
+// clients hitting the same overloaded receiver.
+//
+// A crypto/rand source is deliberate: math/rand's default source is
+// process-wide and can be re-seeded by unrelated code, which would
+// couple our jitter with third-party callers.
+func jitteredBackoff(attempt int) time.Duration {
+	if attempt < 1 {
+		attempt = 1
+	}
+	capDur := webhookInitialBackoff << (attempt - 1)
+	if capDur > webhookMaxBackoff || capDur < 0 {
+		capDur = webhookMaxBackoff
+	}
+	if capDur <= 0 {
+		return 0
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(capDur)))
+	if err != nil {
+		// Extremely unlikely (only when the OS RNG fails). Fall back to
+		// the deterministic cap so we still make progress.
+		return capDur
+	}
+	return time.Duration(n.Int64())
+}
+
+// parseRetryAfter accepts a Retry-After header value in either of
+// its two RFC 7231 forms — an integer number of seconds, or an
+// HTTP-date — and returns the resulting delay from `now`. Returns 0
+// on empty or malformed input; callers use that to fall back to the
+// jittered backoff.
+func parseRetryAfter(v string, now time.Time) time.Duration {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(v); err == nil {
+		if secs < 0 {
+			return 0
+		}
+		return time.Duration(secs) * time.Second
+	}
+	if t, err := http.ParseTime(v); err == nil {
+		d := t.Sub(now)
+		if d < 0 {
+			return 0
+		}
+		return d
+	}
+	return 0
 }
 
 func (s *webhookStore) deadLetters() []*deadLetter {
