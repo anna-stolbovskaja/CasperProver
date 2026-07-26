@@ -83,6 +83,12 @@ func demoFlow(eng *prover.ProofEngine) {
 }
 
 func serve(eng *prover.ProofEngine) {
+	// Item 7.1 — CP_STRICT=1 requires all critical env to be set.
+	if err := api.Preflight(nil); err != nil {
+		slog.Error("strict preflight failed", "error", err)
+		os.Exit(2)
+	}
+
 	// write deployer key from env to temp file if provided
 	if keyB64 := os.Getenv("DEPLOYER_KEY_B64"); keyB64 != "" {
 		decoded, err := base64.StdEncoding.DecodeString(keyB64)
