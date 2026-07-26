@@ -1,72 +1,25 @@
-# Undeployed contracts — status & deploy path
+# Undeployed contracts — resolved (all three now live)
 
-> **Honest positioning:** these three Casper contracts are fully implemented
-> and build cleanly against `nightly-2025-01-15` / `wasm32-unknown-unknown`, but
-> they are **not yet deployed** to Casper testnet. They are archived from every
-> CI run and available as build artifacts.
+> **Update (2026-07-26):** the three contracts this doc used to track as
+> "not yet deployed" (`proof-of-inference`, `model-registry`,
+> `proof-aggregation`) were deployed to Casper testnet on 2026-07-25 from
+> the secondary deployer account (`0202da6cfba1...`), using an MVP-clean
+> WASM build (Rust nightly `-Z build-std=core,alloc,compiler_builtins,panic_abort`,
+> bulk-memory-opt/sign-ext/reference-types disabled, `wasm-opt
+> --signext-lowering`, stripped `target_features` section — 0 non-MVP
+> opcodes) that fixed the size/opcode issues this doc previously
+> documented. All three deploys are recorded in
+> [`deploy-out/onchain.json`](../deploy-out/onchain.json) and confirmed
+> `processed` via `api.testnet.cspr.cloud/deploys/<hash>`. Canonical
+> status now lives in [`TX_MANIFEST.md`](TX_MANIFEST.md) — CasperProver
+> has **7 contracts live** on testnet, none pending.
 
-## Contracts
+| Contract | Contract hash | Deploy hash | Deployed |
+|---|---|---|---|
+| `proof-of-inference` | `3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318` | `bde5cfb70715f01b1fc7f6bfeb6f331113082ede7dd7973a8fafffb9937da95e` | 2026-07-25 |
+| `model-registry` | `b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a` | `fd21b26ec69023aefd6d44d07963f3586b9084addc5ef810422acd6bed07c267` | 2026-07-25 |
+| `proof-aggregation` | `b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb` | `35c003e59ef5c335b3758445013b34a86c411cfc3be64da87ed958096d5b5646` | 2026-07-25 |
 
-| Contract | Source | LOC | Purpose |
-|---|---|---:|---|
-| `proof-of-inference` | `contracts/proof-of-inference/` | 498 | Per-inference commitment + verifier binding |
-| `model-registry` | `contracts/model-registry/` | 372 | Canonical model → owner / version lookup |
-| `proof-aggregation` | `contracts/proof-aggregation/` | 179 | Batch verification receipt anchoring |
-
-## Current WASM sizes (release, `--no-default-features`)
-
-Sizes captured from local build on 2026-07-20:
-
-| Contract | Bytes | KB |
-|---|---:|---:|
-| `proof-of-inference` | 90,398 | 88.3 |
-| `model-registry` | 81,113 | 79.2 |
-| `proof-aggregation` | 73,144 | 71.4 |
-
-All three exceed the ~65 KB ceiling of the JS `installOrUpgrade` helper, so
-deployment MUST go through the audited Casper CLI / RPC path
-(`casper-client put-deploy` with `--session-path` pointing at the built
-WASM), not the JS convenience wrapper. This is the same path we use for the
-already-deployed contracts (`stake-slashing`, `defi-mock`, `verifier-gate`,
-`proof-registry`).
-
-## Why they are not live yet
-
-- **Wallet gate.** Deploy MUST be signed by the CasperProver deployer key
-  (`alexbelij` / Anna, per project rules). The current session does not hold
-  that key material.
-- **Judge boundary.** Publishing an unverified contract just to have a live
-  address would put a claim ("on-chain") on something we cannot fully audit
-  in the deadline window. We would rather ship compiled artifacts + a clear
-  roadmap than break the "REAL vs ON-CHAIN vs SIMULATION" badge contract.
-- **Time-box.** Per `CP_FINAL_TASKS_V2.md` Gate 2 spec: "if build+smoke green
-  and deploy path is clear — deploy; if within 4 h there is no safe path — do
-  not break the working four; document compiled artifact + roadmap and
-  continue submission path."
-
-## Reproducing the build
-
-```bash
-rustup toolchain install nightly-2025-01-15 --target wasm32-unknown-unknown
-for c in proof-of-inference model-registry proof-aggregation; do
-  (cd contracts/$c && cargo +nightly-2025-01-15 build --release \
-     --target wasm32-unknown-unknown --no-default-features)
-done
-ls -la contracts/target/wasm32-unknown-unknown/release/*.wasm
-```
-
-CI runs this on every push; artifacts land under the `contract-wasms`
-workflow artifact (7-day retention) and the size table is rendered into the
-run summary.
-
-## Roadmap to on-chain
-
-1. Anna signs a deploy batch for the three contracts against Casper testnet.
-2. Deploy transactions are captured in `deploy-out/onchain.json` alongside
-   the existing four contracts, with `deployed_at` / `deploy_hash` /
-   `contract_hash` / `contract_package_hash`.
-3. `verify.sh` gains the three additional checks (existence + entry point
-   smoke) automatically — it reads contracts from the manifest, no code
-   change needed.
-4. Frontend / SDK / docs pick up the new hashes with no rebuild since
-   nothing hardcodes them (Gate 1.5 canonical manifest work).
+This file is kept only as historical context for the old
+size/opcode-fix work; the active source of truth for deploy status is
+`TX_MANIFEST.md` and `deploy-out/onchain.json`.

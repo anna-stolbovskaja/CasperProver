@@ -16,7 +16,7 @@
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
 
-![Contracts](https://img.shields.io/badge/contracts-4%20deployed-brightgreen)
+![Contracts](https://img.shields.io/badge/contracts-7%20deployed-brightgreen)
 ![Proofs](https://img.shields.io/badge/proofs-102%2B-blue)
 ![PQ Ready](https://img.shields.io/badge/post--quantum-ready-purple)
 
@@ -31,7 +31,7 @@
 
 ---
 
-> **4 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
+> **7 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
 
 ## 📸 Screenshots
 

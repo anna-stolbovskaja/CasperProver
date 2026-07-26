@@ -9,7 +9,7 @@
 ## 0. Why this plan exists
 
 The Service already ships a `stake-slashing` contract on testnet (one
-of the four contracts noted in `docs/KNOWN_LIMITATIONS.md`). What it
+of the seven contracts noted in `docs/KNOWN_LIMITATIONS.md`). What it
 does today is **mechanical**: it lets a curator flag a receipt and
 subtract a fixed penalty from a bonded stake. What it does **not** yet
 have is:

@@ -43,7 +43,6 @@ criteria is satisfied.
 | Legacy hash-based Groth16-style endpoints (`/zk/verify-groth16`, `/zk/batch-verify`) | **Sim** | Every response carries `simulation: true`, `deprecated: true`, `use: "/zk/groth16-real/verify"`, plus `Warning` / `Deprecation` / `Sunset` HTTP headers. Kept only for comparison; deletion path in roadmap. |
 | Full-circuit ZK proof of arbitrary ML inference | **Not yet** | Explicit roadmap item; do not claim. Current: MiMC preimage. |
 | Production trusted setup ceremony | **Not yet** | Current: per-start generation. Roadmap item. |
-| `proof-of-inference`, `model-registry`, `proof-aggregation` contracts | **Written, not yet deployed** | CI builds them; deploys pending. Deploy tx hashes will land in `docs/TX_MANIFEST.md` after Gate 2. |
 
 ## One-command evidence
 
@@ -96,8 +95,6 @@ a judge key is explicitly supplied.
   not arbitrary ML inference. Full-circuit inference is a stated
   roadmap item.
 - **Per-start** trusted setup; production would use an MPC ceremony.
-- Three additional contracts (`proof-of-inference`, `model-registry`,
-  `proof-aggregation`) are **written and CI-tested but not deployed**.
 - Live deployment targets **testnet**. Mainnet migration is a
   separate hardening pass.
 

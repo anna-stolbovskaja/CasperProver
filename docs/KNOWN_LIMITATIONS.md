@@ -1,26 +1,28 @@
 # Status & Roadmap
 
-> Current state as of 2026-07-07. All systems live on Casper testnet.
+> Current state as of 2026-07-26. All systems live on Casper testnet.
 
 ## ✅ What's Live
 
-### Smart Contracts (5 on testnet)
+### Smart Contracts (7 on testnet — see `docs/TX_MANIFEST.md` for hashes)
 - **proof-registry** — immutable proof store with on-chain anchoring
 - **verifier-gate** — Merkle inclusion proof checker, cross-contract verification
 - **defi-mock** — KYC-gated DeFi vault with admin-controlled whitelisting
 - **stake-slashing** — economic penalty system for revoked/invalid proofs
-- **stake-slashing-session** — session-scoped stake operations
+- **proof-of-inference** — on-chain verification of ZK inference proofs (deployed 2026-07-25)
+- **model-registry** — canonical model-hash registry with owner controls (deployed 2026-07-25)
+- **proof-aggregation** — batch anchor of aggregated proof roots (deployed 2026-07-25)
 
-### Built in CI but not yet deployed (3 crates)
-Each is compiled on every push (`.github/workflows/check.yml → build-contracts`)
-and its `.wasm` size is emitted in the `contract-sizes` artifact:
-- **proof-of-inference** — on-chain verification of ZK inference proofs
-- **model-registry** — canonical model-hash registry with owner controls
-- **proof-aggregation** — batch anchor of aggregated proof roots
-
-Size gate: `scripts/contract-size-report.sh` fails CI if any `.wasm` exceeds
-200KB (hard gas ceiling); a warning fires above 65KB (historical
-`installOrUpgrade` limit under casper-js-sdk 5.0.12).
+All contract WASM is built in CI (`.github/workflows/check.yml →
+build-contracts`) with a size gate: `scripts/contract-size-report.sh`
+fails CI if any `.wasm` exceeds 200KB (hard gas ceiling); a warning
+fires above 65KB (historical `installOrUpgrade` limit under
+casper-js-sdk 5.0.12). The last three contracts above needed an
+MVP-clean WASM toolchain fix (Rust nightly `-Z build-std`, disabled
+bulk-memory-opt/sign-ext/reference-types, `wasm-opt
+--signext-lowering`, stripped `target_features`) to pass that gate and
+deploy cleanly — see `docs/UNDEPLOYED_CONTRACTS.md` for the historical
+record of that fix.
 
 ### Proof Engine (32 API endpoints)
 - SHA-256 Merkle proof generation & verification (<50ms)

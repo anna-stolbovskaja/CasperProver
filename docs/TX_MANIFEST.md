@@ -18,26 +18,19 @@
 | **verifier-gate**  | [`a37f9cde...9f77d3`](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3) | 2026-06-29 | 2026-06-29 | ✅ Live |
 | **defi-mock**      | [`fe0c45f6...0b39ef`](https://testnet.cspr.live/contract/fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef) | 2026-07-07 | 2026-07-07 | ✅ Live |
 | **stake-slashing** | [`1ad1b3d9...983d52`](https://testnet.cspr.live/contract/1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52) | (earlier) | 2026-07-19 | ✅ Live (hardened redeploy — arithmetic + self-verifying record_stake) |
+| **proof-aggregation** | [`b29f32ab...63d2bb`](https://testnet.cspr.live/contract/b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `35c003e5...`, verified via CSPR.cloud, `create_batch` guard suite — 28 tests) |
+| **model-registry** | [`b3cdd1df...5e64a340a`](https://testnet.cspr.live/contract/b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `fd21b26e...`, verified via CSPR.cloud) |
+| **proof-of-inference** | [`3d772fe1...12498b318`](https://testnet.cspr.live/contract/3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `bde5cfb7...`, verified via CSPR.cloud) |
 
-## 2. Contracts written but not yet deployed
-
-These are CI-built and test-covered but not yet on-chain. Deploy tx
-hashes land here immediately after each `casper-client put-deploy`
-succeeds. Do **not** claim these as "on-chain" until the hash is
-present.
-
-| Contract | Source path | CI build | Deploy status | Deploy tx |
-|----------|-------------|----------|---------------|-----------|
-| **proof-of-inference** | `contracts/proof_of_inference/` | ✅ | ⏳ pending | _pending Gate 2_ |
-| **model-registry**     | `contracts/model_registry/`     | ✅ | ⏳ pending | _pending Gate 2_ |
-| **proof-aggregation**  | `contracts/proof_aggregation/`  | ✅ (with create_batch guard suite — 28 tests) | ⏳ pending | _pending Gate 2_ |
-
-**When Gate 2 completes**, each row above gains:
-
-- `Package hash` column (with cspr.live link).
-- `First deploy` date.
-- Any subsequent hardening redeploys tracked as separate rows above
-  the previous one, so the audit trail stays intact.
+All three were deployed 2026-07-25 from the secondary account
+(`0202da6cfba1...`) using an MVP-clean WASM toolchain fix (Rust nightly
+`-Z build-std`, bulk-memory-opt/sign-ext/reference-types disabled,
+`wasm-opt --signext-lowering`, stripped `target_features` section —
+0 non-MVP opcodes). Deploy hashes confirmed `processed` via
+`api.testnet.cspr.cloud/deploys/<hash>` with matching timestamps and
+caller public key. No contracts remain undeployed — see
+[`deploy-out/onchain.json`](../deploy-out/onchain.json) for the full
+machine-readable manifest (7 contracts total).
 
 ## 3. Evidence transactions (representative)
 
@@ -89,7 +82,7 @@ or any other submission.
 | 2026-07-07 | defi-mock deployed | anna-stolbovskaja |
 | 2026-07-18 | stake-slashing arithmetic + record_stake self-verifying fix (found in in-house audit) | anna-stolbovskaja |
 | 2026-07-19 | stake-slashing hardened redeploy | anna-stolbovskaja |
-| _pending Gate 2_ | Deploy proof-of-inference, model-registry, proof-aggregation | anna-stolbovskaja |
+| 2026-07-25 | proof-of-inference, model-registry, proof-aggregation deployed (MVP-clean WASM toolchain fix) | anna-stolbovskaja |
 
 ## 7. Non-goals of this document
 
