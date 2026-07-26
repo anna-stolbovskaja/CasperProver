@@ -15,7 +15,7 @@ interface ContractInfo {
 const CONTRACTS: ContractInfo[] = [
   {
     name: 'proof-registry',
-    address: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+    address: 'e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5',
     purpose: 'Immutable on-chain store for all proof metadata — hashes, Merkle roots, timestamps, and verification status.',
     icon: FileText,
     deployed: true,
@@ -24,7 +24,7 @@ const CONTRACTS: ContractInfo[] = [
   },
   {
     name: 'verifier-gate',
-    address: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
+    address: '06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66',
     purpose: 'Gateway contract for Merkle inclusion verification — checks proof existence and validity via cross-contract calls.',
     icon: Shield,
     deployed: true,

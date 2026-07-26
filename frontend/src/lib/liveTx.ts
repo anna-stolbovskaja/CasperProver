@@ -19,7 +19,7 @@ import {
 import type { ICSPRClickSDK } from '@make-software/csprclick-core-types'
 
 export const CASPER_CHAIN_NAME = 'casper-test'
-export const PROOF_REGISTRY_HASH = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708'
+export const PROOF_REGISTRY_HASH = 'e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5'
 export const PAYMENT_MOTES = 3_000_000_000 // 3 CSPR — sufficient for dictionary writes
 
 export type LiveTxResult =

@@ -112,8 +112,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [1.0.0] — 2026-06-30
 
 ### Added
-- **Proof Registry contract** deployed on Casper testnet ([96e97c4d...a10708](https://testnet.cspr.live/contract/96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708)) — stores Merkle roots, proof metadata, verification status
-- **Verifier Gate contract** ([a37f9cde...9f77d3](https://testnet.cspr.live/contract/a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3)) — checks inclusion proofs, manages access control
+- **Proof Registry contract** deployed on Casper testnet ([96e97c4d...a10708](https://testnet.cspr.live/contract/e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5)) — stores Merkle roots, proof metadata, verification status
+- **Verifier Gate contract** ([a37f9cde...9f77d3](https://testnet.cspr.live/contract/06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66)) — checks inclusion proofs, manages access control
 - **DeFi Mock contract** ([b9b11a97...b81d3](https://testnet.cspr.live/contract/b9b11a976af20b4b5d128c44e5ee118b8830c26a79f4b603cdf0a00e537b81d3)) — sample vault gated by verifier-gate, demonstrating KYC-gated DeFi flow
 - **Merkle tree builder** in Go engine — SHA-256 leaf hashing over `{H(input), H(output), H(model)}` triplets, binary tree construction, path serialization
 - **Four proof types supported**: `merkle-inclusion`, `kyc-eligibility`, `balance-range`, `transaction-membership`

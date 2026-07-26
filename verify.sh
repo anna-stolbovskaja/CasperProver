@@ -40,8 +40,8 @@ echo ""
 bold "1. On-chain contracts (Casper testnet)"
 
 CONTRACTS=(
-  "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708:Proof Registry"
-  "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
+  "e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5:Proof Registry"
+  "06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66:Verifier Gate"
   "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
   "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
   "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb:Proof Aggregation"

@@ -7,8 +7,8 @@
   "cspr_cloud": "https://testnet.cspr.cloud",
   "contracts": {
     "proof_registry": {
-      "contract_hash": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
-      "contract_package_hash": "894d167e22c70462af9b265c23fb14126af30b91644ca696f4a6a2f3311e5309",
+      "contract_hash": "e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5",
+      "contract_package_hash": "977b11ce7ea702232215fd49aef038897697163350ee0f65accc90b7b5150bfa",
       "deploy_hash": "d64299b651750b6996595d81b812038750c353f5220b5e61cd6c129e90a07d56",
       "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,
@@ -17,8 +17,8 @@
       "entry_points": ["submit_proof", "get_proof", "revoke_proof", "register_agent", "get_reputation"]
     },
     "verifier_gate": {
-      "contract_hash": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
-      "contract_package_hash": "bd6b2ff66e2416c6b532932d328402d3ed648dde0c6ff9d556f2b2635fbe6115",
+      "contract_hash": "06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66",
+      "contract_package_hash": "4b79786a81b9afa1f0a0f40443965caa4dc09797a919c5d87fc1b6a4fa5e5cfb",
       "deploy_hash": "c1320d182c0323e671183cb7aef603f1bb19b86f97637e3a386ae14dd28422ff",
       "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,

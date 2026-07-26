@@ -42,7 +42,7 @@ const Models: React.FC = () => {
   const [newModelData, setNewModelData] = useState<RegisterModelRequest>({
     model_id: `gpt-4o-${Date.now().toString(36)}`,
     model_hash: Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
-    verifier_contract: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+    verifier_contract: 'e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5',
     metadata: { type: 'llm', params: '175B' },
   });
   const [isRegistering, setIsRegistering] = useState(false);

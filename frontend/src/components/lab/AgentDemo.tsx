@@ -72,7 +72,7 @@ const AgentDemo: React.FC = () => {
         const res = await registerModel({
           model_id: mid,
           model_hash: genId('hash'),
-          verifier_contract: 'a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3',
+          verifier_contract: '06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66',
           metadata: { type: 'decision-box', version: '1.0' },
         });
         if (res.success && res.data) {
