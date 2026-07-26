@@ -1,4 +1,5 @@
-.PHONY: build test lint clean contracts contracts-test sdk-test
+.PHONY: build test lint clean contracts contracts-test sdk-test \
+        judge-demo judge-repro judge-verify judge-all
 
 build:
 	cd engine && go build -o ../bin/casperprover ./cmd/casperprover
@@ -26,3 +27,33 @@ contracts-test:
 
 clean:
 	rm -rf bin/ target/
+
+# ---------------------------------------------------------------------------
+# Judge-facing one-command targets — used by docs/JUDGE_GUIDE.md.
+# From a clean clone, `make judge-all` should exit 0 with:
+#   * engine + SDK builds
+#   * 5 deployed-contract WASMs (parity with 3 undeployed)
+#   * 47+ contract semantic tests
+#   * 8/8 verify.sh checks
+#   * cp-repro drift-free
+# ---------------------------------------------------------------------------
+
+## Run the pinned decision-layer reproducibility scenarios.
+## Exits non-zero if any golden hash drifts.
+judge-repro:
+	cd engine && go run ./cmd/cp-repro
+
+## Re-derive chain roots against onchain.json — the 8-check gate.
+judge-verify:
+	./verify.sh
+
+## Run the everything-must-be-green judge gate. Order matters —
+## build first (fail fast on toolchain), then tests, then verify,
+## then the golden reproducibility CLI.
+judge-all: build sdk-test test contracts-test judge-verify judge-repro
+	@echo
+	@echo "  ✅  judge-all OK."
+	@echo
+
+## Alias so a first-time judge can just type `make judge-demo`.
+judge-demo: judge-all
