@@ -36,15 +36,22 @@ machine-readable manifest (8 contracts total).
 ## 3. Evidence transactions (representative)
 
 A handful of representative txs judges can inspect directly. This is
-not exhaustive — 248+ total testnet transactions across the four live
-contracts.
+not exhaustive — 248+ total testnet transactions across the eight live
+contracts. The rows below are each contract's *install* deploy hash
+(from `deploy-out/onchain.json`, the generated source of truth) —
+guaranteed real and resolvable on cspr.live; entry-point-call hashes
+(submit_proof, verify, etc.) are a follow-up, not yet backfilled here.
 
 | Purpose | Tx hash | Notes |
 |---------|---------|-------|
-| proof-registry: submit proof | _add hash_ | Records an anchored SHA-256 root. |
-| verifier-gate: verify Merkle inclusion | _add hash_ | Cross-contract read of proof-registry. |
-| defi-mock: KYC whitelist add | _add hash_ | Admin-gated entry point. |
-| stake-slashing: slash on revoked proof | _add hash_ | Economic penalty, hardened path (post-2026-07-19). |
+| proof-registry: install deploy | [`c9e0fee7...`](https://testnet.cspr.live/deploy/c9e0fee7cdb75abbf2a66d893d43bdf9d8d24d6ff7a103b841ad81f4a50d1c84) | Canonical redeploy under `defi_mock_owner`, 2026-07-26. |
+| verifier-gate: install deploy | [`43ca8966...`](https://testnet.cspr.live/deploy/43ca896633e77e1ed87d43f7cd76e1fb1f57ccbdd60a249e92b496a7ee5986b2) | Canonical redeploy under `defi_mock_owner`, 2026-07-26. |
+| defi-mock: install deploy | [`7e590fb9...`](https://testnet.cspr.live/deploy/7e590fb94fb0c3e41cd01e44e14157c3e537f4766a546d1dedbe5b137210625e) | 2026-07-07. |
+| stake-slashing: install deploy | [`ac4712a3...`](https://testnet.cspr.live/deploy/ac4712a3ecc29c058330df88781d488f61c3993b7ee2720c2024fc2a231d2532) | Hardened redeploy, 2026-07-19. |
+| proof-aggregation: install deploy | [`35c003e5...`](https://testnet.cspr.live/deploy/35c003e59ef5c335b3758445013b34a86c411cfc3be64da87ed958096d5b5646) | 2026-07-25. |
+| model-registry: install deploy | [`fd21b26e...`](https://testnet.cspr.live/deploy/fd21b26ec69023aefd6d44d07963f3586b9084addc5ef810422acd6bed07c267) | 2026-07-25. |
+| proof-of-inference: install deploy | [`bde5cfb7...`](https://testnet.cspr.live/deploy/bde5cfb70715f01b1fc7f6bfeb6f331113082ede7dd7973a8fafffb9937da95e) | 2026-07-25. |
+| governance: install deploy | [`5f20ecfe...`](https://testnet.cspr.live/deploy/5f20ecfe2fc0a254db3daa965eb643b053102f14e53853f8c5c385424bdf60a2) | Canonical install under anna-stolbovskaja, block 8635118, 2026-07-26. |
 
 **Adding an evidence tx**: open a deploy on cspr.live, copy the deploy
 hash (starts with 64 hex chars, no `deploy-` prefix), and add a row
@@ -71,7 +78,7 @@ list and named-key map — the same shape cspr.live renders.
 ## 5. Anti-linking pass
 
 **CasperProver contracts are not shared with any other Casper hackathon
-submission.** All four package hashes above resolve to accounts under
+submission.** All eight package hashes above resolve to accounts under
 the CasperProver deployer key. No shared deploys with AgentEscrow402
 or any other submission.
 

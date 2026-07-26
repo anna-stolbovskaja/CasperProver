@@ -1,9 +1,15 @@
 # Contract Invariants
 
 Concise model of the reentrancy and cross-contract invariants that hold across
-the four deployed contracts (`proof-registry`, `verifier-gate`, `defi-mock`,
-`stake-slashing`) and the three compiled-but-not-deployed contracts
-(`model-registry`, `proof-aggregation`, `proof-of-inference`).
+the original four deployed contracts (`proof-registry`, `verifier-gate`,
+`defi-mock`, `stake-slashing`).
+
+*(Status update, 2026-07-27: `model-registry`, `proof-aggregation`,
+`proof-of-inference` and `governance` were compiled-but-not-deployed when this
+doc was written — all four are now live on testnet too, see
+`deploy-out/onchain.json` / `TX_MANIFEST.md`. Their invariant analysis has not
+been folded into this doc yet; treat the below as covering the original four
+only, not the full current set of eight.)*
 
 Scope is intentionally narrow: this is a **living reference for reviewers and
 future contributors**, not a formal proof. Everything here is enforced in
