@@ -11,3 +11,7 @@ edition = "2024"
 [[test]]
 name = "integration_tests"
 path = "src/integration_tests.rs"
+
+[[test]]
+name = "integration_tests_undeployed"
+path = "src/integration_tests_undeployed.rs"
