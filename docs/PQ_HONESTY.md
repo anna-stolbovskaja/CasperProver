@@ -66,7 +66,7 @@ Quantum-inspired simulated annealing (QISA) is a **classical heuristic**. If any
 
 All of the following are **roadmap**, not shipped:
 
-- Nova / SuperNova / folding schemes for proof aggregation
+- Nova / SuperNova / folding schemes for proof aggregation (a **harness** with a hash-chain stand-in labelled `hash-fold-v1` ships in `internal/aggregator/nova.go` — see `docs/roadmap/NOVA_HARNESS.md`. It is explicitly NOT a folding scheme; it stabilises the API contract while the Pallas/Vesta curve cycle in Go matures.)
 - Recursive Groth16 / Halo-2-style accumulation
 - Full bisection games (interactive verification) beyond the current single-shot challenge/slash path
 - VRF-based sortition for verifier committees

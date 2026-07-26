@@ -55,6 +55,7 @@ type Server struct {
 	zk        *zkverifier.Groth16Verifier
 	realZK    *gnarkzk.Setup     // legacy PreimageCircuit-only setup, kept for backwards compat
 	zkReg     *gnarkzk.Registry  // v1 circuit registry (persistent keys via CP_ZK_KEYS_DIR)
+	keyRing   *pqcrypto.KeyRing  // PQ signature keyring (rotation + versioning). Gated by CP_KEYRING_ENABLE=1.
 	contracts contractHashes
 	port      int
 	log       *slog.Logger
@@ -186,6 +187,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		zk:        zkverifier.NewGroth16Verifier(),
 		realZK:    realZK,
 		zkReg:     zkReg,
+		keyRing:   pqcrypto.NewKeyRing(),
 		contracts: contracts,
 		port:      port,
 		log:    slog.Default(),
@@ -289,6 +291,11 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /pq/verify-sphincs", s.pqVerifySPHINCS)
 	mux.HandleFunc("POST /pq/hybrid-sign", s.pqHybridSign)
 	mux.HandleFunc("POST /pq/hybrid-verify", s.pqHybridVerify)
+
+	// PQ key rotation + versioning (in-memory keyring, gated by CP_KEYRING_ENABLE)
+	s.registerKeyRingRoutes(mux)
+	// Nova / folding aggregation harness (hash-fold-v1 stand-in)
+	s.registerNovaRoutes(mux)
 
 	// Webhooks & OpenAPI — versioned surface only.
 	s.registerWebhookRoutes(mux)
