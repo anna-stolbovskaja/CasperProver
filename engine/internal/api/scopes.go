@@ -192,6 +192,11 @@ var routeScopes = map[string]string{
 	"GET /v1/hitl/tickets":               "decision:read",
 	"GET /v1/hitl/tickets/{id}":          "decision:read",
 	"POST /v1/hitl/tickets/{id}/resolve": "decision:write",
+	"POST /v1/receipts/emit":             "receipts:write",
+	"GET /v1/receipts/{id}":              "receipts:read",
+	"GET /v1/receipts/{id}/lineage":      "receipts:read",
+	"GET /v1/receipts/{id}/w3c-vc":       "receipts:read",
+	"GET /v1/receipts/{id}/agent-receipt": "receipts:read",
 }
 
 // enforceScope checks that the caller (identified by X-API-Key) has
