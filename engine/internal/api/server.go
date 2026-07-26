@@ -81,6 +81,8 @@ type Server struct {
 	// Multi-provider judge for /inference/judge. Set via SetJudge; nil = 503.
 	judge    JudgeService
 	hitlSink hitl.Sink // optional HITL delivery sink; set via SetHITLSink
+	webhooks *webhookStore
+	scopes   *scopeRegistry
 }
 
 // ctxTenantKey is the context.WithValue key for the resolved tenant
@@ -245,6 +247,22 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 		siwe: siwe.NewStore(0),
 	}
 
+	// Webhook subsystem is always on — in-memory, cheap, no external
+	// dependencies. A durable variant belongs in Postgres and is
+	// tracked in KNOWN_LIMITATIONS.md.
+	srv.webhooks = newWebhookStore()
+
+	// Scoped API key registry: opt-in via $CP_SCOPES_FILE. Missing
+	// file = fallback to blanket $API_KEY auth (backward compat).
+	if path := os.Getenv("CP_SCOPES_FILE"); path != "" {
+		srv.scopes = newScopeRegistry()
+		if err := srv.scopes.loadFromFile(path); err != nil {
+			slog.Warn("failed to load scoped keys file", "path", path, "err", err)
+		} else {
+			slog.Info("scoped api keys loaded", "path", path)
+		}
+	}
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()
@@ -366,6 +384,23 @@ func (s *Server) Start() error {
 		mux.HandleFunc("GET /admin/tenants/audit", s.tenantAudit)
 	}
 
+	// Webhooks & OpenAPI — versioned surface only.
+	s.registerWebhookRoutes(mux)
+	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
+	mux.HandleFunc("GET /v1/routes", s.routesHandler)
+
+	// Start the webhook worker with a 1s tick. The tick is short
+	// enough that a subscriber with backoff=1s sees near-immediate
+	// retry; long enough not to burn CPU under an empty queue.
+	if s.webhooks != nil {
+		go s.webhooks.runWorker(context.Background(), time.Second)
+	}
+
+	scopeMW := func(next http.Handler) http.Handler { return next }
+	if s.scopes != nil {
+		scopeMW = s.scopeMiddleware(mux)
+	}
+
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
 		Addr:         addr,
@@ -375,8 +410,10 @@ func (s *Server) Start() error {
 					s.perKeyRateLimitMiddleware(
 						s.corsMiddleware(
 							s.authMiddleware(
-								s.idempotencyMiddleware(
-									s.logMiddleware(instrumented),
+								scopeMW(
+									s.idempotencyMiddleware(
+										s.logMiddleware(instrumented),
+									),
 								),
 							),
 						),
@@ -384,6 +421,7 @@ func (s *Server) Start() error {
 				),
 			),
 		),
+
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -691,6 +729,19 @@ func (s *Server) submitProof(w http.ResponseWriter, r *http.Request) {
 	s.persist(p)
 	s.log.Info("proof generated", "id", p.ID, "agent", req.Agent, "use_case", req.UseCase, "mode", mode, "ms", p.GenMs)
 
+	// Emit proof.anchored on any mode that actually reaches the
+	// chain (anchored or fake-anchored via computed hash). The
+	// subscribers use the deploy_hash field to decide whether to
+	// call the node.
+	if mode == "anchored" {
+		s.emitWebhookEvent(EventProofAnchored, map[string]any{
+			"proof_id":    p.ID,
+			"agent":       p.Agent,
+			"deploy_hash": p.Deploy,
+			"use_case":    req.UseCase,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(p)
@@ -797,6 +848,11 @@ func (s *Server) verifyProof(w http.ResponseWriter, r *http.Request) {
 			result["error"] = err.Error()
 		} else {
 			result["verified"] = true
+			s.emitWebhookEvent(EventProofVerified, map[string]any{
+				"proof_id": req.ProofID,
+				"agent":    p.Agent,
+				"model":    req.Model,
+			})
 		}
 
 		result["checks"] = map[string]bool{
@@ -928,6 +984,12 @@ func (s *Server) revokeProof(w http.ResponseWriter, r *http.Request) {
 		s.persistUpdate(p)
 	}
 
+	s.emitWebhookEvent(EventSlashExecuted, map[string]any{
+		"proof_id": pid,
+		"reason":   req.Reason,
+		"revoked":  true,
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"proof_id": pid,
@@ -1009,6 +1071,11 @@ func (s *Server) kycGrant(w http.ResponseWriter, r *http.Request) {
 	if s.db != nil {
 		_ = s.db.SaveKYC(req.User, req.ProofID, time.Now().Unix())
 	}
+
+	s.emitWebhookEvent(EventKYCGranted, map[string]any{
+		"user":     req.User,
+		"proof_id": req.ProofID,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(access)

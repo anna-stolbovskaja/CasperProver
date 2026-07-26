@@ -37,7 +37,7 @@ fi
 
 TARGETS=("proof-registry" "verifier-gate" "defi-mock" "stake-slashing" \
          "model-registry" "proof-aggregation" "proof-of-inference" \
-         "stake-slashing-session")
+         "stake-slashing-session" "governance")
 if [[ $# -gt 0 ]]; then
   TARGETS=("$@")
 fi
