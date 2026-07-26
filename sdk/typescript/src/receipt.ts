@@ -89,7 +89,7 @@ export function verifyReceipt(data: Record<string, unknown>): ProofReceipt {
     ["input_hash", receipt.input, receipt.input_hash],
     ["model_hash", receipt.model, receipt.model_hash],
     ["output_hash", receipt.output, receipt.output_hash],
-  ].sort((a, b) => a[0].localeCompare(b[0])) as [
+  ].sort((a, b) => (a[0] as string).localeCompare(b[0] as string)) as [
     string,
     string | undefined,
     string | undefined,

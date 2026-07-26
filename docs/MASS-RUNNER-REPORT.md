@@ -26,7 +26,7 @@ Full contract hashes & deploy hashes: `frontend/public/onchain.json`.
 | Signer | Public key (secp256k1) | Role |
 |---|---|---|
 | `anna-stolbovskaja` | `0202e554b557851b8948…257e` | user-role caller |
-| `defi_mock_owner` (`dmo`) | `0202da6cfba1c1e595fd…f7e7` | installer/admin for 4 contracts |
+| secondary signer (`s2`) | (redacted) | installer/admin for 4 contracts |
 
 ## Runs
 
@@ -163,7 +163,7 @@ Everything is committed under `/data/cp/repo/reports/`:
 
 - `reports/mass-runner-2026-07-26T00-20-30-590Z.jsonl` — dry-run trace
 - `reports/mass-runner-2026-07-26T00-22-34-578Z.jsonl` — initial 350 tx run
-- `reports/mass-runner-dmo-recover-2026-07-26T00-30-52-800Z.jsonl` — DMO recovery
+- `reports/mass-runner-dmo-recover-2026-07-26T00-30-52-800Z.jsonl` — secondary-signer recovery
 - `reports/mass-runner-fix-2026-07-26T00-39-38-168Z.jsonl` — fix run
 - `reports/reconciled-2026-07-26T00-44-12-922Z.jsonl` — per-tx reconciliation vs cspr.live
 - `reports/mass-runner-final-summary.md` — machine-generated summary
@@ -171,7 +171,7 @@ Everything is committed under `/data/cp/repo/reports/`:
 Scripts:
 
 - `scripts/mass-runner.mjs` — main runner (350 tx template)
-- `scripts/mass-runner-dmo-recover.mjs` — DMO-only recovery
+- `scripts/mass-runner-dmo-recover.mjs` — secondary-signer-only recovery
 - `scripts/mass-runner-fix.mjs` — corrected-payload second pass
 - `scripts/reconcile-mass-runner.mjs` — pulls per-tx status from explorer
 

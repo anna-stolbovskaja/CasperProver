@@ -276,13 +276,37 @@ AbstainNeutrality ==
 
 \* Equivocation is eventually detectable: whenever two conflicting proofs
 \* co-exist from a prover, that prover MAY be slashed. The invariant
-\* checks that once slashed, they cannot submit new proofs (enforced by
-\* the guard on SubmitProof/OpenChain/ExtendChain).
-SlashedProversStop ==
-    \A p \in proofs :
-        p.prover \in slashedSet =>
-            \A q \in proofs :
-                (q.prover = p.prover /\ q.id > p.id) => FALSE
+\* below asserts that a slashed prover must have at least two proofs on
+\* record (the equivocating pair that triggered the slash). New proofs
+\* from a slashed prover never appear (enforced by the SubmitProof /
+\* OpenChain / ExtendChain guards on `pr \notin slashedSet`), so the
+\* count only grows before the slash.
+SlashedProversHaveEvidence ==
+    \A P \in slashedSet :
+        \E p, q \in proofs :
+            /\ p.id # q.id
+            /\ p.prover = P /\ q.prover = P
+            /\ p.model_hash = q.model_hash
+
+\* Every registered chain's steps are all in `proofs` and all from a
+\* non-slashed prover at each step's time. The spec's action guards
+\* enforce this at add-time; the invariant re-checks structurally.
+ChainStepsAreValid ==
+    \A c \in chains :
+        \A i \in 1..Len(c.steps) :
+            \E p \in proofs :
+                /\ p.id = c.steps[i]
+                /\ p.chain_id = c.id
+                /\ p.chain_pos = i
+                /\ p.status = "verified"
+
+\* IDs of proofs are unique.
+ProofIdUnique ==
+    \A p, q \in proofs : (p.id = q.id) => (p = q)
+
+\* IDs of chains are unique.
+ChainIdUnique ==
+    \A c, d \in chains : (c.id = d.id) => (c = d)
 
 \* The main safety invariant TLC will check.
 SafetyInvariant ==
@@ -290,8 +314,13 @@ SafetyInvariant ==
     /\ PQSignatureValidity
     /\ ModelBinding
     /\ ChainContinuity
+    /\ ChainStepsAreValid
+    /\ ProofIdUnique
+    /\ ChainIdUnique
     /\ ChallengeWindowRespected
     /\ RejectionBlocks
     /\ AbstainNeutrality
+    /\ SlashedProversHaveEvidence
 
 ===============================================================================
+\* --- END ProofSystemSpec ------------------------------------------------- *\

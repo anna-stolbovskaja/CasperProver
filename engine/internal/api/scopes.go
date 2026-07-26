@@ -165,6 +165,42 @@ var routeScopes = map[string]string{
 	"GET /v1/webhooks":              "webhooks:read",
 	"DELETE /v1/webhooks/{id}":      "webhooks:write",
 	"GET /v1/webhooks/dead-letters": "webhooks:read",
+	"POST /v1/webhooks/dead-letters/{delivery_id}/replay": "webhooks:write",
+
+	// Admin dashboard rollup (read-only)
+	"GET /v1/admin/summary":            "admin:read",
+	"GET /v1/circuits":              "zk:read",
+	"GET /v1/circuits/{id}":         "zk:read",
+	"GET /v1/circuits/{id}/vk":      "zk:read",
+	"POST /v1/zk/prove":             "zk:write",
+	"POST /v1/zk/verify":            "zk:read",
+	"POST /v1/zk/anchor-verdict":    "zk:write",
+
+	// PQ key rotation + versioning
+	"POST /v1/pq/keys":                 "pq:write",
+	"POST /v1/pq/keys/{algo}/rotate":   "pq:write",
+	"GET /v1/pq/keys":                  "pq:read",
+	"GET /v1/pq/keys/{id}":             "pq:read",
+	"POST /v1/pq/keys/sign":            "pq:write",
+	"POST /v1/pq/keys/verify":          "pq:read",
+	"POST /v1/pq/keys/migrate":         "pq:write",
+	"GET /v1/pq/keystore/info":         "pq:read",
+
+	// Nova / folding aggregation harness
+	"POST /v1/aggregation/fold":        "aggregation:write",
+	"POST /v1/aggregation/verify-fold": "aggregation:read",
+
+	// Decision / A2A / HITL pipeline (Pack AQ)
+	"POST /v1/decision/evaluate":         "decision:write",
+	"GET /v1/decision/pool":              "decision:read",
+	"GET /v1/hitl/tickets":               "decision:read",
+	"GET /v1/hitl/tickets/{id}":          "decision:read",
+	"POST /v1/hitl/tickets/{id}/resolve": "decision:write",
+	"POST /v1/receipts/emit":             "receipts:write",
+	"GET /v1/receipts/{id}":              "receipts:read",
+	"GET /v1/receipts/{id}/lineage":      "receipts:read",
+	"GET /v1/receipts/{id}/w3c-vc":       "receipts:read",
+	"GET /v1/receipts/{id}/agent-receipt": "receipts:read",
 }
 
 // enforceScope checks that the caller (identified by X-API-Key) has

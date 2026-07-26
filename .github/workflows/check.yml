@@ -103,12 +103,13 @@ jobs:
       - run: cd contracts/model-registry && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/proof-aggregation && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - run: cd contracts/governance && cargo build --release --target wasm32-unknown-unknown --no-default-features
+      - run: cd contracts/zk-verifier && cargo build --release --target wasm32-unknown-unknown --no-default-features
       - name: WASM artifact size report
         run: |
           echo '## Contract WASM sizes' >> "$GITHUB_STEP_SUMMARY"
           echo '| Contract | Size (bytes) | Size (KB) | Deployed |' >> "$GITHUB_STEP_SUMMARY"
           echo '|---|---:|---:|:--:|' >> "$GITHUB_STEP_SUMMARY"
-          DEPLOYED='proof-registry verifier-gate defi-mock stake-slashing stake-slashing-session'
+          DEPLOYED='proof-registry verifier-gate defi-mock stake-slashing stake-slashing-session proof-aggregation model-registry proof-of-inference'
           for f in contracts/target/wasm32-unknown-unknown/release/*.wasm; do
             name=$(basename "$f" .wasm)
             bytes=$(stat -c%s "$f")

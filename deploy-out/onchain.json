@@ -1,113 +1,84 @@
 {
-  "$schema": "./onchain.schema.json",
   "network": "casper-test",
   "chain_name": "casper-test",
   "project": "CasperProver",
-  "deployer": "0203975636c0c327297c67916f65009f1bc8bcaec34231994450a6f4fb43060fa123",
+  "deployer_note": "Contracts are split across two accounts. See per-contract deployer field. The prior root-level `deployer` (0203975636…) did not match any actual on-chain signer and has been removed.",
   "explorer": "https://testnet.cspr.live",
   "cspr_cloud": "https://testnet.cspr.cloud",
-  "manifest_version": "1.0",
-  "canonical_source": "deploy-out/onchain.json",
-  "regenerate_command": "python scripts/generate_manifest.py",
-  "notes": "This is the SINGLE SOURCE OF TRUTH for contract deployments. Do not hand-edit hashes anywhere else in the repo. verify.sh, frontend/public/onchain.json, README explorer links, and API responses must be derived from this file. See scripts/generate_manifest.py for the generator and docs/MANIFEST.md for the schema.",
-  "generated_at": "2026-07-19T21:00:08Z",
-  "generator_version": "1.0.0",
   "contracts": {
     "proof_registry": {
       "contract_hash": "96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708",
       "contract_package_hash": "894d167e22c70462af9b265c23fb14126af30b91644ca696f4a6a2f3311e5309",
       "deploy_hash": "d64299b651750b6996595d81b812038750c353f5220b5e61cd6c129e90a07d56",
+      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,
       "deployed_at": "2026-06-29T09:33:43Z",
       "source": "contracts/proof-registry/src/main.rs",
-      "entry_points": [
-        "submit_proof",
-        "get_proof",
-        "revoke_proof",
-        "register_agent",
-        "get_reputation"
-      ],
-      "_validated": {
-        "ok": true,
-        "detail": "on-chain",
-        "at": "2026-07-19T21:00:08Z"
-      }
+      "entry_points": ["submit_proof", "get_proof", "revoke_proof", "register_agent", "get_reputation"]
     },
     "verifier_gate": {
       "contract_hash": "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3",
       "contract_package_hash": "bd6b2ff66e2416c6b532932d328402d3ed648dde0c6ff9d556f2b2635fbe6115",
       "deploy_hash": "c1320d182c0323e671183cb7aef603f1bb19b86f97637e3a386ae14dd28422ff",
+      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,
       "deployed_at": "2026-06-29T09:39:01Z",
       "source": "contracts/verifier-gate/src/main.rs",
-      "entry_points": [
-        "verify",
-        "is_valid",
-        "batch_check"
-      ],
-      "_validated": {
-        "ok": true,
-        "detail": "on-chain",
-        "at": "2026-07-19T21:00:08Z"
-      }
+      "entry_points": ["verify", "is_valid", "batch_check"]
     },
     "defi_mock": {
       "contract_hash": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
       "contract_package_hash": "54757fa72e6ca1898f3a8bc6e5af1d643b120a8c8605e0b1581fdcc3b76f9a04",
       "deploy_hash": "7e590fb94fb0c3e41cd01e44e14157c3e537f4766a546d1dedbe5b137210625e",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 1,
       "deployed_at": "2026-07-07T13:19:48Z",
       "source": "contracts/defi-mock/src/main.rs",
-      "entry_points": [
-        "check_kyc",
-        "grant_access",
-        "revoke_access",
-        "is_whitelisted"
-      ],
-      "_validated": {
-        "ok": true,
-        "detail": "on-chain",
-        "at": "2026-07-19T21:00:08Z"
-      }
+      "entry_points": ["check_kyc", "grant_access", "revoke_access", "is_whitelisted"]
     },
     "stake_slashing": {
       "contract_hash": "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52",
       "contract_package_hash": "e33812f9c9c88e0d3202fdd7a7718cce686cbd21bc673c216b6dbf23c26e2947",
       "deploy_hash": "ac4712a3ecc29c058330df88781d488f61c3993b7ee2720c2024fc2a231d2532",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 2,
       "deployed_at": "2026-07-19T07:33:00Z",
       "source": "contracts/stake-slashing/src/main.rs",
-      "entry_points": [
-        "get_purse",
-        "record_stake",
-        "unstake",
-        "report_and_slash",
-        "get_stake"
-      ],
-      "notes": "Hardened redeploy \u2014 checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from defi_mock_owner (own account had no prior stakes/slashed_proofs named keys, avoiding a storage::new_dictionary collision that anna-stolbovskaja's account would hit).",
-      "_validated": {
-        "ok": true,
-        "detail": "on-chain",
-        "at": "2026-07-19T21:00:08Z"
-      }
+      "entry_points": ["get_purse", "record_stake", "unstake", "report_and_slash", "get_stake"],
+      "notes": "Hardened redeploy — checked_mul/checked_sub overflow fix + zero-value slash penalty fix. Old cf70e1fe... superseded. Deployed from a secondary account (Anna's account had a prior storage::new_dictionary collision on stakes/slashed_proofs named keys)."
+    },
+    "proof_aggregation": {
+      "contract_hash": "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb",
+      "contract_package_hash": "4d891784b5874b5c1b0f707b318702898e32deb527d42fc236e7da6adabf04b9",
+      "deploy_hash": "35c003e59ef5c335b3758445013b34a86c411cfc3be64da87ed958096d5b5646",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "version": 1,
+      "deployed_at": "2026-07-25T23:12:48Z",
+      "source": "contracts/proof-aggregation/src/main.rs",
+      "notes": "MVP-clean WASM (40928B) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with bulk-memory-opt/sign-ext/reference-types disabled + wasm-opt --signext-lowering + strip target_features section. 0 non-MVP opcodes, 0 rust_begin_unwind imports. Deployed from a secondary account (Anna funded with 200 CSPR transfer)."
+    },
+    "model_registry": {
+      "contract_hash": "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a",
+      "contract_package_hash": "7dc3db96942659492b6d14097f3a8c5d596bfb86e06e4fb58a6628f820c3d2c1",
+      "deploy_hash": "fd21b26ec69023aefd6d44d07963f3586b9084addc5ef810422acd6bed07c267",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "version": 1,
+      "deployed_at": "2026-07-25T23:14:00Z",
+      "source": "contracts/model-registry/src/main.rs",
+      "notes": "MVP-clean WASM (46540B). Same toolchain fix as proof_aggregation."
+    },
+    "proof_of_inference": {
+      "contract_hash": "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318",
+      "contract_package_hash": "69053cda288aa30649edb9fbfe17b4e0dfe6d6ec3f9afcd465574a3c885f3dc3",
+      "deploy_hash": "bde5cfb70715f01b1fc7f6bfeb6f331113082ede7dd7973a8fafffb9937da95e",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "version": 1,
+      "deployed_at": "2026-07-25T23:15:00Z",
+      "source": "contracts/proof-of-inference/src/main.rs",
+      "notes": "MVP-clean WASM (50563B). Same toolchain fix."
     }
   },
   "undeployed_contracts": {
-    "model_registry": {
-      "source": "contracts/model-registry/src/main.rs",
-      "status": "compiled",
-      "reason": "WASM >65KB limit"
-    },
-    "proof_aggregation": {
-      "source": "contracts/proof-aggregation/src/main.rs",
-      "status": "compiled",
-      "reason": "WASM >65KB limit"
-    },
-    "proof_of_inference": {
-      "source": "contracts/proof-of-inference/src/main.rs",
-      "status": "compiled",
-      "reason": "WASM >65KB limit"
-    },
     "stake_slashing_session": {
       "source": "contracts/stake-slashing-session/src/main.rs",
       "status": "compiled",

@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/observability"
 )
 
 // Webhook subsystem — outbound event delivery to caller-registered URLs.
@@ -121,9 +123,19 @@ type webhookEvent struct {
 
 // deadLetter is the archived tail of an event that ran out of retries.
 type deadLetter struct {
-	Event    webhookEvent `json:"event"`
-	FailedAt time.Time    `json:"failed_at"`
-	URL      string       `json:"url"`
+	// DeliveryID is a stable, opaque handle for POST
+	// /v1/webhooks/dead-letters/{delivery_id}/replay. Derived from
+	// SubID + CreatedAt so it is stable across restarts of a single
+	// process (in-memory only — see KNOWN_LIMITATIONS.md).
+	DeliveryID string       `json:"delivery_id"`
+	Event      webhookEvent `json:"event"`
+	FailedAt   time.Time    `json:"failed_at"`
+	URL        string       `json:"url"`
+	OwnerKey   string       `json:"-"`
+	// Replayed is bumped every time an operator calls the replay
+	// endpoint. Lets us surface "this ran out of retries N times" in
+	// the admin UI without losing the record on the first replay.
+	Replayed int `json:"replayed"`
 }
 
 // webhookStore holds registrations, the pending queue, and dead
@@ -136,6 +148,28 @@ type webhookStore struct {
 	stopping chan struct{}
 	client   *http.Client
 	now      func() time.Time // injectable for tests
+	// metrics is optional; nil disables instrumentation. Set via
+	// webhookStore.SetMetrics after construction so tests do not have
+	// to touch Prometheus at all.
+	metrics *observability.WebhookMetrics
+}
+
+// SetMetrics wires a WebhookMetrics into the store. Safe to call
+// once at startup; passing nil is a no-op (default).
+func (s *webhookStore) SetMetrics(m *observability.WebhookMetrics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.metrics = m
+}
+
+// sampleGauges pushes queue / dead-letter depth into metrics. Caller
+// must hold s.mu (any mode). No-op when metrics is nil.
+func (s *webhookStore) sampleGaugesLocked() {
+	if s.metrics == nil {
+		return
+	}
+	s.metrics.QueueDepth.Set(float64(len(s.queue)))
+	s.metrics.DeadLetterDepth.Set(float64(len(s.dead)))
 }
 
 const (
@@ -268,7 +302,11 @@ func (s *webhookStore) enqueue(kind string, body []byte) int {
 			CreatedAt: now,
 		})
 		added++
+		if s.metrics != nil {
+			s.metrics.Enqueued.Inc(kind)
+		}
 	}
+	s.sampleGaugesLocked()
 	return added
 }
 
@@ -360,9 +398,11 @@ func idempotencyKey(subID string, attempt int, body []byte) string {
 func (s *webhookStore) deliverEvent(ctx context.Context, sub *webhookSubscription, ev *webhookEvent) {
 	sig := signWebhook(sub.secret, ev.Body)
 	deliveryID := fmt.Sprintf("%s-%d", sub.ID, ev.Attempts+1)
+	start := s.now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sub.URL, bytes.NewReader(ev.Body))
 	if err != nil {
 		s.recordFailure(sub, ev, fmt.Sprintf("build request: %v", err), 0, 0)
+		s.observeAttempt(ev.Kind, 0, start)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -376,16 +416,37 @@ func (s *webhookStore) deliverEvent(ctx context.Context, sub *webhookSubscriptio
 	resp, err := s.client.Do(req)
 	if err != nil {
 		s.recordFailure(sub, ev, err.Error(), 0, 0)
+		s.observeAttempt(ev.Kind, 0, start)
 		return
 	}
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), s.now())
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		s.recordSuccess(sub, ev, resp.StatusCode)
+	code := resp.StatusCode
+	if code >= 200 && code < 300 {
+		s.recordSuccess(sub, ev, code)
+		s.observeAttempt(ev.Kind, code, start)
 		return
 	}
 	s.recordFailure(sub, ev, fmt.Sprintf("http %d", resp.StatusCode), resp.StatusCode, retryAfter)
+	s.observeAttempt(ev.Kind, resp.StatusCode, start)
+}
+
+// observeAttempt records the outcome of one HTTP dispatch attempt.
+// No-op when metrics is nil.
+func (s *webhookStore) observeAttempt(kind string, code int, start time.Time) {
+	s.mu.RLock()
+	m := s.metrics
+	now := s.now
+	s.mu.RUnlock()
+	if m == nil {
+		return
+	}
+	class := observability.StatusClass(code)
+	m.Attempts.Inc(kind, class)
+	if now != nil {
+		m.AttemptDuration.Observe(now().Sub(start).Seconds(), kind, class)
+	}
 }
 
 func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent, code int) {
@@ -400,6 +461,10 @@ func (s *webhookStore) recordSuccess(sub *webhookSubscription, ev *webhookEvent,
 	// active pause — the next event is delivered right away.
 	sub.ConsecutiveFailures = 0
 	sub.CircuitOpenUntil = time.Time{}
+	if s.metrics != nil {
+		s.metrics.Delivered.Inc(ev.Kind)
+	}
+	s.sampleGaugesLocked()
 }
 
 // recordFailure books one failed attempt. retryAfter, when > 0,
@@ -420,11 +485,21 @@ func (s *webhookStore) recordFailure(sub *webhookSubscription, ev *webhookEvent,
 	ev.Attempts++
 	ev.LastError = msg
 	if ev.Attempts >= webhookMaxAttempts {
-		dl := &deadLetter{Event: *ev, FailedAt: s.now(), URL: sub.URL}
+		dl := &deadLetter{
+			DeliveryID: newDeadLetterID(sub.ID, ev.CreatedAt),
+			Event:      *ev,
+			FailedAt:   s.now(),
+			URL:        sub.URL,
+			OwnerKey:   sub.OwnerKey,
+		}
 		s.dead = append(s.dead, dl)
 		if len(s.dead) > webhookDeadLetterLimit {
 			s.dead = s.dead[len(s.dead)-webhookDeadLetterLimit:]
 		}
+		if s.metrics != nil {
+			s.metrics.DeadLettered.Inc(ev.Kind)
+		}
+		s.sampleGaugesLocked()
 		s.mu.Unlock()
 		return
 	}
@@ -504,6 +579,61 @@ func (s *webhookStore) deadLetters() []*deadLetter {
 	out := make([]*deadLetter, len(s.dead))
 	copy(out, s.dead)
 	return out
+}
+
+// replay pulls a dead-lettered event back onto the delivery queue at
+// attempts=0 with NextTryAt=now, and removes it from the dead-letter
+// list. Ownership is enforced against ownerKeyHash so caller A cannot
+// replay caller B's dead letters. Returns the delivery id of the
+// re-enqueued event on success, or an error if not found / not owned
+// / the target subscription has been unregistered.
+func (s *webhookStore) replay(deliveryID, ownerKeyHash string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	idx := -1
+	for i, dl := range s.dead {
+		if dl.DeliveryID == deliveryID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return "", errors.New("not found")
+	}
+	dl := s.dead[idx]
+	if dl.OwnerKey != ownerKeyHash {
+		return "", errors.New("not found") // deliberately opaque
+	}
+	sub, ok := s.subs[dl.Event.SubID]
+	if !ok {
+		return "", errors.New("subscription unregistered — cannot replay")
+	}
+	_ = sub
+	// Re-enqueue with attempts reset. Keep the body verbatim so the
+	// HMAC signature stays byte-identical to the original attempt.
+	ev := dl.Event
+	ev.Attempts = 0
+	ev.LastError = ""
+	ev.NextTryAt = s.now()
+	s.queue = append(s.queue, &ev)
+	// Remove from dead list.
+	s.dead = append(s.dead[:idx], s.dead[idx+1:]...)
+	if s.metrics != nil {
+		s.metrics.Replayed.Inc(ev.Kind)
+	}
+	s.sampleGaugesLocked()
+	// Preserve the replay counter — useful for observability if the
+	// same event gets dead-lettered a second time.
+	return dl.DeliveryID, nil
+}
+
+// newDeadLetterID mints the stable id used by the replay endpoint.
+// Format: "dl_" + first 12 hex chars of sha256(subID | createdAt).
+// Two events on the same subscription created in the same nanosecond
+// would collide — extraordinarily unlikely for a single node.
+func newDeadLetterID(subID string, createdAt time.Time) string {
+	h := sha256.Sum256([]byte(subID + "|" + createdAt.Format(time.RFC3339Nano)))
+	return "dl_" + hex.EncodeToString(h[:6])
 }
 
 // runWorker delivers events on a tick until the store's stopping
