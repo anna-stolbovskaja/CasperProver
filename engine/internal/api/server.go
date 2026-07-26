@@ -30,6 +30,7 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/observability"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/receipts"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
@@ -88,6 +89,10 @@ type Server struct {
 
 	// BLS12-381 threshold quorum (Pack AS). Nil when disabled.
 	quorumRegistry *quorum.Registry
+
+	// Observability (Pack AS-obs). Always non-nil after New*.
+	metrics    *observability.Registry
+	httpMetric *observability.HTTPMetrics
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -281,6 +286,12 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		srv.log.Info("quorum service enabled")
 	}
 
+	// Observability: always on. A Prometheus /metrics endpoint plus
+	// W3C traceparent propagation costs nothing when nobody scrapes
+	// or sends a header, so we default it wired up.
+	srv.metrics = observability.NewRegistry()
+	srv.httpMetric = observability.NewHTTPMetrics(srv.metrics, "cp_http")
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()
@@ -379,6 +390,12 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
 	mux.HandleFunc("GET /v1/routes", s.routesHandler)
 
+	// Prometheus /metrics + a lightweight alias under /v1/.
+	if s.metrics != nil {
+		mux.Handle("GET /metrics", observability.MetricsHandler(s.metrics))
+		mux.Handle("GET /v1/metrics", observability.MetricsHandler(s.metrics))
+	}
+
 	// Start the webhook worker with a 1s tick. The tick is short
 	// enough that a subscriber with backoff=1s sees near-immediate
 	// retry; long enough not to burn CPU under an empty queue.
@@ -392,16 +409,24 @@ func (s *Server) Start() error {
 	}
 
 	addr := fmt.Sprintf(":%d", s.port)
+	// Observability wraps the entire chain so /metrics + traceparent
+	// see every request. Cardinality stays bounded because we label
+	// route="all" here; per-route detail lives in the app metrics
+	// (proofs generated, quorum verified, etc.).
+	var rootHandler http.Handler = s.versionRewriteMiddleware(
+		s.rateLimitMiddleware(
+			s.corsMiddleware(
+				s.authMiddleware(
+					scopeMW(
+						s.idempotencyMiddleware(
+							s.deprecationMiddleware(
+								s.logMiddleware(mux))))))))
+	if s.httpMetric != nil {
+		rootHandler = s.httpMetric.InstrumentAll(rootHandler)
+	}
 	srv := &http.Server{
-		Addr: addr,
-		Handler: s.versionRewriteMiddleware(
-			s.rateLimitMiddleware(
-				s.corsMiddleware(
-					s.authMiddleware(
-						scopeMW(
-							s.idempotencyMiddleware(
-								s.deprecationMiddleware(
-									s.logMiddleware(mux)))))))),
+		Addr:         addr,
+		Handler:      rootHandler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
