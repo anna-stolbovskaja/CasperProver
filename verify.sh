@@ -58,6 +58,7 @@ readarray -t CONTRACTS < <(jq -r '
 if [ ${#CONTRACTS[@]} -eq 0 ]; then
   red "Root manifest contained zero contracts — regenerate: python scripts/generate_manifest.py"
   exit 2
+fi
 
 verify_contract() {
   local name="${1%%:*}"
