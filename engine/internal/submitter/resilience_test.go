@@ -223,3 +223,111 @@ func TestBackoffDelay_ExponentialAndCapped(t *testing.T) {
 		t.Fatalf("attempt 0 should be 0, got %v", d)
 	}
 }
+
+// TestCircuitBreaker_HalfOpenSingleProbeUnderConcurrency guards the
+// "only one probe at a time" invariant claimed by the breaker: if N
+// callers hit the querier simultaneously during the half-open window,
+// exactly one must reach the underlying node as the probe; the rest
+// must be rejected with ErrCircuitOpen. Without the probeInFlight
+// guard this test fails (all N goroutines are let through).
+func TestCircuitBreaker_HalfOpenSingleProbeUnderConcurrency(t *testing.T) {
+	const concurrent = 10
+
+	// Track how many underlying calls happen concurrently. The fake
+	// querier holds each call open long enough to force overlap.
+	var inFlight, maxInFlight int32
+	release := make(chan struct{})
+
+	f := &fakeQuerier{fn: func(n int32) (rpc.QueryGlobalStateResult, error) {
+		cur := atomic.AddInt32(&inFlight, 1)
+		for {
+			old := atomic.LoadInt32(&maxInFlight)
+			if cur <= old || atomic.CompareAndSwapInt32(&maxInFlight, old, cur) {
+				break
+			}
+		}
+		<-release
+		atomic.AddInt32(&inFlight, -1)
+		return rpc.QueryGlobalStateResult{ApiVersion: "1.0"}, nil
+	}}
+
+	q := NewResilientQuerier(
+		f,
+		RetryConfig{MaxAttempts: 1, BaseDelay: 0, MaxDelay: 0, Multiplier: 1},
+		CircuitBreakerConfig{FailureThreshold: 1, OpenTimeout: 20 * time.Millisecond},
+	)
+
+	// Trip the breaker with one failing call.
+	f.fn = func(n int32) (rpc.QueryGlobalStateResult, error) {
+		return rpc.QueryGlobalStateResult{}, errors.New("boom")
+	}
+	if _, err := q.QueryGlobalState(context.Background(), "k", nil); err == nil {
+		t.Fatalf("expected trip-open call to fail")
+	}
+	if q.State() != "open" {
+		t.Fatalf("expected state open after trip, got %s", q.State())
+	}
+
+	// Swap in the hold-open fake and wait until the open window elapses
+	// so the next call sees half-open.
+	f.fn = func(n int32) (rpc.QueryGlobalStateResult, error) {
+		cur := atomic.AddInt32(&inFlight, 1)
+		for {
+			old := atomic.LoadInt32(&maxInFlight)
+			if cur <= old || atomic.CompareAndSwapInt32(&maxInFlight, old, cur) {
+				break
+			}
+		}
+		<-release
+		atomic.AddInt32(&inFlight, -1)
+		return rpc.QueryGlobalStateResult{ApiVersion: "1.0"}, nil
+	}
+	time.Sleep(25 * time.Millisecond)
+
+	// Fan out N concurrent callers.
+	results := make(chan error, concurrent)
+	start := make(chan struct{})
+	for i := 0; i < concurrent; i++ {
+		go func() {
+			<-start
+			_, err := q.QueryGlobalState(context.Background(), "k", nil)
+			results <- err
+		}()
+	}
+	close(start)
+
+	// Give goroutines a moment to all reach allow(); the one that got
+	// the probe is now blocked in the fake querier, the rest should
+	// have already returned ErrCircuitOpen.
+	time.Sleep(25 * time.Millisecond)
+	close(release)
+
+	var probes, rejected, other int
+	for i := 0; i < concurrent; i++ {
+		err := <-results
+		switch {
+		case err == nil:
+			probes++
+		case errors.Is(err, ErrCircuitOpen):
+			rejected++
+		default:
+			other++
+			t.Logf("unexpected err: %v", err)
+		}
+	}
+
+	if probes != 1 {
+		t.Fatalf("expected exactly 1 probe to reach the node, got %d probes / %d rejected / %d other",
+			probes, rejected, other)
+	}
+	if rejected != concurrent-1 {
+		t.Fatalf("expected %d callers rejected with ErrCircuitOpen, got %d (probes=%d, other=%d)",
+			concurrent-1, rejected, probes, other)
+	}
+	if got := atomic.LoadInt32(&maxInFlight); got != 1 {
+		t.Fatalf("expected max 1 concurrent underlying call, got %d", got)
+	}
+	if q.State() != "closed" {
+		t.Fatalf("expected state closed after successful probe, got %s", q.State())
+	}
+}
