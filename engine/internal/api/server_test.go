@@ -83,6 +83,9 @@ func TestAuthMiddleware_KeyConfigured_RejectsMissingOrWrongKey(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
+	// After the public/admin split, missing header stays 401 (not
+	// authenticated) but a present-but-wrong key becomes 403 (rejected).
+	// See writeAuth in server.go for the RFC 7235 rationale.
 	cases := []struct {
 		name   string
 		header string
