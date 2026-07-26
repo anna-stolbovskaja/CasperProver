@@ -47,3 +47,12 @@
 - Full-circuit ZK proofs for arbitrary ML models
 - Formal verification of proof pipeline
 - Mainnet deployment with gas optimization
+
+### Off-repo design plans (DRAFT — not counsel-reviewed, no code shipped)
+- `docs/CONFIDENTIAL_STORAGE.md` — optional per-Operator confidential
+  payload store, sits **beside** the Service (never in the hot path);
+  hash-only boundary preserved for Operators who do not opt in.
+- `docs/REPUTATION_ECONOMICS.md` — economic model on top of the
+  existing `stake-slashing` structural stub; bonds, challenges,
+  Adjudicator quorum, Governance boundary. All `SIMULATION` until
+  Gate G7 of `docs/MAINNET_LAUNCH_PLAN.md`.
