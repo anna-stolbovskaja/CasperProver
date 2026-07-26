@@ -36,6 +36,7 @@
 - [x] PQ signature key rotation + versioning (`docs/PQ_KEYRING.md`) — keyring, migration primitive, HTTP surface. In-memory storage; HSM/KMS integration deferred.
 - [x] PQ keystore adapter (`docs/KEYSTORE.md`) — `Keystore` interface (`engine/internal/crypto/keystore/`) + 3 backends: `memory` (default), `file` (ChaCha20-Poly1305 at rest, Argon2id KDF), `remote` HSM/KMS gateway stub with a documented HTTP contract. Real HSM driver still lives out of tree per deployment.
 - [x] Nova / folding aggregation **harness** (`docs/roadmap/NOVA_HARNESS.md`) — API contract + hash-chain stand-in labelled `hash-fold-v1`. A real Nova is still a future item and requires a Pallas/Vesta curve cycle in Go.
+- [x] A2A provider pool + HTTP provider adapter + HITL policy service (`docs/DECISION_A2A_HITL.md`) — `decision.ProviderPool`+`Router` with trust levels (`system`/`delegated`/`observational`) and per-facet capabilities; `HTTPProviderAdapter` (JSON-over-HTTP contract, fixture fallback); `hitl.Service` with declarative policy (veto on critical REJECT / escalate on critical ABSTAIN or low confidence) and a `TicketStore` interface (in-memory default; Postgres-backed drop-in). Opt-in via `CP_DECISION_ENABLE=1`; endpoints: `POST /v1/decision/evaluate`, `GET /v1/decision/pool`, `GET/POST /v1/hitl/tickets*`.
 
 ## 🔮 Future
 

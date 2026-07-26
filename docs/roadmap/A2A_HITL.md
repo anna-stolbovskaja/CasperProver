@@ -2,6 +2,11 @@
 
 Ref: `handoff/CP_FINAL_TASKS_V2.md` §D.
 
+> **Status update (Pack AQ, 2026-07-26):** the 30-day slice is wired.
+> Implementation notes and the honest contract of what is real today
+> live in [`../DECISION_A2A_HITL.md`](../DECISION_A2A_HITL.md). This file
+> stays as the design record.
+
 ## Problem
 
 The current `Judge` orchestrator supports a single `Provider` per decision

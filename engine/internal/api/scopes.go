@@ -185,6 +185,13 @@ var routeScopes = map[string]string{
 	// Nova / folding aggregation harness
 	"POST /v1/aggregation/fold":        "aggregation:write",
 	"POST /v1/aggregation/verify-fold": "aggregation:read",
+
+	// Decision / A2A / HITL pipeline (Pack AQ)
+	"POST /v1/decision/evaluate":         "decision:write",
+	"GET /v1/decision/pool":              "decision:read",
+	"GET /v1/hitl/tickets":               "decision:read",
+	"GET /v1/hitl/tickets/{id}":          "decision:read",
+	"POST /v1/hitl/tickets/{id}/resolve": "decision:write",
 }
 
 // enforceScope checks that the caller (identified by X-API-Key) has
