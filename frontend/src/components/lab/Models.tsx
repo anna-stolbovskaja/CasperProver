@@ -10,6 +10,7 @@ import {
 } from '../../lib/api';
 import { toast } from '../ui/toast';
 import SectionIntro from './SectionIntro';
+import { getCachedManifest, loadManifest } from '../../lib/onchain';
 
 // Placeholder for a generic Modal component
 const Modal: React.FC<{
@@ -37,14 +38,41 @@ const Modal: React.FC<{
   );
 };
 
+// Fallback proof_registry hash (used before /onchain.json resolves). Real
+// value is refreshed from the manifest on mount; a redeploy that changes
+// the hash only needs the manifest regenerated, not this file.
+const PROOF_REGISTRY_FALLBACK = '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708';
+
+function verifierContractFromManifest(): string {
+  return getCachedManifest()?.contracts.proof_registry?.contract_hash ?? PROOF_REGISTRY_FALLBACK;
+}
+
 const Models: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [newModelData, setNewModelData] = useState<RegisterModelRequest>({
     model_id: `gpt-4o-${Date.now().toString(36)}`,
     model_hash: Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
-    verifier_contract: '96e97c4d564fe7374ba4e938355fb89f5be2f448decbe9b7727bd3c978a10708',
+    verifier_contract: verifierContractFromManifest(),
     metadata: { type: 'llm', params: '175B' },
   });
+
+  // Refresh verifier_contract from the manifest once it resolves, so the
+  // 'Register Model' form starts on the right hash after a redeploy.
+  useEffect(() => {
+    let alive = true;
+    loadManifest().then((m) => {
+      if (!alive) return;
+      const hash = m.contracts.proof_registry?.contract_hash;
+      if (hash) {
+        setNewModelData((prev) => (
+          prev.verifier_contract === PROOF_REGISTRY_FALLBACK
+            ? { ...prev, verifier_contract: hash }
+            : prev
+        ));
+      }
+    }).catch(() => { /* stay on fallback */ });
+    return () => { alive = false; };
+  }, []);
   const [isRegistering, setIsRegistering] = useState(false);
 
   const [searchModelId, setSearchModelId] = useState('');
