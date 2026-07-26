@@ -1,6 +1,10 @@
 # Nova / folding-scheme aggregation — status & harness
 
-**TL;DR.** The repo now ships an aggregation **harness** — a `Folder` interface and an HTTP surface (`POST /v1/aggregation/fold`, `POST /v1/aggregation/verify-fold`) whose contract matches what a real Nova/SuperNova/HyperNova implementation would expose. The default implementation is a hash-chain stand-in labelled `hash-fold-v1`. **It is not a cryptographic folding scheme.** This file explains exactly what is and is not real, and what a real implementation would need.
+**TL;DR.** The repo now ships an aggregation **harness** — a `Folder` interface and an HTTP surface (`POST /v1/aggregation/fold`, `POST /v1/aggregation/verify-fold`) whose contract matches what a real Nova/SuperNova/HyperNova implementation would expose. The default implementation is a hash-chain stand-in labelled `hash-fold-v1`. **It is not a cryptographic folding scheme.**
+
+An intermediate cryptographic upgrade `pedersen-fold-v1` has since shipped alongside the hash stand-in — real BLS12-381 G1 Pedersen commitment sum, homomorphic across splits, but still not a Nova reduction of R1CS instances. See `docs/PEDERSEN_FOLD.md`. The `nova-go-v1` label remains reserved for the eventual real Nova.
+
+This file explains exactly what is and is not real, and what a real implementation would need.
 
 ## What ships
 

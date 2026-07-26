@@ -56,9 +56,15 @@ func decodeFoldStep(d foldStepDTO) (aggregator.FoldStep, error) {
 }
 
 // novaFold aggregates a step sequence.
+//
+// The optional "scheme" field selects between "hash-fold-v1" (default,
+// hash-chain stand-in) and "pedersen-fold-v1" (BLS12-381 G1 Pedersen
+// commitment sum — intermediate cryptographic upgrade, still not Nova).
+// See docs/roadmap/NOVA_HARNESS.md and docs/PEDERSEN_FOLD.md.
 func (s *Server) novaFold(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Steps []foldStepDTO `json:"steps"`
+		Scheme string        `json:"scheme,omitempty"`
+		Steps  []foldStepDTO `json:"steps"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.jsonError(w, "invalid request", http.StatusBadRequest)
@@ -77,7 +83,26 @@ func (s *Server) novaFold(w http.ResponseWriter, r *http.Request) {
 		}
 		steps = append(steps, fs)
 	}
-	agg, err := aggregator.FoldAll(steps)
+	scheme := aggregator.FoldingScheme(req.Scheme)
+	if scheme == "" {
+		scheme = aggregator.SchemeHashFoldV1
+	}
+	var (
+		agg aggregator.AggregateProof
+		err error
+		disclosure string
+	)
+	switch scheme {
+	case aggregator.SchemeHashFoldV1:
+		agg, err = aggregator.FoldAll(steps)
+		disclosure = "hash-fold-v1 is a hash-chain stand-in, NOT a cryptographic folding scheme — see docs/roadmap/NOVA_HARNESS.md"
+	case aggregator.SchemePedersenFoldV1:
+		agg, err = aggregator.FoldAllPedersen(steps)
+		disclosure = "pedersen-fold-v1 is a real BLS12-381 G1 Pedersen commitment sum — hiding + binding under DLP, homomorphic across splits, but NOT a Nova folding scheme (does not reduce R1CS instances). See docs/PEDERSEN_FOLD.md."
+	default:
+		s.jsonError(w, "unsupported scheme: "+string(scheme)+" (want hash-fold-v1 or pedersen-fold-v1)", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		s.jsonError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -88,7 +113,7 @@ func (s *Server) novaFold(w http.ResponseWriter, r *http.Request) {
 		"steps":           agg.Steps,
 		"root_hex":        agg.Root,
 		"step_hashes_hex": agg.StepHashes,
-		"disclosure":      "hash-fold-v1 is a hash-chain stand-in, NOT a cryptographic folding scheme — see docs/roadmap/NOVA_HARNESS.md",
+		"disclosure":      disclosure,
 	})
 }
 
@@ -126,7 +151,22 @@ func (s *Server) novaVerifyFold(w http.ResponseWriter, r *http.Request) {
 		Root:       req.Aggregate.Root,
 		StepHashes: req.Aggregate.StepHashes,
 	}
-	valid, verr := aggregator.VerifyAll(steps, agg)
+	var (
+		valid bool
+		verr  error
+	)
+	switch agg.Scheme {
+	case aggregator.SchemePedersenFoldV1:
+		valid, verr = aggregator.VerifyAllPedersen(steps, agg)
+	case aggregator.SchemeHashFoldV1, "":
+		if agg.Scheme == "" {
+			agg.Scheme = aggregator.SchemeHashFoldV1
+		}
+		valid, verr = aggregator.VerifyAll(steps, agg)
+	default:
+		s.jsonError(w, "unsupported scheme: "+string(agg.Scheme), http.StatusBadRequest)
+		return
+	}
 	resp := map[string]any{"valid": valid, "scheme": string(agg.Scheme)}
 	if verr != nil {
 		resp["error"] = verr.Error()
