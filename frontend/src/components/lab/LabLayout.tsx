@@ -72,6 +72,7 @@ const tabGroups: LabTabGroup[] = [
     tabs: [
       { name: 'KYC', path: 'kyc' },
       { name: 'Attack Evidence', path: 'attack-evidence' },
+      { name: 'Offline Verify', path: 'offline-verify' },
     ],
   },
 ];
