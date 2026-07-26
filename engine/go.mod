@@ -7,6 +7,7 @@ require (
 	github.com/cloudflare/circl v1.6.4
 	github.com/consensys/gnark v0.15.0
 	github.com/consensys/gnark-crypto v0.20.1
+	github.com/leanovate/gopter v0.2.11
 	github.com/lib/pq v1.12.3
 	github.com/make-software/casper-go-sdk/v2 v2.0.0
 )
