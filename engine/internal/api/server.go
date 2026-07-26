@@ -263,10 +263,22 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /aggregation/batch/{id}", s.aggregationGetBatch)
 	mux.HandleFunc("GET /aggregation/verify-batch/{id}", s.aggregationVerifyBatch)
 	// ZK Verification routes
-	mux.HandleFunc("POST /zk/verify-groth16", s.zkVerifyGroth16)
-	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)
+	//
+	// PRIMARY (real cryptography, gnark BN254 Groth16 with pairing checks) -
+	// see internal/zkverifier/gnarkzk/circuit.go. These are the endpoints
+	// documented as CasperProver's real ZK path.
 	mux.HandleFunc("POST /zk/groth16-real/prove", s.zkGroth16RealProve)
 	mux.HandleFunc("POST /zk/groth16-real/verify", s.zkGroth16RealVerify)
+	// SIMULATION (hash-based, NOT real BN254 pairing math) - kept for
+	// legacy demo/comparison; responses carry {simulation:true, deprecated:true}
+	// and a Warning header. Prefer /zk/groth16-real/* for anything real.
+	// The /zk/verify-groth16-sim and /zk/batch-verify-sim spellings are the
+	// canonical simulation names; /zk/verify-groth16 and /zk/batch-verify
+	// are kept as deprecated aliases.
+	mux.HandleFunc("POST /zk/verify-groth16-sim", s.zkVerifyGroth16)
+	mux.HandleFunc("POST /zk/batch-verify-sim", s.zkBatchVerify)
+	mux.HandleFunc("POST /zk/verify-groth16", s.zkVerifyGroth16) // deprecated alias
+	mux.HandleFunc("POST /zk/batch-verify", s.zkBatchVerify)     // deprecated alias
 	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 	// Phase 2: proof chains (DAG validation)
@@ -1236,9 +1248,15 @@ func (s *Server) zkVerifyGroth16(w http.ResponseWriter, r *http.Request) {
 		"valid":       valid,
 		"vk_hash":     req.VkHash,
 		"verified_at": time.Now().Unix(),
-		"note":        "conceptual simulation (hash-based), not real BN254 pairing math - see /zk/groth16-real/verify",
+		"simulation":  true,
+		"deprecated":  true,
+		"use":         "/zk/groth16-real/verify",
+		"note":        "[sim] conceptual hash-based flow, NOT real BN254 pairing math - use /zk/groth16-real/verify for real ZK",
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Warning", `299 - "CasperProver simulation endpoint; not real ZK. Prefer /zk/groth16-real/verify."`)
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "prefer /zk/groth16-real/verify")
 	_ = json.NewEncoder(w).Encode(result)
 }
 
@@ -1297,7 +1315,17 @@ func (s *Server) zkBatchVerify(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"results": results, "all_valid": allValid})
+	w.Header().Set("Warning", `299 - "CasperProver simulation endpoint; not real ZK. Prefer /zk/groth16-real/verify."`)
+	w.Header().Set("Deprecation", "true")
+	w.Header().Set("Sunset", "prefer /zk/groth16-real/verify")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"results":    results,
+		"all_valid":  allValid,
+		"simulation": true,
+		"deprecated": true,
+		"use":        "/zk/groth16-real/verify",
+		"note":       "[sim] conceptual hash-based batch flow, NOT real BN254 pairing math - use /zk/groth16-real/verify for real ZK",
+	})
 }
 
 // ---------------------------------------------------------------------------

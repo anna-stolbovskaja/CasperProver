@@ -32,7 +32,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `CP_STRICT=1` production preflight in `cmd/casperprover/serve` — refuses to start with `API_KEY=""`; unauthenticated writes are only permitted in dev mode.
 
 ### Added
-- **`docs/SECURITY_AUDIT.md`** — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
+- `docs/SECURITY_AUDIT.md` — full owner/admin/renounce lifecycle audit + reentrancy/cross-contract invariant review for all 8 contract crates (Gate 1, item 4 of the deadline plan). No P0 findings; one P1 blocker for `proof-aggregation` (silent `create_batch` overwrite) filed as pre-Gate-2 follow-up.
+- **Gate 4 — ZK primary path.** `/zk/groth16-real/*` (gnark BN254, real R1CS + trusted setup + pairing verification) promoted to the canonical ZK path in the router, README, `docs/KNOWN_LIMITATIONS.md` and `docs/JUDGE_GUIDE.md`. Hash-based `/zk/verify-groth16` and `/zk/batch-verify` are marked as `[sim]` — responses now carry `simulation:true, deprecated:true, use:"/zk/groth16-real/verify"` plus `Warning`, `Deprecation` and `Sunset` HTTP headers. Canonical simulation spellings `/zk/verify-groth16-sim` / `/zk/batch-verify-sim` added; the older paths remain as deprecated aliases for backwards compatibility. 3 new tests in `engine/internal/api/zk_gate4_test.go` (sim banner + real round-trip; passes with `-race`).
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
 - `CopyButton` with checkmark feedback and legacy-browser fallback.

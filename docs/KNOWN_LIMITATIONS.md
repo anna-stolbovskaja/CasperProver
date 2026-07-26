@@ -24,8 +24,8 @@ Size gate: `scripts/contract-size-report.sh` fails CI if any `.wasm` exceeds
 
 ### Proof Engine (32 API endpoints)
 - SHA-256 Merkle proof generation & verification (<50ms)
-- Real BN254 Groth16 ZK proofs via gnark (`/zk/groth16-real/*`)
-- Conceptual Groth16 verification for rapid testing (`/zk/verify-groth16`)
+- **Real BN254 Groth16 ZK proofs via gnark (`/zk/groth16-real/*`)** — the primary ZK path. Real R1CS circuit, real (session-local) trusted setup, real pairing-based verification
+- `[sim]` Conceptual hash-based Groth16 flow (`/zk/verify-groth16-sim`, alias `/zk/verify-groth16`; batch `/zk/batch-verify-sim`, alias `/zk/batch-verify`) — kept for legacy demo/comparison, NOT real BN254 pairing math. Responses carry `simulation:true, deprecated:true, use:"/zk/groth16-real/verify"` plus `Warning`/`Deprecation`/`Sunset` headers
 - Post-quantum signing: SPHINCS+ (NIST PQC), hybrid Ed25519 + ML-DSA-65 (FIPS 204)
 - Hash-chain aggregation with Postgres persistence
 - Proof-chain DAG validation (Phase 2: cycle detection, input continuity)
