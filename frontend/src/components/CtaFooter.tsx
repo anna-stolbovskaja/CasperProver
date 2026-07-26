@@ -1,4 +1,10 @@
 import { useEffect, useState } from 'react'
+import { getContractHash } from '../lib/onchain'
+
+// The visual is a fake terminal replay; the on-chain hash line uses the
+// live proof_registry contract_hash so a redeploy propagates here
+// automatically instead of needing a hand-edit.
+const deployHashShort = (getContractHash('proof_registry') ?? '').slice(0, 32)
 
 const lines = [
   { delay: 0, prefix: '$ ', text: 'casper-prover prove --agent loan-bot --model gpt-4o', color: 'text-green-400' },
@@ -9,7 +15,7 @@ const lines = [
   { delay: 3600, prefix: '', text: '', color: '' },
   { delay: 3700, prefix: '  ', text: 'proof_hash   3d807fab6719562d774058d32cb4fb2319...', color: 'text-red-400' },
   { delay: 4000, prefix: '  ', text: 'merkle_root  85fcc3dd7145066239ddc90f67b92bc041...', color: 'text-orange-300' },
-  { delay: 4300, prefix: '  ', text: 'deploy_hash  96e97c4d564fe7374ba4e938355fb89f5b...', color: 'text-yellow-300' },
+  { delay: 4300, prefix: '  ', text: `deploy_hash  ${deployHashShort}...`, color: 'text-yellow-300' },
   { delay: 4600, prefix: '  ', text: 'status       VERIFIED', color: 'text-green-400' },
   { delay: 5200, prefix: '', text: '', color: '' },
   { delay: 5400, prefix: '$ ', text: 'echo "Your AI is now accountable."', color: 'text-green-400' },
