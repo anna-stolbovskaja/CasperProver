@@ -9,6 +9,7 @@ members = [
     "stake-slashing",
     "stake-slashing-session",
     "governance",
+    "zk-verifier",
     "tests",
 ]
 resolver = "2"

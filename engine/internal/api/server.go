@@ -279,6 +279,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /v1/circuits/{id}/vk", s.circuitsGetVK)
 	mux.HandleFunc("POST /v1/zk/prove", s.zkProveGeneric)
 	mux.HandleFunc("POST /v1/zk/verify", s.zkVerifyGeneric)
+	mux.HandleFunc("POST /v1/zk/anchor-verdict", s.zkAnchorVerdict)
 	mux.HandleFunc("POST /zk/challenge", s.zkChallenge)
 	mux.HandleFunc("GET /zk/challenge/{id}", s.zkGetChallenge)
 	// Phase 2: proof chains (DAG validation)
@@ -1457,6 +1458,116 @@ func (s *Server) zkProveGeneric(w http.ResponseWriter, r *http.Request) {
 		"vk_sha256":  d.KeyDigest,
 		"created_at": time.Now().Unix(),
 	})
+}
+
+// zkAnchorVerdict verifies a Groth16 proof off-chain against the requested
+// circuit_id AND anchors the verdict on-chain via the zk-verifier contract.
+// Body: { circuit_id, proof_hex, public_inputs, model_id }
+// If CP_STRICT=1 and the submitter is not configured, returns 503.
+// Otherwise anchoring failure is included in the response but the off-chain
+// verdict itself is authoritative in the return (matches /v1/verify semantics).
+// Emits `proof.anchored` webhook on successful anchor with the on-chain tx hash.
+func (s *Server) zkAnchorVerdict(w http.ResponseWriter, r *http.Request) {
+	if s.zkReg == nil {
+		s.jsonError(w, "circuit registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var req struct {
+		CircuitID    string         `json:"circuit_id"`
+		PublicInputs map[string]any `json:"public_inputs"`
+		ProofHex     string         `json:"proof_hex"`
+		ModelID      string         `json:"model_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.jsonError(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if req.CircuitID == "" {
+		req.CircuitID = s.zkReg.DefaultID()
+	}
+	if req.ModelID == "" {
+		s.jsonError(w, "model_id required", http.StatusBadRequest)
+		return
+	}
+	if _, ok := s.zkReg.Descriptor(req.CircuitID); !ok {
+		s.jsonError(w, "unknown circuit id", http.StatusNotFound)
+		return
+	}
+	proofBytes, err := hex.DecodeString(req.ProofHex)
+	if err != nil {
+		s.jsonError(w, "proof_hex must be valid hex", http.StatusBadRequest)
+		return
+	}
+	proof := groth16.NewProof(ecc.BN254)
+	if _, err := proof.ReadFrom(bytes.NewReader(proofBytes)); err != nil {
+		s.jsonError(w, "failed to deserialize proof", http.StatusBadRequest)
+		return
+	}
+	valid, err := s.zkReg.Verify(req.CircuitID, proof, req.PublicInputs)
+	if err != nil {
+		s.jsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Canonicalize public inputs -> sha256 for the on-chain record.
+	pubJSON, _ := json.Marshal(req.PublicInputs)
+	pubHash := sha256.Sum256(pubJSON)
+	pubHashHex := hex.EncodeToString(pubHash[:])
+	proofHash := sha256.Sum256(proofBytes)
+	proofHashHex := hex.EncodeToString(proofHash[:])
+
+	resp := map[string]any{
+		"valid":              valid,
+		"circuit_id":         req.CircuitID,
+		"proof_hash":         proofHashHex,
+		"public_inputs_hash": pubHashHex,
+		"model_id":           req.ModelID,
+		"anchored":           false,
+	}
+
+	if s.sub == nil {
+		if s.strict {
+			s.jsonError(w, "CP_STRICT=1 but no CASPER submitter configured; cannot anchor", http.StatusServiceUnavailable)
+			return
+		}
+		resp["anchor_error"] = "submitter not configured; running in off-chain mode"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	txHash, err := s.sub.RecordZkVerdict(req.CircuitID, proofHashHex, pubHashHex, req.ModelID, valid)
+	if err != nil {
+		resp["anchor_error"] = err.Error()
+		if s.strict {
+			s.jsonError(w, "anchor failed: "+err.Error(), http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+		return
+	}
+	resp["anchored"] = true
+	resp["anchor_tx_hash"] = txHash
+
+	if s.webhooks != nil {
+		payload := map[string]any{
+			"kind":               EventProofAnchored,
+			"circuit_id":         req.CircuitID,
+			"model_id":           req.ModelID,
+			"proof_hash":         proofHashHex,
+			"public_inputs_hash": pubHashHex,
+			"valid":              valid,
+			"anchor_tx_hash":     txHash,
+			"anchored_at":        time.Now().Unix(),
+		}
+		if body, err := json.Marshal(payload); err == nil {
+			s.webhooks.enqueue(EventProofAnchored, body)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // zkVerifyGeneric runs Groth16 verification against a caller-provided
