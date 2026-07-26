@@ -18,6 +18,7 @@ key. This commit introduces a small `Keystore` interface (see
 | memory  | `CP_KEYSTORE_KIND=memory` (default) | process memory  | ❌               | ❌         |
 | file    | `CP_KEYSTORE_KIND=file`        | ChaCha20-Poly1305 file, KDF Argon2id | ✅       | ❌         |
 | remote  | `CP_KEYSTORE_KIND=remote` (stub) | HSM/KMS gateway (out of tree) | ✅          | ✅ (when wired) |
+| vault-transit | `CP_KEYSTORE_KIND=vault-transit` | HashiCorp Vault Transit engine (private key never leaves Vault) | ✅ | ✅ (Ed25519 only) |
 
 **Every write endpoint** on the engine surface (`/v1/pq/keys` and
 `/v1/pq/keys/…/rotate`, `/sign`, `/migrate`) is gated by

@@ -47,9 +47,10 @@ import (
 type Kind string
 
 const (
-	KindMemory Kind = "memory"
-	KindFile   Kind = "file"
-	KindRemote Kind = "remote"
+	KindMemory       Kind = "memory"
+	KindFile         Kind = "file"
+	KindRemote       Kind = "remote"
+	KindVaultTransit Kind = "vault-transit"
 )
 
 // Info describes a keystore instance for the /v1/pq/keystore/info endpoint.
