@@ -23,7 +23,9 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto/keystore"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/decision"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
@@ -70,6 +72,12 @@ type Server struct {
 
 	webhooks *webhookStore
 	scopes   *scopeRegistry
+
+	// A2A / HITL pipeline (Pack AQ). Nil when disabled.
+	decisionPool   *decision.ProviderPool
+	decisionRouter *decision.Router
+	decisionJudge  *decision.Judge
+	hitlService    *hitl.Service
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -238,6 +246,14 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		}
 	}
 
+	// Decision / A2A / HITL pipeline: opt-in via CP_DECISION_ENABLE=1.
+	// The default fixture provider registers under trust=system with
+	// full capabilities so an operator gets a working pool out of the
+	// box; setting CP_DECISION_PROVIDER_URL swaps it for a real remote.
+	if os.Getenv("CP_DECISION_ENABLE") == "1" {
+		srv.initDecisionPipeline()
+	}
+
 	// Rehydrate aggregation batches from Postgres
 	if db != nil {
 		rows, err := db.LoadAggBatches()
@@ -323,6 +339,13 @@ func (s *Server) Start() error {
 
 	// Webhooks & OpenAPI — versioned surface only.
 	s.registerWebhookRoutes(mux)
+
+	// Decision / A2A / HITL pipeline. Registration is a no-op when the
+	// pipeline is disabled (CP_DECISION_ENABLE!=1) but the routes still
+	// return a well-formed 503, so callers can probe availability.
+	s.registerDecisionRoutes(mux)
+	s.registerHITLRoutes(mux)
+
 	mux.HandleFunc("GET /v1/openapi.json", s.openAPIHandler)
 	mux.HandleFunc("GET /v1/routes", s.routesHandler)
 
