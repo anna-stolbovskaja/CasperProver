@@ -25,6 +25,10 @@ graph TB
         VG[verifier-gate]
         DM[defi-mock]
         SS[stake-slashing]
+        PA[proof-aggregation]
+        MR[model-registry]
+        POI[proof-of-inference]
+        GOV[governance]
     end
 
     subgraph "Integration Layer"
@@ -41,13 +45,17 @@ graph TB
     WC --> CS
     API --> MK & ZK & PQ & AG & PC & INF & KYC
     INF --> PR
+    INF --> POI
     VG --> PR
     DM --> VG
     SS --> PR
+    AG --> PA
+    API --> MR
+    API --> GOV
     API --> PG
     SDK --> API
     MCP --> API
-    PR & VG & DM & SS --> CS
+    PR & VG & DM & SS & PA & MR & POI & GOV --> CS
 ```
 
 ## Proof Generation
