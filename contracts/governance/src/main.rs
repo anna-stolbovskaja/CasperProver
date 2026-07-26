@@ -573,9 +573,9 @@ pub extern "C" fn call() {
     let (ch, _) = storage::new_contract(
         ep,
         Some(nk),
-        Some("governance_pkg".into()),
-        Some("governance_access".into()),
+        Some("governance_v2_pkg".into()),
+        Some("governance_v2_access".into()),
         None,
     );
-    runtime::put_key("governance", ch.into());
+    runtime::put_key("governance_v2", ch.into());
 }
