@@ -11,6 +11,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 *Frontend polish, DoraHacks submission prep, docs hardening.*
 
 ### Added
+- `/v1/*` API alias with backward-compat: every existing endpoint reachable under `/v1/...`; legacy unprefixed paths keep working but respond with `X-CP-Deprecation`, `Sunset: 2027-01-01`, and `Link` successor-version headers (RFC 8594).
+- `X-Idempotency-Key` server middleware for POST/PUT/PATCH/DELETE: 15-minute TTL cache; replayed responses carry `X-Idempotency-Replay: true`; same key + different payload returns `409 Conflict` (surface client bugs, don't hide them).
+- `X-CP-API-Version: v1` response header on every API call for client-side introspection.
+- `docs/API_CHANGELOG.md` — versioning policy, deprecation timeline, migration guide.
 - Skeleton loader components (`Skeleton`, `CardSkeleton`, `TableSkeleton`) wired into Overview + Proofs.
 - `EmptyState` component for lab list views (Proofs / Models / Aggregation / KYC).
 - `CopyButton` with checkmark feedback and legacy-browser fallback.
