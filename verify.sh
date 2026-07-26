@@ -5,7 +5,7 @@
 # Default API: https://casperprover-api-ylsh.onrender.com
 #
 # Checks:
-#   1. All 4 contracts exist on Casper testnet (via RPC)
+#   1. All 8 contracts exist on Casper testnet (via RPC)
 #   2. API is live and returns health
 #   3. Proof creation round-trip works
 #   4. Frontend serves HTML
@@ -44,6 +44,10 @@ CONTRACTS=(
   "a37f9cde9dbdc5bb8b9e92c663bdc59b83b42c89dc75ec73f7f7cde2619f77d3:Verifier Gate"
   "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef:DeFi Mock"
   "1ad1b3d94be631532d6daf3a195fafc9dfe8a16504e87d87784d51089b983d52:Stake Slashing"
+  "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb:Proof Aggregation"
+  "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a:Model Registry"
+  "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318:Proof of Inference"
+  "03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e:Governance"
 )
 
 verify_contract() {
