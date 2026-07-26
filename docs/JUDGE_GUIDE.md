@@ -2,6 +2,11 @@
 
 This checklist is the shortest reproducible path through CasperProver. It separates **real cryptography**, **on-chain evidence**, and **simulation** so claims can be verified rather than trusted.
 
+> **Looking for the 2-minute path or the hackathon 8-criteria map?**
+> See `docs/HOW_TO_JUDGE.md`. This document is the deeper walkthrough.
+> Every on-chain claim below is backed by a concrete tx hash in
+> `docs/TX_MANIFEST.md`.
+
 ## 1. One-command evidence
 
 ```bash
