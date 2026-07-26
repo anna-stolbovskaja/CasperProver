@@ -12,11 +12,18 @@
 //     bit-reproducible pseudo-tx-hashes. Marked SIMULATION so no judge
 //     mistakes it for a live Ethereum anchor. Its job is to prove the
 //     interface is chain-agnostic and unblock future integration work.
+//   * SolanaStubAdapter → deterministic simulator emitting a
+//     base58-encoded 64-byte pseudo-signature (SHA-512 of the
+//     canonicalized request). SIMULATION only.
+//   * CosmosStubAdapter → deterministic simulator emitting an
+//     uppercase 64-hex-char pseudo-tx-hash (SHA-256 of the
+//     canonicalized request, Tendermint convention). SIMULATION only.
 //
-// A ChainRouter picks an adapter by ChainID ("casper-test" / "eth-sim").
+// A ChainRouter picks an adapter by ChainID
+// ("casper-test" / "eth-sim" / "solana-sim" / "cosmos-sim").
 //
-// Closes: 5.4 (cross-chain proof bridging architecture) — interface
-//         layer only; live EVM adapter deferred.
+// Closes: 5.4 (interface layer) + 5.5 (multi-chain stubs — Solana,
+//         Cosmos). Live EVM/Solana/Cosmos adapters remain deferred.
 package chainadapter
 
 import (
