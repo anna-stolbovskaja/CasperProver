@@ -2,29 +2,34 @@
   "network": "casper-test",
   "chain_name": "casper-test",
   "project": "CasperProver",
-  "deployer_note": "Contracts are split across two accounts. See per-contract `deployer` field. proof_registry/verifier_gate were deployed by anna-stolbovskaja; defi_mock/stake_slashing/proof_aggregation/model_registry/proof_of_inference/governance were deployed by defi_mock_owner.",
+  "deployer_note": "All 8 canonical contracts are deployed by defi_mock_owner (public key 0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7, account-hash 84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10). Previous multi-deployer split is deprecated.",
   "explorer": "https://testnet.cspr.live",
   "cspr_cloud": "https://testnet.cspr.cloud",
   "contracts": {
     "proof_registry": {
       "contract_hash": "e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5",
       "contract_package_hash": "977b11ce7ea702232215fd49aef038897697163350ee0f65accc90b7b5150bfa",
-      "deploy_hash": "d64299b651750b6996595d81b812038750c353f5220b5e61cd6c129e90a07d56",
-      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
+      "deploy_hash": "c9e0fee7cdb75abbf2a66d893d43bdf9d8d24d6ff7a103b841ad81f4a50d1c84",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 1,
-      "deployed_at": "2026-06-29T09:33:43Z",
+      "deployed_at": "2026-07-26T20:35:00Z",
       "source": "contracts/proof-registry/src/main.rs",
-      "entry_points": ["submit_proof", "get_proof", "revoke_proof", "register_agent", "get_reputation"]
+      "entry_points": ["submit_proof", "get_proof", "revoke_proof", "register_agent", "get_reputation"],
+      "notes": "MVP-clean WASM (47393 B) — Rust nightly -Z build-std=core,alloc,compiler_builtins,panic_abort with target-cpu=mvp and features -bulk-memory,-sign-ext,-mutable-globals,-reference-types; wasm-opt -Oz --signext-lowering. Redeployed from defi_mock_owner to unify canonical set."
     },
     "verifier_gate": {
       "contract_hash": "06d69182b13c4d041613fe7e6e0805cdb06f099eff4291b40154d78cc0c79b66",
       "contract_package_hash": "4b79786a81b9afa1f0a0f40443965caa4dc09797a919c5d87fc1b6a4fa5e5cfb",
-      "deploy_hash": "c1320d182c0323e671183cb7aef603f1bb19b86f97637e3a386ae14dd28422ff",
-      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
+      "deploy_hash": "43ca896633e77e1ed87d43f7cd76e1fb1f57ccbdd60a249e92b496a7ee5986b2",
+      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
       "version": 1,
-      "deployed_at": "2026-06-29T09:39:01Z",
+      "deployed_at": "2026-07-26T20:45:00Z",
       "source": "contracts/verifier-gate/src/main.rs",
-      "entry_points": ["verify", "is_valid", "batch_check"]
+      "entry_points": ["verify", "is_valid", "batch_check"],
+      "install_args": {
+        "registry_contract_hex": "e11088f1f15a719f21c0c318d1f34d0b96419a22d60ac8fa384ecf5285fa7bc5"
+      },
+      "notes": "MVP-clean WASM (44871 B) — same recipe as proof_registry. registry_contract wired to freshly deployed defi_mock_owner-owned proof_registry. Redeployed from defi_mock_owner to unify canonical set."
     },
     "defi_mock": {
       "contract_hash": "fe0c45f67c8cd99f0bda0047399a113588870ec0d79d9102f44107303f0b39ef",
@@ -81,12 +86,12 @@
       "notes": "MVP-clean WASM. Deployed from defi_mock_owner."
     },
     "governance": {
-      "contract_hash": "03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e",
-      "contract_package_hash": "0cf2674d2ff1f1b78e90cd1ce6c07099850aa3a58076ecb448806e2c865b4dbb",
-      "deploy_hash": "1d7c9e8fa8a249977003fc1b36e443cf35c021b20c82e14513725b028ae77440",
-      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "contract_hash": "38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e",
+      "contract_package_hash": "69df9be9b3ae690ef36ba9b0535770716fbf52282ee5f76d44a65254b205fbe0",
+      "deploy_hash": "5f20ecfe2fc0a254db3daa965eb643b053102f14e53853f8c5c385424bdf60a2",
+      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,
-      "deployed_at": "2026-07-26T20:14:00Z",
+      "deployed_at": "2026-07-26T21:40:00Z",
       "source": "contracts/governance/src/main.rs",
       "entry_points": [
         "propose", "execute", "cancel", "get_proposal", "is_executed",
@@ -96,12 +101,12 @@
       ],
       "install_args": {
         "guardian_1_acct_hash": "cac1862d745c06860c6acfa275d6afec3be692dedf6c46253ce813dba74ad298",
-        "guardian_2_acct_hash": "74c96cd0073c4c973b70e7925adca8a4ba58ffcb9737304631381b82695007a8",
-        "guardian_3_acct_hash": "535a3d80c9c1cba0190b036f8edd5a9623551a5eca4ab01a0d24dda537895467"
+        "guardian_2_acct_hash": "84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10",
+        "guardian_3_acct_hash": "0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "bootstrapped_owner_acct_hash": "84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10",
-      "block_height": 8634452,
-      "notes": "MVP-clean WASM (53762 bytes < 65536 cap). Timelock 48h. Owner bootstraps from get_caller at install (defi_mock_owner). 3 guardians: anna, alexbelij, triumphkrug (acct hashes above). 2-of-3 recovery for lost-key case. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
+      "bootstrapped_owner_acct_hash": "cac1862d745c06860c6acfa275d6afec3be692dedf6c46253ce813dba74ad298",
+      "block_height": 8635118,
+      "notes": "MVP-clean WASM (governance_v2_pkg, unique NamedKeys). Deployed under anna-stolbovskaja after defi_mock_owner NamedKey collision on prior install. Timelock 48h. Owner bootstraps from get_caller at install (anna). 3 guardians: anna + defi_mock_owner + zero-hex reserved slot (to be populated at mainnet ceremony per MAINNET_LAUNCH_PLAN.md). 2-of-3 recovery for lost-key case. Prior contract 03189ea1…548e (under defi_mock_owner) deprecated — retained on-chain but not authoritative. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
     }
   },
   "verification": {

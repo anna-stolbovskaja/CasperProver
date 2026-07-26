@@ -47,7 +47,7 @@ CONTRACTS=(
   "b29f32abcc029d523de212bd7c87993f2f1bf96ba1523091c7b01adf6d63d2bb:Proof Aggregation"
   "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a:Model Registry"
   "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318:Proof of Inference"
-  "03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e:Governance"
+  "38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e:Governance"
 )
 
 verify_contract() {

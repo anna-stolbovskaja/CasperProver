@@ -86,12 +86,12 @@
       "notes": "MVP-clean WASM. Deployed from defi_mock_owner."
     },
     "governance": {
-      "contract_hash": "03189ea1721b517c64073c319e93d6a8cd0e53191925fcf530ebc3b897f9548e",
-      "contract_package_hash": "0cf2674d2ff1f1b78e90cd1ce6c07099850aa3a58076ecb448806e2c865b4dbb",
-      "deploy_hash": "1d7c9e8fa8a249977003fc1b36e443cf35c021b20c82e14513725b028ae77440",
-      "deployer": "0202da6cfba1c1e595fdcd6539146611326e5506479d89dab735b252dc200b80f7e7",
+      "contract_hash": "38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e",
+      "contract_package_hash": "69df9be9b3ae690ef36ba9b0535770716fbf52282ee5f76d44a65254b205fbe0",
+      "deploy_hash": "5f20ecfe2fc0a254db3daa965eb643b053102f14e53853f8c5c385424bdf60a2",
+      "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
       "version": 1,
-      "deployed_at": "2026-07-26T20:14:00Z",
+      "deployed_at": "2026-07-26T21:40:00Z",
       "source": "contracts/governance/src/main.rs",
       "entry_points": [
         "propose", "execute", "cancel", "get_proposal", "is_executed",
@@ -101,12 +101,12 @@
       ],
       "install_args": {
         "guardian_1_acct_hash": "cac1862d745c06860c6acfa275d6afec3be692dedf6c46253ce813dba74ad298",
-        "guardian_2_acct_hash": "<placeholder — will be rotated to canonical guardian pre-mainnet>",
-        "guardian_3_acct_hash": "535a3d80c9c1cba0190b036f8edd5a9623551a5eca4ab01a0d24dda537895467"
+        "guardian_2_acct_hash": "84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10",
+        "guardian_3_acct_hash": "0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "bootstrapped_owner_acct_hash": "84ff0a4692ddeaa2c2991b0a9b084e48772968c242ff9434106571e77d23be10",
-      "block_height": 8634452,
-      "notes": "MVP-clean WASM (53762 bytes < 65536 cap). Timelock 48h. Owner bootstraps from get_caller at install (defi_mock_owner). 3 guardians: anna + triumphkrug + placeholder (to be rotated pre-mainnet). 2-of-3 recovery for lost-key case. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
+      "bootstrapped_owner_acct_hash": "cac1862d745c06860c6acfa275d6afec3be692dedf6c46253ce813dba74ad298",
+      "block_height": 8635118,
+      "notes": "MVP-clean WASM (governance_v2_pkg, unique NamedKeys). Deployed under anna-stolbovskaja after defi_mock_owner NamedKey collision on prior install. Timelock 48h. Owner bootstraps from get_caller at install (anna). 3 guardians: anna + defi_mock_owner + zero-hex reserved slot (to be populated at mainnet ceremony per MAINNET_LAUNCH_PLAN.md). 2-of-3 recovery for lost-key case. Prior contract 03189ea1…548e (under defi_mock_owner) deprecated — retained on-chain but not authoritative. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
     }
   },
   "verification": {
