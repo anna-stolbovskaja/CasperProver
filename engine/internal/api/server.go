@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/aggregator"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/siwe"
 	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
@@ -62,6 +63,8 @@ type Server struct {
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
+
+	siwe *siwe.Store
 }
 
 // aggBatch tracks per-batch state for the /aggregation/* endpoints.
@@ -162,6 +165,8 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) *Server {
 		strict: strict,
 
 		aggBatches: make(map[string]*aggBatch),
+
+		siwe: siwe.NewStore(0),
 	}
 
 	// Rehydrate aggregation batches from Postgres
@@ -234,6 +239,10 @@ func (s *Server) Start() error {
 	mux.HandleFunc("POST /pq/verify-sphincs", s.pqVerifySPHINCS)
 	mux.HandleFunc("POST /pq/hybrid-sign", s.pqHybridSign)
 	mux.HandleFunc("POST /pq/hybrid-verify", s.pqHybridVerify)
+	// SIWE-like challenge routes (unauthenticated primitive; rate-limited
+	// via the shared rate-limit middleware). See engine/internal/api/siwe.
+	mux.HandleFunc("POST /auth/siwe/challenge", s.siweChallenge)
+	mux.HandleFunc("POST /auth/siwe/verify", s.siweVerify)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	srv := &http.Server{
