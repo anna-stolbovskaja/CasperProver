@@ -16,7 +16,7 @@
 [![MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-orange.svg?style=flat-square)](LICENSE)
 [![Live Demo](https://img.shields.io/badge/demo-casperprover.xyz-6366f1.svg?style=flat-square)](https://casperprover.xyz/lab)
 
-![Contracts](https://img.shields.io/badge/contracts-7%20deployed-brightgreen)
+![Contracts](https://img.shields.io/badge/contracts-8%20deployed-brightgreen)
 ![Proofs](https://img.shields.io/badge/proofs-102%2B-blue)
 ![PQ Ready](https://img.shields.io/badge/post--quantum-ready-purple)
 
@@ -31,7 +31,7 @@
 
 ---
 
-> **7 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
+> **8 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs · Post-quantum cryptography · Proof-chain DAG validation
 
 ## 📸 Screenshots
 
@@ -105,7 +105,7 @@ For stronger guarantees, the same commitment can be:
 | **Post-Quantum Crypto** | ML-DSA-65 (FIPS 204), hybrid Ed25519+ML-DSA, Lamport OTS | ✅ Live |
 | **Batch Aggregation** | Hash-chain aggregation with Postgres persistence | ✅ Live |
 | **Proof-Chain DAG** | Multi-step proof validation: cycle detection, input continuity, single root | ✅ Live |
-| **On-Chain Anchoring** | 7 smart contracts on Casper testnet | ✅ Live |
+| **On-Chain Anchoring** | 8 smart contracts on Casper testnet | ✅ Live |
 | **Stake & Slash** | Economic penalties for revoked proofs, permissionless reporting bounty | ✅ Live |
 | **KYC Gating** | Proof-based DeFi access control with cross-contract verification | ✅ Live |
 | **SDK (Go)** | 32 methods, 1:1 API mapping | ✅ Live |
@@ -349,7 +349,7 @@ Extended infrastructure — real code, wired to the API:
 | GPU required | **None** |
 | API endpoints | **32** |
 | SDK/MCP tools | **32** |
-| Smart contracts | **7 live** + 3 written (zk-verifier, stake-slashing-session, governance — compiled, awaiting deploy) |
+| Smart contracts | **8 live** + 2 written (zk-verifier, stake-slashing-session — compiled, awaiting deploy) |
 | Testnet transactions | **248+** |
 
 ---
@@ -375,7 +375,7 @@ Extended infrastructure — real code, wired to the API:
 
 ```
 CasperProver/
-├── contracts/              # Rust smart contracts (7 total, 4 deployed)
+├── contracts/              # Rust smart contracts (10 total, 8 deployed)
 │   ├── proof-registry/     # Immutable proof store
 │   ├── verifier-gate/      # Merkle inclusion checker
 │   ├── defi-mock/          # KYC-gated DeFi vault

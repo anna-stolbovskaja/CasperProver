@@ -4,7 +4,7 @@
 
 ## ✅ What's Live
 
-### Smart Contracts (7 on testnet — see `docs/TX_MANIFEST.md` for hashes)
+### Smart Contracts (8 on testnet — see `docs/TX_MANIFEST.md` for hashes)
 - **proof-registry** — immutable proof store with on-chain anchoring
 - **verifier-gate** — Merkle inclusion proof checker, cross-contract verification
 - **defi-mock** — KYC-gated DeFi vault with admin-controlled whitelisting
@@ -12,6 +12,7 @@
 - **proof-of-inference** — on-chain verification of ZK inference proofs (deployed 2026-07-25)
 - **model-registry** — canonical model-hash registry with owner controls (deployed 2026-07-25)
 - **proof-aggregation** — batch anchor of aggregated proof roots (deployed 2026-07-25)
+- **governance** — commit-reveal governance with guardian set (anna / alexbelij / triumphkrug), downstream contracts opt in via `is_executed(pid)` (deployed 2026-07-26)
 
 All contract WASM is built in CI (`.github/workflows/check.yml →
 build-contracts`) with a size gate: `scripts/contract-size-report.sh`

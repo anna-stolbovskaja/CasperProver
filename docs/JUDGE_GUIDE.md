@@ -55,9 +55,9 @@ Every judge-facing badge on the site resolves through a single `TrustStatus` com
 | Label | Where it appears | What it means |
 |---|---|---|
 | **Real cryptography** | `/lab/zk-proofs` — Groth16 Real Prove, Groth16 Real Verify | Real primitive in the CasperProver engine (gnark BN254 Groth16, ML-DSA-65, Ed25519). Executes off-chain. |
-| **On-chain** | `/lab/contracts` — the four deployed contract cards (`proof-registry`, `verifier-gate`, `defi-mock`, `stake-slashing`) | Deployed on Casper testnet with a real contract hash; click through to the CSPR.live explorer. |
+| **On-chain** | `/lab/contracts` — all eight deployed contract cards (`proof-registry`, `verifier-gate`, `defi-mock`, `stake-slashing`, `proof-aggregation`, `model-registry`, `proof-of-inference`, `governance`) | Deployed on Casper testnet with a real contract hash; click through to the CSPR.live explorer. |
 | **Simulation** | `/lab/zk-proofs` — Groth16 Conceptual (Hash-Based) | Illustrative hash-based flow, not real pairing verification. |
-| **Built, not deployed** | `/lab/contracts` — the three source-only cards (`proof-of-inference`, `model-registry`, `proof-aggregation`) | Rust source is in `contracts/` and reviewable on GitHub, but the contract has no on-chain address. |
+| **Built, not deployed** | `/lab/contracts` — the two source-only cards (`zk-verifier`, `stake-slashing-session`) | Rust source is in `contracts/` and reviewable on GitHub, but the contract has no on-chain address. |
 
 Badges are strictly restricted to the four values above. "Verified", "live", "production-ready", "audited" are never used. The mapping between a UI element and its label is driven by an existing structured source — either the deployed contract table (`deployed: true|false`) or the presence of the real Groth16 endpoint — not by copy.
 
