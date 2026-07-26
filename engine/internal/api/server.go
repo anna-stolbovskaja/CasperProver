@@ -59,6 +59,7 @@ type Server struct {
 	start     time.Time
 	apiKey    string
 	strict    bool // fail closed for requested on-chain operations
+	scopeReg  *ScopeRegistry // optional per-key scope allowlist; nil = disabled
 
 	aggMu      sync.Mutex
 	aggBatches map[string]*aggBatch
