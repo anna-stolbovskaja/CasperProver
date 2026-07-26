@@ -27,7 +27,8 @@ import LabPlayground from './components/lab/Playground'
 import KYC from './components/lab/KYC'
 import ZKProofs from './components/lab/ZKProofs'
 import AttackEvidence from './components/lab/AttackEvidence'
-import Decisions from './components/lab/Decisions' 
+import Decisions from './components/lab/Decisions'
+import JudgeDashboard from './components/JudgeDashboard' 
 import ApiDocs from './components/docs/ApiDocs'
 import SdkDocs from './components/docs/SdkDocs'
 import McpDocs from './components/docs/McpDocs'
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="attack-evidence" element={<AttackEvidence />} />
             <Route path="decisions" element={<Decisions />} />
           </Route>
+          <Route path="/judge" element={<JudgeDashboard />} />
           <Route path="/docs/api" element={<ApiDocs />} />
           <Route path="/docs/sdk" element={<SdkDocs />} />
           <Route path="/docs/mcp" element={<McpDocs />} />
