@@ -48,6 +48,12 @@ replaced with counsel-reviewed versions before commercial launch
 
 ## 🔜 Roadmap
 
+### Operations (added by Pack AH)
+
+- Ops runbook shipped as `docs/OPS_RUNBOOKS.md` — REAL playbook but DRAFT until it is exercised in an actual incident. Blue/green playbook is validated locally via `scripts/lb_flip_test.sh` (5 offline tests) but has not yet been exercised on a real cloud load balancer.
+- SLO alert rules under `deploy/observability/alerts/` are `promtool check`-clean and have 4 `promtool test rules` unit-tests. They are NOT wired to a paid pager — Alertmanager routes to a null receiver until MAINNET_LAUNCH_PLAN.md unlocks paid on-call.
+- No on-call rotation. Single-maintainer mode until investment.
+
 ### Near-term
 - Real Groth16 circuit for full model-inference verification (current: MiMC preimage)
 - Production trusted setup ceremony (current: per-start generation) — see `docs/KEY_CEREMONY_PLAN.md`
