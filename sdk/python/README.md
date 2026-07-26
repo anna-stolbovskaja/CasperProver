@@ -1,8 +1,8 @@
 # CasperProver Python SDK
 
-> **Status:** `v0.1.0-scaffold`. The client code lives in
-> `sdk/python_client.py` today; this directory is the packaging story for
-> the next 30 days (see `docs/roadmap/30-DAY.md`).
+> **Status:** `v0.1.0`. Full-feature client with `prove`, `verify`, `batch`,
+> `anchor`, and a shared receipt validator. Feature parity with the Go and
+> TypeScript SDKs.
 
 ## Install (once published)
 
@@ -10,62 +10,48 @@
 pip install casperprover
 ```
 
-Until the first release, consumers add the repo checkout to `PYTHONPATH`
-and import directly:
+Until the first release, consumers add the repo checkout to `PYTHONPATH`:
 
 ```python
 import sys
-sys.path.insert(0, "/path/to/CasperProver")
-from sdk.python_client import ProverClient
+sys.path.insert(0, "/path/to/CasperProver/sdk/python")
+from casperprover import Client, ProveRequest
 ```
 
 ## Quickstart
 
 ```python
-from sdk.python_client import ProverClient
+from casperprover import Client, ProveRequest, verify_receipt_bytes
 
-client = ProverClient(
-    base_url="https://api.casperprover.example",
-    api_key="sk_tenant_...",
+c = Client(base_url="https://casperprover-api-ylsh.onrender.com",
+           api_key="pk_...")
+
+proof = c.prove(
+    ProveRequest(agent="a", model="gpt-toy-v1",
+                 input="hello", output="42"),
+    idempotency_key="run-1",
 )
+print(proof.id, proof.vk_hash)
 
-proof = client.submit(
-    agent_id="agent-1",
-    input_bytes=b"hello",
-    output_bytes=b"world",
-    model_hash=b"modelhash-...",
-    kind="inference",
-)
-print(proof["id"], proof["verdict"], proof["confidence"])
-
-assert client.verify(proof["id"])
+check = c.verify(proof.id)
+assert check.valid
 ```
 
-## Version support table
+Every write primitive accepts `idempotency_key=` — safe retries against the
+server-side dedup cache (24h TTL).
 
-| SDK version | Engine API version | Notes                     |
-|-------------|--------------------|---------------------------|
-| `v0.1.x`    | `v0` (implicit)    | Pre-`/v1/` routes         |
-| `v0.2.x`    | `v1`               | After `docs/roadmap/API_LIFECYCLE.md` migration |
+Legacy unversioned routes: `Client(..., api_version="")`.
 
-## Publish plan (30-day)
+## Receipt validator
 
-1. Extract `sdk/python_client.py` into a real package layout:
-   ```
-   sdk/python/
-     pyproject.toml
-     src/casperprover/__init__.py
-     src/casperprover/client.py
-     tests/test_smoke.py
-   ```
-2. Add `pytest` + `mypy --strict` in CI.
-3. First tag `v0.1.0` after a green smoke against a live testnet-facing
-   engine.
+`verify_receipt_bytes(payload)` and `verify_receipt(dict)` re-derive
+`input_hash`, `output_hash`, and `model_hash` locally (SHA-256 of the UTF-8
+plaintext) and raise `ReceiptValidationError` on any mismatch. Bit-identical
+output to `sdk/receipt.go` and `sdk/typescript/src/receipt.ts`.
 
-## Smoke test (today)
+## Test
 
 ```sh
-python3 -m pytest sdk/python_client_test.py
+cd sdk/python
+python3 -m unittest casperprover.tests.test_client -v
 ```
-
-_(The test file will be added alongside the extraction step.)_
