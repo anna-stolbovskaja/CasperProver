@@ -197,11 +197,6 @@ func buildJudgeTask(req judgeRequest) (*judge.Task, error) {
 	return task, nil
 }
 
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
-}
 
 func writeJSONErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
