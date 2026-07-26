@@ -1,5 +1,7 @@
 # Threshold BLS Quorum Registry — Design
 
+> **Status:** PARTIALLY SHIPPED. Off-chain layer (`engine/internal/quorum/` + `/v1/quorum/*` API) is live — see `docs/BLS_QUORUM.md` for the honest contract of what shipped. On-chain contract, DKG-based TSS, and rogue-key PoP challenge protocol remain planning-doc scope.
+
 Ref: `handoff/CP_FINAL_TASKS_V2.md` §D.
 
 ## Problem
