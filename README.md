@@ -273,6 +273,24 @@ The `stake-slashing` contract adds real economic consequences for dishonest agen
 
 ## SDK & MCP
 
+### Python SDK + `cprover` CLI
+
+```bash
+pip install -e sdk/python   # or: pip install casperprover-sdk
+
+export CP_BASE_URL=https://casperprover-api-ylsh.onrender.com
+cprover health
+cprover proofs list
+cprover proofs verify <proof_id>
+cprover proofs submit --agent-id agent-1 \
+    --input "prompt" --output "reply" --model "model-v1" \
+    --use-case inference
+```
+
+Entry points: `cprover` (short), `casperprover` (long alias). We intentionally do **not** register `cp` — it collides with the built-in Unix copy command.
+
+Full CLI reference: [`docs/CLI.md`](docs/CLI.md).
+
 ### Go SDK (32 methods)
 
 ```go
