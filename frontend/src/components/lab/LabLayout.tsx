@@ -13,7 +13,7 @@ import {
   Menu,
   X,
   Home,
-  Github,
+  Link2,
   BookOpen,
   Code2,
   Cpu,
@@ -81,7 +81,7 @@ const tabs: LabTab[] = tabGroups.flatMap(g => g.tabs);
 
 const externalLinks = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'GitHub', href: 'https://github.com/anna-stolbovskaja/CasperProver', icon: Github },
+  { name: 'GitHub', href: 'https://github.com/anna-stolbovskaja/CasperProver', icon: Link2 },
   { name: 'API Docs', href: '/docs/api', icon: BookOpen },
   { name: 'SDK Docs', href: '/docs/sdk', icon: Code2 },
   { name: 'MCP Docs', href: '/docs/mcp', icon: Cpu },

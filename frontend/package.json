@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "prebuild": "bash ../scripts/sync-onchain.sh",
+    "predev": "bash ../scripts/sync-onchain.sh",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
