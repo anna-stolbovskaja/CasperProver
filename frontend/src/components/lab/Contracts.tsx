@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SectionIntro from './SectionIntro';
 import TrustStatus from '../TrustStatus';
-import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink } from 'lucide-react';
+import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink, Landmark } from 'lucide-react';
 import { loadManifest, OnChainManifest } from '../../lib/onchain';
 
 // Presentation-only metadata (icon, purpose, lines) keyed by manifest name.
@@ -24,6 +24,7 @@ const PRESENTATION: PresentationMeta[] = [
   { key: 'proof_of_inference', name: 'proof-of-inference', purpose: 'Full inference proof contract — records model hash, input/output commitments, and verification result on-chain for each AI decision.', icon: Brain, lines: 498 },
   { key: 'model_registry', name: 'model-registry', purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.', icon: Box, lines: 372 },
   { key: 'proof_aggregation', name: 'proof-aggregation', purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.', icon: Layers, lines: 179 },
+  { key: 'governance', name: 'governance', purpose: '48-hour timelock with 2-of-3 guardian recovery — governs upgrades and admin actions across the other contracts.', icon: Landmark, lines: 581 },
 ];
 
 interface ContractRow extends PresentationMeta {
