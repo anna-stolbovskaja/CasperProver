@@ -4,7 +4,12 @@ import { BrowserRouter } from 'react-router-dom'
 import { ToastProvider } from './lib/toast'
 import ToastBridge from './lib/ToastBridge'
 import App from './App'
+import { installDevConsoleInfo } from './lib/devConsole'
 import './index.css'
+
+// Read-only devtools banner: contract status + /health snapshot + repo
+// links. See lib/devConsole.ts.
+installDevConsoleInfo()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -239,7 +239,15 @@ const LabLayout: React.FC = () => {
             carries an aria-label so purpose is machine-readable without
             adding visual noise or changing per-tab hit targets.
           */}
-          <nav className="hidden md:flex overflow-x-auto -mb-px scrollbar-none" aria-label="Lab sections">
+          {/*
+            Desktop tab row wraps onto a second line instead of scrolling
+            horizontally. With 4 groups / 11 tabs this row is wider than most
+            desktop viewports below ~1440px; overflow-x-auto used to hide the
+            tail of the row behind a scrollbar with no visual affordance
+            (no arrows, no fade), so half the tabs were invisible unless you
+            knew to scroll. flex-wrap keeps every tab always visible.
+          */}
+          <nav className="hidden md:flex flex-wrap items-center gap-y-1.5 -mb-px" aria-label="Lab sections">
             {tabGroups.map((group, gi) => (
               <div
                 key={group.key}
