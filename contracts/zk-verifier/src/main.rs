@@ -60,6 +60,22 @@ const ERR_INVALID_HEX: u16 = 9;
 const ERR_PAUSED: u16 = 10;
 
 // ---- storage keys --------------------------------------------------------
+//
+// SECURITY FIX REDEPLOY (2026-07-27/28, see docs/DEPLOYMENT_LESSONS.md
+// Lesson 3): `storage::new_dictionary`/`new_uref` write their NamedKey
+// directly onto the *calling account's* context and revert with
+// `ApiError::InvalidArgument [3]` if a key with that name already exists
+// there. The anna-stolbovskaja account already held `vks`/`verdicts`/
+// `verifiers` from the first (vulnerable) install, so every installOrUpgrade
+// attempt from that account reverted before ever reaching the
+// governance_approved fix - regardless of wasm content. Confirmed this is
+// not just a naming collision (renaming to `_v2` alone from the SAME account
+// still reverted identically); the proven Lesson-3 fix is deploying from a
+// clean wallet that has never installed a CP contract before. Deployed here
+// from a fresh dedicated wallet (see docs/roadmap/ZK_VERIFIER_REDEPLOY_2026-07-27.md);
+// dict/owner/paused names left as originally shipped, `_v2` kept only on the
+// package/contract identity below to make clear this is a distinct on-chain
+// install, not an in-place upgrade of the original package.
 const OWNER_KEY: &str = "owner";
 const PAUSED_KEY: &str = "paused"; // u64: 0 live, blocktime paused
 const VERIFIERS_DICT: &str = "verifiers"; // account_hash_hex -> VerifierRec
@@ -520,9 +536,9 @@ pub extern "C" fn call() {
     let (ch, _) = storage::new_contract(
         ep,
         Some(nk),
-        Some("zk_verifier_pkg".into()),
-        Some("zk_verifier_access".into()),
+        Some("zk_verifier_v2_pkg".into()),
+        Some("zk_verifier_v2_access".into()),
         None,
     );
-    runtime::put_key("zk_verifier", ch.into());
+    runtime::put_key("zk_verifier_v2", ch.into());
 }

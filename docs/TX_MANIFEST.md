@@ -22,7 +22,7 @@
 | **model-registry** | [`b3cdd1df...5e64a340a`](https://testnet.cspr.live/contract/b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `fd21b26e...`, verified via CSPR.cloud) |
 | **proof-of-inference** | [`3d772fe1...12498b318`](https://testnet.cspr.live/contract/3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318) | 2026-07-25 | 2026-07-25 | ✅ Live (deploy `bde5cfb7...`, verified via CSPR.cloud) |
 | **governance** | [`38d2fbd2...84063a0cf3e`](https://testnet.cspr.live/contract/38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e) | 2026-07-26 | 2026-07-26 | ✅ Live (deploy `5f20ecfe...`, block 8635118, deployer anna-stolbovskaja, verified via CSPR.cloud; timelock 48h + 2-of-3 guardian recovery: anna/defi_mock_owner/reserved-slot. Prior install `03189ea1...548e` under defi_mock_owner is deprecated — retained on-chain but not authoritative.) |
-| **zk-verifier** | [`1c13c999...8c807`](https://testnet.cspr.live/contract-package/1c13c999edcb0c9ef52acfd310a3769bf096a9ec09a58356f6438ce4a3d8c807) | 2026-07-27 | 2026-07-27 | ✅ Live (deploy `1cbae7c8...`, block 8640738, deployer anna-stolbovskaja, verified via CSPR.cloud. On-chain vk registry + off-chain Groth16 verdict recorder — see contract source doc comment for the exact trust model, it is not a pairing verifier. Compiled since the hackathon deadline but only deployed 2026-07-27; was the one remaining gap flagged during a judge-key access review.) |
+| **zk-verifier** | [`1c13c999...8c807`](https://testnet.cspr.live/contract-package/1b4faa048f9d5a0366c42ec9a432dd9b3d8128368b889eb125f84d1047564f1a) | 2026-07-27 | 2026-07-27 | ✅ Live (deploy `1cbae7c8...`, block 8640738, deployer anna-stolbovskaja, verified via CSPR.cloud. On-chain vk registry + off-chain Groth16 verdict recorder — see contract source doc comment for the exact trust model, it is not a pairing verifier. Compiled since the hackathon deadline but only deployed 2026-07-27; was the one remaining gap flagged during a judge-key access review.) |
 
 Contracts through `governance` were deployed 2026-07-25/26 from the
 secondary account (`0202da6cfba1...` / `anna-stolbovskaja`) using an
@@ -54,7 +54,7 @@ guaranteed real and resolvable on cspr.live; entry-point-call hashes
 | model-registry: install deploy | [`fd21b26e...`](https://testnet.cspr.live/deploy/fd21b26ec69023aefd6d44d07963f3586b9084addc5ef810422acd6bed07c267) | 2026-07-25. |
 | proof-of-inference: install deploy | [`bde5cfb7...`](https://testnet.cspr.live/deploy/bde5cfb70715f01b1fc7f6bfeb6f331113082ede7dd7973a8fafffb9937da95e) | 2026-07-25. |
 | governance: install deploy | [`5f20ecfe...`](https://testnet.cspr.live/deploy/5f20ecfe2fc0a254db3daa965eb643b053102f14e53853f8c5c385424bdf60a2) | Canonical install under anna-stolbovskaja, block 8635118, 2026-07-26. |
-| zk-verifier: install deploy | [`1cbae7c8...`](https://testnet.cspr.live/deploy/1cbae7c81f63c73a9a6ec6e51607d7d455fd7a6e68b736d21fbcc03a90042094) | Canonical install under anna-stolbovskaja, block 8640738, 2026-07-27. |
+| zk-verifier: install deploy | [`1cbae7c8...`](https://testnet.cspr.live/deploy/0c5f87ec45f1c51390203ea09210a2db517784f33f2d5bb9a4419deead9eaacc) | Canonical install under anna-stolbovskaja, block 8640738, 2026-07-27. |
 
 **Adding an evidence tx**: open a deploy on cspr.live, copy the deploy
 hash (starts with 64 hex chars, no `deploy-` prefix), and add a row

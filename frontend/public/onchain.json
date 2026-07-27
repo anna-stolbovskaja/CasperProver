@@ -155,10 +155,10 @@
             "notes": "MVP-clean WASM (governance_v2_pkg, unique NamedKeys). Deployed under anna-stolbovskaja after defi_mock_owner NamedKey collision on prior install. Timelock 48h. Owner bootstraps from get_caller at install (anna). 3 guardians: anna + defi_mock_owner + zero-hex reserved slot (to be populated at mainnet ceremony per MAINNET_LAUNCH_PLAN.md). 2-of-3 recovery for lost-key case. Prior contract 03189ea1\u2026548e (under defi_mock_owner) deprecated \u2014 retained on-chain but not authoritative. Closes BACKLOG 1.6, 1.9, 1.10, 1.11 as standalone contract."
         },
         "zk_verifier": {
-            "contract_hash": "4a5d09419fbc147e4114adb2e50473addd5d7057ae58c6223e0edaa4fb89a262",
-            "contract_package_hash": "1c13c999edcb0c9ef52acfd310a3769bf096a9ec09a58356f6438ce4a3d8c807",
-            "deploy_hash": "1cbae7c81f63c73a9a6ec6e51607d7d455fd7a6e68b736d21fbcc03a90042094",
-            "deployer": "0202e554b557851b894830b3814fc0f5df7e147937400c537fe5252fc53f4e25257e",
+            "contract_hash": "4500da5d314f11f8a535b9c70fb67729da6b452efc6c302abf292b42b6dc96a1",
+            "contract_package_hash": "1b4faa048f9d5a0366c42ec9a432dd9b3d8128368b889eb125f84d1047564f1a",
+            "deploy_hash": "0c5f87ec45f1c51390203ea09210a2db517784f33f2d5bb9a4419deead9eaacc",
+            "deployer": "0202d6730cb70d42a45f78c605368105f5d4539f7966f530a8849eea766b3b831f3f",
             "version": 1,
             "deployed_at": "2026-07-27T10:08:06Z",
             "source": "contracts/zk-verifier/src/main.rs",
@@ -175,7 +175,7 @@
                 "pause",
                 "unpause"
             ],
-            "notes": "MVP-clean WASM (53107 B) - same nightly-2025-01-01 + build-std recipe as governance/proof-aggregation/model-registry/proof-of-inference. On-chain ZK verifier registry / verdict recorder (BACKLOG 1.8): stores vk digests + records off-chain Groth16 verifier verdicts; NOT a pairing verifier (Casper Condor 2.x has no precompiled pairing, BACKLOG 1.14). Owner = caller at install time (anna-stolbovskaja, same account as the other 8 canonical contracts). This was the one contract still only compiled, never deployed, as of 2026-07-27 - closes that gap; CasperProver now has 9 contracts live on testnet."
+            "notes": "MVP-clean WASM (53107 B) - same nightly-2025-01-01 + build-std recipe as governance/proof-aggregation/model-registry/proof-of-inference. On-chain ZK verifier registry / verdict recorder (BACKLOG 1.8): stores vk digests + records off-chain Groth16 verifier verdicts; NOT a pairing verifier (Casper Condor 2.x has no precompiled pairing, BACKLOG 1.14). Owner = caller at install time (anna-stolbovskaja, same account as the other 8 canonical contracts). This was the one contract still only compiled, never deployed, as of 2026-07-27 - closes that gap; CasperProver now has 9 contracts live on testnet. REDEPLOYED 2026-07-27/28 to fix a P0 owner-check bypass (see docs/SECURITY_AUDIT.md sec 2.10) - installOrUpgrade from the original anna-stolbovskaja account deterministically reverted (ApiError::InvalidArgument, pre-existing vks/verdicts/verifiers NamedKeys on that account per docs/DEPLOYMENT_LESSONS.md Lesson 3), so this redeploy used a fresh dedicated wallet instead. Owner/admin key for register_vk/disable_vk/pause/unpause is therefore this new deployer key, NOT anna-stolbovskaja (the only one of the 9 contracts where this differs) - see docs/roadmap/ZK_VERIFIER_REDEPLOY_2026-07-27.md."
         }
     },
     "verification": {

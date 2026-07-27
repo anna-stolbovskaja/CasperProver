@@ -246,7 +246,7 @@ All nine contracts are live — canonical manifest: [`deploy-out/onchain.json`](
 | **model-registry** | [`b3cdd1df…340a`](https://testnet.cspr.live/contract/b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a) | Model provenance registry |
 | **proof-of-inference** | [`3d772fe1…b318`](https://testnet.cspr.live/contract/3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318) | Inference attestation ledger |
 | **governance** | [`38d2fbd2…cf3e`](https://testnet.cspr.live/contract/38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e) | Timelock (48h) + 2-of-3 guardian recovery |
-| **zk-verifier** | [`4a5d0941…a262`](https://testnet.cspr.live/contract/4a5d09419fbc147e4114adb2e50473addd5d7057ae58c6223e0edaa4fb89a262) | On-chain vk registry + off-chain Groth16 verdict recorder |
+| **zk-verifier** | [`4a5d0941…a262`](https://testnet.cspr.live/contract/4500da5d314f11f8a535b9c70fb67729da6b452efc6c302abf292b42b6dc96a1) | On-chain vk registry + off-chain Groth16 verdict recorder |
 
 **On-chain activity:** 248+ testnet transactions across contract deploys and entry-point calls.
 
