@@ -488,7 +488,13 @@ func (s *Server) Start() error {
 	registry := obs.NewRegistry()
 	httpMetrics := obs.NewHTTPMetrics(registry)
 	s.obsRegistry = registry
-	mux.Handle("GET /metrics", obs.Handler(registry))
+	// Route registered here only when the newer Prometheus registry (s.metrics)
+	// isn't wired up -- otherwise the two collide (net/http's ServeMux panics
+	// on duplicate exact-pattern registration). See the s.metrics != nil block
+	// below, which takes over "GET /metrics" when available.
+	if s.metrics == nil {
+		mux.Handle("GET /metrics", obs.Handler(registry))
+	}
 
 	var tracer *obs.Tracer
 	if os.Getenv("CP_TRACES_ENABLED") == "1" {
