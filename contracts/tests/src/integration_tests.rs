@@ -307,6 +307,7 @@ mod proof_aggregation_tests {
             validate_create_batch("batch-001", 0, true).unwrap_err(),
             ERR_ZERO_MAX_PROOFS
         );
+    }
 }
 
 // ---------------------------------------------------------------------------
