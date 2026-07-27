@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import SectionIntro from './SectionIntro';
 import TrustStatus from '../TrustStatus';
-import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink, Landmark } from 'lucide-react';
+import { Link as LinkIcon, FileText, Code, Shield, Swords, Box, Layers, Brain, ExternalLink, Landmark, KeyRound } from 'lucide-react';
 import { loadManifest, OnChainManifest } from '../../lib/onchain';
 
 // Presentation-only metadata (icon, purpose, lines) keyed by manifest name.
@@ -25,6 +25,7 @@ const PRESENTATION: PresentationMeta[] = [
   { key: 'model_registry', name: 'model-registry', purpose: 'On-chain model versioning registry — tracks model hashes, ownership, and version history for provenance auditing.', icon: Box, lines: 372 },
   { key: 'proof_aggregation', name: 'proof-aggregation', purpose: 'Batch aggregation contract — stores Merkle roots of aggregated proof batches for gas-efficient on-chain verification.', icon: Layers, lines: 179 },
   { key: 'governance', name: 'governance', purpose: '48-hour timelock with 2-of-3 guardian recovery — governs upgrades and admin actions across the other contracts.', icon: Landmark, lines: 581 },
+  { key: 'zk_verifier', name: 'zk-verifier', purpose: 'On-chain vk registry + verdict recorder for Groth16 proofs — records what an off-chain verifier decided (proof_hash, vk_hash, verdict), not a pairing verifier itself.', icon: KeyRound, lines: 536 },
 ];
 
 interface ContractRow extends PresentationMeta {

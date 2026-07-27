@@ -19,6 +19,7 @@ _FALLBACK_CONTRACTS = {
     "Model Registry": "b3cdd1df25714b341e34f6bb29f6c7900267e44c7742c81221e1eab5e64a340a",
     "Proof of Inference": "3d772fe1618fde438c4ffdaec22d83ffd9b4a1d769d6da32a38d56f12498b318",
     "Governance": "38d2fbd24998719fac160c27e2e5435a99bcdebd4c36beac76abe84063a0cf3e",
+    "ZK Verifier": "4a5d09419fbc147e4114adb2e50473addd5d7057ae58c6223e0edaa4fb89a262",
 }
 _FALLBACK_API = "https://casperprover-api-ylsh.onrender.com"
 _FALLBACK_SITE = "https://casperprover.xyz"
@@ -33,6 +34,7 @@ _MANIFEST_KEYS = {
     "Model Registry": "model_registry",
     "Proof of Inference": "proof_of_inference",
     "Governance": "governance",
+    "ZK Verifier": "zk_verifier",
 }
 
 

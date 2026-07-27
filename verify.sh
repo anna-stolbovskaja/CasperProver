@@ -5,7 +5,7 @@
 # Default API: https://casperprover-api-ylsh.onrender.com
 #
 # Checks:
-#   1. All 8 contracts exist on Casper testnet (via RPC)
+#   1. All contracts in deploy-out/onchain.json exist on Casper testnet (via RPC) — 9 as of 2026-07-27
 #   2. API is live and returns health
 #   3. Proof creation round-trip works
 #   4. Frontend serves HTML

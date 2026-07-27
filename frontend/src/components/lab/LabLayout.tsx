@@ -124,7 +124,7 @@ const DemoModeInfo: React.FC<{ onClose: () => void }> = ({ onClose }) => (
               ['Models', 'On-chain model registry via verifier_gate smart contract'],
               ['ZK Proofs', 'Real Groth16 zero-knowledge proofs computed in real-time via gnark'],
               ['PQ Crypto', 'Real ML-DSA-65 post-quantum digital signatures (FIPS 204)'],
-              ['Contracts', '4 smart contracts deployed on Casper testnet with verified deploy hashes'],
+              ['Contracts', '9 smart contracts deployed on Casper testnet with verified deploy hashes'],
               ['Aggregation', 'Live batch operations via proof_aggregation engine (session-scoped)'],
               ['KYC', 'Privacy-preserving KYC verification through zero-knowledge proofs'],
               ['Playground', 'API Playground (32 endpoints) + Agent Playground (full pipeline demo)'],

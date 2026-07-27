@@ -37,7 +37,7 @@ export default function Footer() {
               <img src="/images/casper-logo.png" alt="Casper" className="h-5 w-auto" />
               <span className="text-sm text-gray-400">Casper Network</span>
             </div>
-            <p className="text-xs text-gray-600">8 smart contracts, all deployed on Casper testnet. Proof storage, verification, staking, aggregation, model registry, inference, governance, and DeFi registry.</p>
+            <p className="text-xs text-gray-600">9 smart contracts, all deployed on Casper testnet. Proof storage, verification, staking, aggregation, model registry, inference, governance, DeFi registry, and ZK verifier.</p>
           </div>
         </div>
         <div className="border-t border-gray-800/50 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4">

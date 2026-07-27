@@ -8,13 +8,13 @@ Shortest reproducible path through CasperProver, mapped to the eight judging cri
 python3 scripts/judge_demo.py
 ```
 
-Read-only by default: queries all **eight** Casper testnet contracts, API health/proofs, and the frontend. For the real Groth16 write round-trip:
+Read-only by default: queries all **nine** Casper testnet contracts, API health/proofs, and the frontend. For the real Groth16 write round-trip:
 
 ```bash
-CP_JUDGE_API_KEY='provided-out-of-band' python3 scripts/judge_demo.py
+CP_JUDGE_API_KEY='request-from-team' python3 scripts/judge_demo.py
 ```
 
-The key is delivered out-of-band in the submission notes, is not embedded anywhere in the repo/URL/shell history, and is revoked after judging.
+**This round's submission form has no free-text field for accompanying notes, so the key isn't pre-delivered anywhere.** If you want to run the authenticated write round-trip, open a GitHub issue on this repo (or message us via the DoraHacks submission page) and we'll hand you the key directly — it's never committed, logged, or embedded in the repo/URL/shell history, and gets revoked after judging. Every read-only check above works with zero setup regardless.
 
 Second lane, if you prefer a shell-only path:
 
@@ -57,7 +57,7 @@ Anchor: `deploy-out/onchain.json` is the single source of truth (SDK, frontend, 
 
 | # | Criterion | Where to look | Evidence |
 |---|---|---|---|
-| 1 | **Technical execution** | `scripts/judge_demo.py`, `./verify.sh`, contracts in `contracts/*/src/main.rs` | 8/8 contracts deployed on testnet, verify.sh 8/8 pass rate, gitleaks clean, no `unsafe` in engine, Rust nightly MVP-clean WASM (sign-ext lowered, mutable-globals off) |
+| 1 | **Technical execution** | `scripts/judge_demo.py`, `./verify.sh`, contracts in `contracts/*/src/main.rs` | 9/9 contracts deployed on testnet, verify.sh 9/9 pass rate, gitleaks clean, no `unsafe` in engine, Rust nightly MVP-clean WASM (sign-ext lowered, mutable-globals off) |
 | 2 | **Innovation / originality** | `docs/architecture.md`, `docs/originality.md`, `contracts/proof-aggregation/`, `contracts/proof-of-inference/` | Merkle-anchored agent-decision attestations on Casper; hybrid PQ signatures (Ed25519 + ML-DSA-65); batched proof aggregation; governance timelock with 2-of-3 guardian recovery |
 | 3 | **Casper Network fit** | `deploy-out/onchain.json`, `deploy/scripts/*.sh`, `sdk/casper-native/` | Purse-backed staking, NamedKey addressing, contract packages (versioned), native `casper_client` deploys, no external L1 dependency |
 | 4 | **Real-world use case** | `docs/use-cases.md`, `/lab/defi-mock` frontend, `contracts/defi-mock/` | Regulated lending gate (KYC + on-chain whitelist), healthcare provenance path, agent audit for HITL policy |

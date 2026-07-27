@@ -55,13 +55,18 @@ type contractHashes struct {
 	VerifierGate  string
 	DefiMock      string
 	StakeSlashing string
-	// The remaining 4 of the 8 live contracts. These are manifest-only
+	// The remaining 5 of the 9 live contracts. These are manifest-only
 	// (deploy-out/onchain.json), no CONTRACT_* env override exists for
 	// them and Preflight() does not require one — see the comment there.
 	ProofAggregation string
 	ModelRegistry    string
 	ProofOfInference string
 	Governance       string
+	// ZkVerifier was compiled since the hackathon deadline but only deployed
+	// to testnet on 2026-07-27 (see docs/UNDEPLOYED_CONTRACTS.md history).
+	// It is a verdict-recorder, not a pairing verifier — see its source doc
+	// comment for the exact trust model.
+	ZkVerifier string
 }
 
 type Server struct {
@@ -194,6 +199,7 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 		ModelRegistry:    manifestHashOrEnv("CONTRACT_MODEL_REGISTRY", "model_registry"),
 		ProofOfInference: manifestHashOrEnv("CONTRACT_PROOF_OF_INFERENCE", "proof_of_inference"),
 		Governance:       manifestHashOrEnv("CONTRACT_GOVERNANCE", "governance"),
+		ZkVerifier:       manifestHashOrEnv("CONTRACT_ZK_VERIFIER", "zk_verifier"),
 	}
 
 	nodeURL := os.Getenv("CASPER_NODE_URL")
@@ -788,6 +794,7 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 			"model_registry":     s.contracts.ModelRegistry,
 			"proof_of_inference": s.contracts.ProofOfInference,
 			"governance":         s.contracts.Governance,
+			"zk_verifier":        s.contracts.ZkVerifier,
 		},
 	})
 }
