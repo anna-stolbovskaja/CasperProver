@@ -659,9 +659,13 @@ mod zk_verifier_tests {
         }
     }
 
-    fn require_owner_or_gov(caller: &str, owner: &str, gov_ok: u64) -> Result<(), u16> {
+    // SECURITY FIX (2026-07-27): `gov_ok` used to be an unchecked bypass —
+    // any caller passing gov_ok=1 got owner privileges with no on-chain
+    // proof of an executed governance proposal. Mirrors the on-chain fix in
+    // contracts/zk-verifier/src/main.rs::require_owner_or_gov — the
+    // parameter is now ignored until a real cross-contract check exists.
+    fn require_owner_or_gov(caller: &str, owner: &str, _gov_ok: u64) -> Result<(), u16> {
         if caller == owner { return Ok(()); }
-        if gov_ok == 1 { return Ok(()); }
         Err(ERR_NOT_OWNER)
     }
     fn add_verifier(s: &mut State, caller: &str, v: &str) -> Result<(), u16> {
@@ -735,9 +739,14 @@ mod zk_verifier_tests {
         assert_eq!(register_vk(&mut s, "alex", 0, "mimc", &h64('a')).unwrap_err(), ERR_NOT_OWNER);
     }
     #[test]
-    fn gov_approved_call_accepted_from_non_owner() {
+    fn gov_approved_flag_no_longer_bypasses_owner_check() {
+        // Regression test for the P0 fix documented in docs/SECURITY_AUDIT.md
+        // section 2.10: gov_ok=1 must NOT let a non-owner caller through.
         let mut s = State::new("anna");
-        register_vk(&mut s, "gov-session", 1, "mimc", &h64('a')).unwrap();
+        assert_eq!(
+            register_vk(&mut s, "gov-session", 1, "mimc", &h64('a')).unwrap_err(),
+            ERR_NOT_OWNER
+        );
     }
     #[test]
     fn register_vk_bad_hash_rejected() {

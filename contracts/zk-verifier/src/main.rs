@@ -169,33 +169,25 @@ fn require_verifier(caller: &AccountHash) {
     }
 }
 
-/// Governance gate.
+/// Owner gate for vk lifecycle actions.
 ///
-/// Ownership rotation and vk lifecycle are governed by the owner directly OR
-/// by an executed proposal on the governance contract (commit D). To keep
-/// this contract's wasm under Casper's 65 KB install cap, we do NOT perform
-/// the cross-contract call from within this contract; instead the owner
-/// installer supplies `governance_approved: bool` on each admin call, which
-/// is provable off-chain by pointing at the governance contract's
-/// `is_executed(proposal_id)` -> 1. verifier-gate reads this via a session
-/// transaction that wraps both calls in one deploy.
+/// SECURITY FIX (2026-07-27, see docs/SECURITY_AUDIT.md section 2.10): this
+/// function used to accept a caller-supplied `governance_approved: u64` flag
+/// as an alternate path to owner privileges, with no on-chain verification
+/// that the flag was backed by an actual executed governance proposal. That
+/// let any account bypass owner control of `register_vk` / `disable_vk` by
+/// simply passing `governance_approved: 1` on a raw deploy - the "session
+/// proves it off-chain" story had no enforcement anywhere (the referenced
+/// scripts/register-vk.mjs never existed) and a client-side script cannot
+/// constrain what a different, adversarial deploy submits directly to chain.
 ///
-/// Concretely: `require_owner_or_gov(governance_approved)` allows the call
-/// iff caller==owner OR governance_approved==1. Governance approval is
-/// verified by the deployer session (see scripts/register-vk.mjs). The
-/// on-chain gate remains: without owner privileges, only a session that
-/// itself proved gov-approval can flip vk state.
-fn require_owner_or_gov(governance_approved: u64) {
-    let caller = runtime::get_caller();
-    if caller == get_owner() {
-        return;
-    }
-    if governance_approved != 1 {
-        runtime::revert(ApiError::User(ERR_NOT_OWNER));
-    }
-    // Session-based gov approval - deployer's session code must have called
-    // governance.is_executed before us and gated their runtime path on it.
-    // No cross-contract call needed here.
+/// Until a real on-chain check against the `governance` contract's
+/// `is_executed(proposal_id)` is added (a genuine cross-contract call, which
+/// needs a wasm-size budget pass first), vk lifecycle actions are owner-only.
+/// The `governance_approved` parameter is kept on the entry-point signature
+/// for ABI/tooling compatibility but is now ignored.
+fn require_owner_or_gov(_governance_approved: u64) {
+    require_owner();
 }
 
 fn write_uref<T: casper_types::bytesrepr::ToBytes + casper_types::CLTyped>(k: &str, v: T) {
