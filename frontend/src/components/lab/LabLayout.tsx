@@ -207,7 +207,7 @@ const LabLayout: React.FC = () => {
               {isConnected ? (
                 <button
                   onClick={() => signOut()}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 text-green-400 rounded-lg text-sm font-mono hover:bg-green-900/50 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-green-900/30 border border-green-700/50 text-green-400 rounded-full text-sm font-mono hover:bg-green-900/50 transition-colors"
                 >
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                   {publicKey ? shortKey(publicKey) : 'Connected'}
@@ -215,7 +215,7 @@ const LabLayout: React.FC = () => {
               ) : (
                 <button
                   onClick={() => signIn()}
-                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  className="hidden sm:flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-medium transition-colors"
                 >
                   <Wallet className="w-4 h-4" />
                   Connect Wallet
@@ -343,7 +343,7 @@ const LabLayout: React.FC = () => {
             {!isConnected && (
               <button
                 onClick={() => { signIn(); setMobileMenuOpen(false); }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full text-sm font-medium transition-colors"
               >
                 <Wallet className="w-4 h-4" />
                 Connect Wallet

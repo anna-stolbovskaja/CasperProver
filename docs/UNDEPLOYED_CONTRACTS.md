@@ -12,7 +12,8 @@
 > [`deploy-out/onchain.json`](../deploy-out/onchain.json) and confirmed
 > `processed` via `api.testnet.cspr.cloud/deploys/<hash>`. Canonical
 > status now lives in [`TX_MANIFEST.md`](TX_MANIFEST.md) — CasperProver
-> has **7 contracts live** on testnet, none pending.
+> has **8 contracts live** on testnet (including `governance`), none
+> pending.
 
 | Contract | Contract hash | Deploy hash | Deployed |
 |---|---|---|---|

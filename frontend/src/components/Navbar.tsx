@@ -65,7 +65,7 @@ export default function Navbar({ mobileOpen, setMobileOpen }: Props) {
         <div className="flex items-center gap-2">
           {/* No wallet button on landing — wallet connect is in Lab only */}
           {!isLab && (
-            <a href="/lab" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
+            <a href="/lab" className="hidden sm:inline-flex items-center gap-2 px-5 py-2 rounded-full bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors">
               Proof Lab
             </a>
           )}
