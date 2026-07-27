@@ -157,7 +157,7 @@ consumed per hour.
 4. **Communicate:** post to the incident channel with
    `INCIDENT-{{yyyy-mm-dd-N}}: availability burn on <route>`. Set severity to
    SEV-2 unless the burn covers > 3 routes simultaneously (then SEV-1).
-5. **After mitigation:** file post-incident review (§4.3).
+5. **After mitigation:** file post-incident review (§4.4).
 
 ### 3.2 <a name="availability-burn-slow"></a>`CPAvailabilityErrorBudgetBurnSlow` (ticket)
 
@@ -244,7 +244,19 @@ SEV-2 both notify the single maintainer via the local Alertmanager receiver.
 - If the fix is not mechanical (rollback), do NOT deploy again from `main`
   during the incident — freeze changes.
 
-### 4.3 Post-incident review
+### 4.3 Governance owner-key loss during an incident
+
+The `governance` contract's guardians (`anna-stolbovskaja` / `defi_mock_owner`
+/ reserved mainnet-ceremony slot) **cannot directly unpause** a paused
+contract or otherwise act as owner. If the owner key itself is the one lost
+or compromised during an incident, guardians must first complete
+`sign_recovery` → `execute_recovery` (2-of-3) to become the new owner, and
+only then call `propose_unpause` → `execute_unpause` (or any other
+owner-gated action) under the normal timelock. Budget for the 48h timelock
+when the incident timeline depends on this path — there is no emergency
+bypass. See `docs/SECURITY_AUDIT.md` §2.9 for the full guardian/pause model.
+
+### 4.4 Post-incident review
 
 Within 5 working days of resolution, file `docs/postmortems/YYYY-MM-DD-<slug>.md`
 with:

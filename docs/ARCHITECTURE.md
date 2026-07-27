@@ -169,3 +169,21 @@ Short version: single-owner-per-contract, no irreversible `renounce_ownership`
 anywhere, every cross-contract call is either read-only or a native purse
 transfer (no callback surface). Any new privileged entry point MUST be added to
 that audit before it merges.
+
+Ownership cheat sheet (full detail + verdicts in `SECURITY_AUDIT.md` §1):
+
+| Contract | Admin key | Mutable? | Renounce? | Verdict |
+|---|---|---|---|---|
+| `defi-mock` | `ADMIN_KEY` (deployer) | No | No | Safe |
+| `verifier-gate` | none | — | — | Safe (read-only proxy) |
+| `stake-slashing` | none | — | — | Safe (permissionless) |
+| `proof-registry` | none (per-record `agent`) | per-record | No | Safe |
+| `proof-of-inference` | `INSTALLER_KEY` | No | No | Advisory: hot deployer key |
+| `model-registry` | `INSTALLER_KEY` + per-model `owner` | Per-model transferable | No | Safe, dual-tier |
+| `proof-aggregation` | `INSTALLER_KEY` | No | No | Advisory: hot deployer key |
+| `governance` | `owner`, 48h-timelocked transfer | Yes | No | Safe — see §2.9 |
+| `zk-verifier` | `owner` (redeployed 2026-07-28 to dedicated wallet) | No direct rotation | No | Fixed and verified live — see §2.10 |
+
+No contract exposes `renounce_ownership()` today — intentional, see
+`SECURITY_AUDIT.md` §1 for the three preconditions that must ship before one
+is ever added.

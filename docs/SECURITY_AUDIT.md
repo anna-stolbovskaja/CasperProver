@@ -213,19 +213,20 @@ Every cross-contract reference is written to `NamedKeys` inside `call()` (instal
 
 ## 4. Follow-up items (opened as GitHub issues after this audit lands)
 
-0. ~~**[P0, blocking, added 2026-07-27]** `zk-verifier.register_vk` / `disable_vk` trust a caller-supplied `governance_approved` flag with zero on-chain verification.~~ **Done** — fixed, redeployed, and live-regression-tested on-chain 2026-07-28 (see 2.10). Remaining follow-up: propagate the new `contract_hash` to the live CP API's `CONTRACT_ZK_VERIFIER` Render env var (not yet done, no Render credentials in the fixing session).
+0. ~~**[P0, blocking, added 2026-07-27]** `zk-verifier.register_vk` / `disable_vk` trust a caller-supplied `governance_approved` flag with zero on-chain verification.~~ **Done** — fixed, redeployed, and live-regression-tested on-chain 2026-07-28 (see 2.10). The Render `CONTRACT_ZK_VERIFIER` env var was updated the same day and reconfirmed live via `/health`; fully closed, nothing outstanding.
 1. ~~**[P1, pre-Gate 2 blocking for `proof-aggregation`]** Fix `create_batch` silent overwrite — 10 LOC, add `ERR_BATCH_EXISTS` guard.~~ **Done** — fixed before the 2026-07-25 deploy, verified in code 2026-07-27 (see 2.7).
-2. **[P2, roadmap 30-day]** Two-step installer transfer (`pending_installer` + `accept_installer`) in `proof-of-inference`, `proof-aggregation`, `model-registry`. Same pattern applies to `governance`'s fixed guardian set (no rotation entry point today). **No** `renounce_installer` without a timelock module.
-3. **[P2, hygiene]** Normalize `model-registry`'s per-model `owner` from `format!("{:?}", caller)` to `caller.to_string()` — non-breaking behavior today but toolchain-fragile.
-4. **[P3, doc-only]** Add this file's summary table to `docs/ARCHITECTURE.md`'s security section so it's linked from the top-level architecture doc, not only referenced here.
-5. **[P3, runbook]** Document in the ops runbook that `governance` guardians cannot directly unpause — they must complete `sign_recovery`/`execute_recovery` to become owner first if the owner key itself is the one lost during an incident (see 2.9).
+2. **[P2, roadmap 30-day, NOT recommended pre-submission]** Two-step installer transfer (`pending_installer` + `accept_installer`) in `proof-of-inference`, `proof-aggregation`, `model-registry`. Same pattern applies to `governance`'s fixed guardian set (no rotation entry point today). **No** `renounce_installer` without a timelock module. Requires redeploying 3 contracts — the zk-verifier redeploy on 2026-07-28 already showed this class of change can fragment the owner-account set (see 2.10); doing it again this close to submission is not worth the risk for a cosmetic-today improvement.
+3. **[P2, hygiene, NOT recommended pre-submission]** Normalize `model-registry`'s per-model `owner` from `format!("{:?}", caller)` to `caller.to_string()` — non-breaking behavior today but toolchain-fragile. Also requires a redeploy; same reasoning as item 2 applies.
+4. ~~**[P3, doc-only]** Add this file's summary table to `docs/ARCHITECTURE.md`'s security section so it's linked from the top-level architecture doc, not only referenced here.~~ **Done 2026-07-28** — ownership cheat sheet embedded in `docs/ARCHITECTURE.md`'s Security posture section.
+5. ~~**[P3, runbook]** Document in the ops runbook that `governance` guardians cannot directly unpause — they must complete `sign_recovery`/`execute_recovery` to become owner first if the owner key itself is the one lost during an incident (see 2.9).~~ **Done 2026-07-28** — added as `docs/OPS_RUNBOOKS.md` §4.3.
 
 ---
 
 ## 5. Sign-off
 
 - Static audit complete on the pinned tree, extended 2026-07-27 to cover all 9 deployed contracts (`governance` and `zk-verifier` added).
-- **One P0 finding, now closed: `zk-verifier`'s `governance_approved` flag was an unauthenticated self-assertion with no on-chain enforcement — fixed, redeployed, and live-regression-tested 2026-07-28 (2.10). Only remaining step is a Render env var update, not a contract-level risk.**
+- **One P0 finding, now fully closed: `zk-verifier`'s `governance_approved` flag was an unauthenticated self-assertion with no on-chain enforcement — fixed, redeployed, live-regression-tested, and the Render `CONTRACT_ZK_VERIFIER` env var updated + reconfirmed via `/health`, all 2026-07-28 (2.10). Nothing outstanding.**
+- All P3 doc-only follow-ups (items 4 and 5 above) closed 2026-07-28. Remaining P2 items (2 and 3) are deliberately deferred pre-submission — both require a contract redeploy, which risks repeating the owner-account fragmentation seen with `zk-verifier` in 2.10, for cosmetic-only gain today.
 - The previously-flagged P1 (`proof-aggregation.create_batch` overwrite) was fixed before its contract went live — confirmed resolved.
 - Reentrancy: analyzed across all 9 contracts, low risk — every cross-contract call is read-only or a native transfer, and no callback surface exists; `governance` and `zk-verifier` make no cross-contract calls at all.
 - Ownership: single-owner model per contract with clear renounce policy = **no irreversible renounce anywhere**. `governance` adds 48h-timelocked owner rotation and 2-of-3 guardian recovery on top of that baseline.

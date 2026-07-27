@@ -6,6 +6,42 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased] — 2026-07-28
+
+### Fixed — critical (P0)
+
+- **`zk-verifier.register_vk`/`disable_vk` governance bypass closed and live.**
+  `require_owner_or_gov` trusted a caller-supplied `governance_approved` flag
+  with zero on-chain verification, letting any account register/disable
+  arbitrary verifying keys. Fixed in source, covered by a new regression test,
+  redeployed to a fresh contract (`4500da5d…dc96a1`) from a dedicated new
+  wallet (redeploying from the original owner account failed with
+  `ApiError::InvalidArgument` due to NamedKey/dictionary collisions — see
+  `docs/roadmap/ZK_VERIFIER_REDEPLOY_2026-07-27.md`). Render's
+  `CONTRACT_ZK_VERIFIER` env var updated and reconfirmed live via `/health`.
+  Live-regression-tested: non-owner `register_vk(governance_approved=1)` now
+  reverts `ERR_NOT_OWNER`. New owner account authorized as a verifier
+  (`add_verifier`) before the env var switch so the live
+  `POST /v1/zk/anchor-verdict` endpoint kept working uninterrupted. Full
+  `judge_demo.py` suite: 13/13 passing against the live API, including a real
+  Groth16 round-trip. See `docs/SECURITY_AUDIT.md` §2.10 for the complete
+  writeup.
+
+### Docs
+
+- `docs/ARCHITECTURE.md` — added the ownership cheat sheet to the Security
+  posture section (previously only linked to `SECURITY_AUDIT.md`, not
+  summarized inline).
+- `docs/OPS_RUNBOOKS.md` — added §4.3 documenting that `governance` guardians
+  cannot directly unpause; they must complete `sign_recovery`/`execute_recovery`
+  first if the owner key is the one lost during an incident.
+- `docs/SECURITY_AUDIT.md` — follow-up items 4 and 5 (both P3, doc-only)
+  marked done; items 2 and 3 (P2) explicitly marked "not recommended
+  pre-submission" since both require a contract redeploy and risk repeating
+  the owner-account fragmentation seen in this pass.
+
+---
+
 ## [Unreleased] — Post-Deadline Review Pass (2026-07-27)
 
 Full review/reconciliation pass, done after 07-26's judge/redeploy work.
