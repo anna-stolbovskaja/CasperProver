@@ -5,7 +5,7 @@
 ```mermaid
 graph TB
     subgraph "Frontend (Vite + TypeScript)"
-        UI[10 Interactive Tabs]
+        UI[11 Interactive Tabs]
         WC[CSPR.click Wallet]
     end
 

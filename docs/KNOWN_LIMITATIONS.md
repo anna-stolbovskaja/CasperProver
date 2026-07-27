@@ -41,7 +41,7 @@ record of that fix.
 - MCP server: 32 tools with full InputSchema definitions
 - All tools backed by real API — no stubs
 
-### Frontend (10 interactive tabs)
+### Frontend (11 interactive tabs)
 - Overview, Proofs, Models, Aggregation, ZK Proofs, PQ Crypto, Contracts, Agent Demo, Playground, KYC
 
 ## Legal & policy (drafts)

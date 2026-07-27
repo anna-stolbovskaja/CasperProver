@@ -32,7 +32,7 @@
 
 ---
 
-> **8 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **10 interactive lab tabs** · Real Groth16 ZK proofs (off-chain, gnark BN254 MiMC) · Post-quantum cryptography (ML-DSA-65 + Ed25519 hybrid) · Merkle-anchored proof-chain DAG
+> **8 smart contracts** live on Casper testnet · **248+ transactions** on-chain · **32 API endpoints** · **32 SDK/MCP tools** · **11 interactive lab tabs** · Real Groth16 ZK proofs (off-chain, gnark BN254 MiMC) · Post-quantum cryptography (ML-DSA-65 + Ed25519 hybrid) · Merkle-anchored proof-chain DAG
 
 ## 📸 Screenshots
 
@@ -121,7 +121,7 @@ For stronger guarantees, the same commitment can be:
 ```mermaid
 graph TB
     subgraph "Frontend (Vite + TypeScript)"
-        UI[10 Interactive Tabs]
+        UI[11 Interactive Tabs]
         WC[CSPR.click Wallet]
     end
 

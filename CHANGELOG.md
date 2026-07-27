@@ -137,7 +137,7 @@ Found and fixed real production issues, not just doc drift:
 - On-chain proof anchoring via wallet signing (`casper-js-sdk ^5.0.12`)
 - Real Groth16 ZK-SNARK proofs via gnark (BN254 pairing-based cryptography)
 - ML-DSA-65 post-quantum signing (FIPS 204, cloudflare/circl) + Lamport OTS
-- 10 interactive Lab pages with sticky header, toast system, demo/live mode
+- 11 interactive Lab pages with sticky header, toast system, demo/live mode
 - SectionIntro blocks, click-to-copy, search/filter, confirm modals
 - Mobile-responsive menu
 - Proof Pipeline merged into Playground
