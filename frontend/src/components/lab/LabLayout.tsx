@@ -153,6 +153,13 @@ const DemoModeInfo: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   </div>
 );
 
+/** Which group owns the given /lab/<path> segment, defaulting to the first group. */
+function groupKeyForPath(pathname: string): string {
+  const segment = pathname.split('/').filter(Boolean).pop() ?? '';
+  const owner = tabGroups.find(g => g.tabs.some(t => t.path === segment));
+  return owner ? owner.key : tabGroups[0].key;
+}
+
 const LabLayout: React.FC = () => {
   const { publicKey, connected: isConnected, signIn, signOut } = useWallet();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -161,6 +168,16 @@ const LabLayout: React.FC = () => {
   const location = useLocation();
   const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
   useKeyboardShortcuts(openShortcuts);
+
+  // Two-level desktop nav: which category row is expanded. Starts on
+  // whichever group owns the current route, then stays under user control
+  // (clicking a category switches the second row without navigating) but
+  // still follows direct links / browser back-forward to the right group.
+  const [activeGroupKey, setActiveGroupKey] = useState(() => groupKeyForPath(location.pathname));
+  useEffect(() => {
+    setActiveGroupKey(groupKeyForPath(location.pathname));
+  }, [location.pathname]);
+  const activeGroup = tabGroups.find(g => g.key === activeGroupKey) ?? tabGroups[0];
 
   // Auto-close mobile menu on route change
   useEffect(() => {
@@ -234,49 +251,59 @@ const LabLayout: React.FC = () => {
           </div>
 
           {/*
-            Desktop tab row — same tabs, same paths, same styles as before.
-            Groups are separated by thin vertical dividers and each group
-            carries an aria-label so purpose is machine-readable without
-            adding visual noise or changing per-tab hit targets.
+            Desktop nav is two-level: a category row (4 groups, always all
+            visible, never scrolls/wraps unpredictably) plus a tab row for
+            whichever category is active. This replaced a flat 11-tab flex
+            row: at 4 groups it either horizontal-scrolled with no visible
+            affordance, or (briefly) wrapped onto two lines which read as
+            messy/unpolished. Two-level fixes both: one clean line of
+            categories, one clean line of tabs, always exactly 2 rows.
           */}
-          {/*
-            Desktop tab row wraps onto a second line instead of scrolling
-            horizontally. With 4 groups / 11 tabs this row is wider than most
-            desktop viewports below ~1440px; overflow-x-auto used to hide the
-            tail of the row behind a scrollbar with no visual affordance
-            (no arrows, no fade), so half the tabs were invisible unless you
-            knew to scroll. flex-wrap keeps every tab always visible.
-          */}
-          <nav className="hidden md:flex flex-wrap items-center gap-y-1.5 -mb-px" aria-label="Lab sections">
-            {tabGroups.map((group, gi) => (
-              <div
-                key={group.key}
-                role="group"
-                aria-label={group.label}
-                className={`flex items-center ${gi > 0 ? 'pl-3 ml-1 border-l border-[#222235]/60' : ''}`}
-              >
-                <span className="hidden lg:inline text-[10px] uppercase tracking-wider text-gray-600 pr-2 select-none">
-                  {group.label}
-                </span>
-                {group.tabs.map((tab) => (
-                  <NavLink
-                    key={tab.name}
-                    to={tab.path}
-                    className={({ isActive }) =>
-                      `py-2.5 px-3 text-sm font-medium transition-colors duration-200 whitespace-nowrap border-b-2 ${
-                        isActive
-                          ? 'text-red-500 border-red-500'
-                          : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-600'
-                      }`
-                    }
-                    end={tab.path === 'overview'}
+          <div className="hidden md:block -mb-px">
+            <nav className="flex items-center gap-1" aria-label="Lab categories" role="tablist">
+              {tabGroups.map((group) => {
+                const isActive = group.key === activeGroupKey;
+                return (
+                  <button
+                    key={group.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveGroupKey(group.key)}
+                    className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-t-md transition-colors whitespace-nowrap ${
+                      isActive
+                        ? 'bg-[#13131d] text-red-400 border border-[#222235] border-b-0'
+                        : 'text-gray-500 hover:text-gray-300 border border-transparent'
+                    }`}
                   >
-                    {tab.name}
-                  </NavLink>
-                ))}
-              </div>
-            ))}
-          </nav>
+                    {group.label}
+                  </button>
+                );
+              })}
+            </nav>
+            <nav
+              key={activeGroup.key}
+              className="flex items-center gap-x-1 border-t border-[#222235] bg-[#13131d]/60"
+              aria-label={`${activeGroup.label} sections`}
+            >
+              {activeGroup.tabs.map((tab) => (
+                <NavLink
+                  key={tab.name}
+                  to={tab.path}
+                  className={({ isActive }) =>
+                    `py-2.5 px-3 text-sm font-medium transition-colors duration-200 whitespace-nowrap border-b-2 ${
+                      isActive
+                        ? 'text-red-500 border-red-500'
+                        : 'text-gray-400 border-transparent hover:text-gray-200 hover:border-gray-600'
+                    }`
+                  }
+                  end={tab.path === 'overview'}
+                >
+                  {tab.name}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
         </div>
       </div>
 
