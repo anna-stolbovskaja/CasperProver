@@ -210,11 +210,9 @@ func TestVerifyQuorumBitsetOrderInvariant(t *testing.T) {
 	reg, cs := setupQuorum(t, 5)
 	msg := []byte("evidence-order")
 	sigs := []*Signature{}
-	ids := []string{}
 	for _, c := range cs[:4] {
 		sig, _ := c.sk.Sign(msg)
 		sigs = append(sigs, sig)
-		ids = append(ids, c.id)
 	}
 	aggSig, _ := Aggregate(sigs)
 

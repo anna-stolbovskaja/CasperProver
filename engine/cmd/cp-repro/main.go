@@ -162,17 +162,17 @@ func runScenario(s Scenario, w io.Writer) error {
 			drift++
 		}
 		if expVal == "" {
-			fmt.Fprintf(w, "  %-20s = %s  (no golden)\n", field, gotVal)
+			_, _ = fmt.Fprintf(w, "  %-20s = %s  (no golden)\n", field, gotVal)
 		} else {
-			fmt.Fprintf(w, "  %-20s = %s  expected=%s  [%s]\n", field, gotVal, expVal, mark)
+			_, _ = fmt.Fprintf(w, "  %-20s = %s  expected=%s  [%s]\n", field, gotVal, expVal, mark)
 		}
 	}
 
-	fmt.Fprintf(w, "scenario=%s  kind=%s\n", s.Name, s.Kind)
+	_, _ = fmt.Fprintf(w, "scenario=%s  kind=%s\n", s.Name, s.Kind)
 	line("request_sha256",   got.Req,  s.Expected.RequestSHA256)
 	line("response_sha256",  got.Resp, s.Expected.ResponseSHA256)
 	line("chain_root_sha256", got.Root, s.Expected.ChainRootSHA256)
-	fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w)
 	if drift > 0 {
 		return fmt.Errorf("%d drift(s) in scenario %q", drift, s.Name)
 	}

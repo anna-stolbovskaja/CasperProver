@@ -13,7 +13,6 @@ package chainadapter
 
 import (
 	"crypto/sha512"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -91,13 +90,8 @@ func base58EncodeBytes(b []byte) string {
 	return string(out)
 }
 
-// hexOfSHA512 exposed so callers with strict hex expectations (e.g.
-// contract-tests round-tripping via Casper hex) can compare the
-// underlying digest without depending on the base58 encoding.
-func (a *SolanaStubAdapter) hexOfSHA512(req AnchorRequest) string {
-	preimg := fmt.Sprintf("solana|%s|%s|%s|%s|%s|%s|%s",
-		a.Chain, req.ProofID, req.ProofHash, req.MerkleRoot,
-		req.VKHash, req.Verdict, req.ModelID)
-	sum := sha512.Sum512([]byte(preimg))
-	return hex.EncodeToString(sum[:])
-}
+// hexOfSHA512 was intended for callers with strict hex expectations (e.g.
+// contract-tests round-tripping via Casper hex) to compare the underlying
+// digest without depending on the base58 encoding -- but it's unexported
+// and nothing ever called it, so it was always dead code. Removed; re-add
+// if a real caller needs it.

@@ -18,7 +18,6 @@
 package gnarkzk
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 
@@ -235,6 +234,6 @@ func coerceBigInt(v any, name string) (*big.Int, error) {
 	case uint64:
 		return new(big.Int).SetUint64(t), nil
 	default:
-		return nil, errors.New(fmt.Sprintf("input %q has unsupported type %T", name, v))
+		return nil, fmt.Errorf("input %q has unsupported type %T", name, v)
 	}
 }

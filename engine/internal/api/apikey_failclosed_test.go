@@ -183,7 +183,10 @@ func TestHealth_Auth_DisabledInLooseMode(t *testing.T) {
 	srv.health(rr, req)
 	var body map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &body)
-	auth := body["auth"].(map[string]interface{})
+	auth, ok := body["auth"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("auth: expected map[string]interface{}, got %T", body["auth"])
+	}
 	if auth["mode"] != "disabled" {
 		t.Errorf("auth.mode: want %q, got %v", "disabled", auth["mode"])
 	}
@@ -209,7 +212,10 @@ func TestHealth_Auth_EnabledAndStrictInProdConfig(t *testing.T) {
 	srv.health(rr, req)
 	var body map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &body)
-	auth := body["auth"].(map[string]interface{})
+	auth, ok := body["auth"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("auth: expected map[string]interface{}, got %T", body["auth"])
+	}
 	if auth["mode"] != "enabled" || auth["enforced"] != true || auth["strict"] != true {
 		t.Errorf("prod-config auth block wrong: %v", auth)
 	}

@@ -81,7 +81,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # --experimental-strip-types (used below) needs Node >=22.6;
+          # this job was pinned to Node 20, so every run failed immediately
+          # with "bad option: --experimental-strip-types" before a single
+          # test executed.
+          node-version: "22"
       - run: cd sdk/typescript && node --test --experimental-strip-types src/client.test.ts
 
   build-contracts:

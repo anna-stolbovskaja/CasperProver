@@ -40,9 +40,6 @@ import (
 
 const rangeProofSuite = "casperprover-rangeproof-v1"
 
-// orProofSize = a0(32) || a1(32) || e0(32) || s0(32) || s1(32)
-const orProofSize = 5 * 32
-
 var (
 	rangeG *edwards25519.Point // basepoint in prime-order subgroup
 	rangeH *edwards25519.Point // independent NUMS generator in prime-order subgroup

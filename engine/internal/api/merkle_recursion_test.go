@@ -114,7 +114,10 @@ func TestMerkleHTTP_VerifyRejectsTamperedRoot(t *testing.T) {
 	_ = json.Unmarshal(incResp.Body.Bytes(), &proof)
 
 	// Tamper the root.
-	root := agg["merkle_root_hex"].(string)
+	root, ok := agg["merkle_root_hex"].(string)
+	if !ok {
+		t.Fatalf("merkle_root_hex: expected string, got %T", agg["merkle_root_hex"])
+	}
 	rb, _ := hex.DecodeString(root)
 	rb[0] ^= 0xff
 	agg["merkle_root_hex"] = hex.EncodeToString(rb)

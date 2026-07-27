@@ -288,8 +288,12 @@ func TestToW3CVCShape(t *testing.T) {
 		t.Fatalf("id: %v", got["id"])
 	}
 	ctx, ok := got["@context"].([]any)
-	if !ok || len(ctx) < 2 || ctx[0].(string) != "https://www.w3.org/ns/credentials/v2" {
+	if !ok || len(ctx) < 2 {
 		t.Fatalf("context: %v", got["@context"])
+	}
+	ctx0, ok := ctx[0].(string)
+	if !ok || ctx0 != "https://www.w3.org/ns/credentials/v2" {
+		t.Fatalf("context[0]: %v", ctx[0])
 	}
 	proof, ok := got["proof"].(map[string]any)
 	if !ok {
@@ -346,7 +350,7 @@ func TestJSONLSinkWritesOnePerReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewJSONLSink: %v", err)
 	}
-	defer sink.Close()
+	defer func() { _ = sink.Close() }()
 
 	svc := newService(t)
 	svc.Sink = sink

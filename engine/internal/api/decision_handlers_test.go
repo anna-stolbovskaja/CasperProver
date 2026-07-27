@@ -213,7 +213,8 @@ func TestDecisionPoolInfo(t *testing.T) {
 	b, _ := io.ReadAll(rec.Body)
 	var out map[string]any
 	_ = json.Unmarshal(b, &out)
-	if out["count"].(float64) != 1 {
+	count, ok := out["count"].(float64)
+	if !ok || count != 1 {
 		t.Fatalf("expected count=1, got %v", out["count"])
 	}
 }

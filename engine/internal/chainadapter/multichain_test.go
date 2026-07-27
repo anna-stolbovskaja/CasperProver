@@ -119,7 +119,7 @@ func TestCosmosStubUppercaseHex(t *testing.T) {
 		t.Fatalf("cosmos tx hash must be uppercase (Tendermint convention): %s", r.TxHash)
 	}
 	for _, c := range r.TxHash {
-		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F')) {
+		if (c < '0' || c > '9') && (c < 'A' || c > 'F') {
 			t.Fatalf("cosmos tx hash contains non-hex uppercase char %q: %s", c, r.TxHash)
 		}
 	}

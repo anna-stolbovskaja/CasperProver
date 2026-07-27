@@ -228,7 +228,7 @@ func TestPQKeyRing_HTTPMigrate(t *testing.T) {
 
 func TestPQKeyRing_DisabledGate(t *testing.T) {
 	// Explicitly ensure the env is not set.
-	os.Unsetenv("CP_KEYRING_ENABLE")
+	_ = os.Unsetenv("CP_KEYRING_ENABLE")
 	_, mux := buildKeyRingServer(t, false)
 
 	resp := keyringDoJSON(t, mux, "POST", "/v1/pq/keys", map[string]string{"algo": "ed25519"})

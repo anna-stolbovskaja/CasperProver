@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -88,11 +89,11 @@ func (s *Server) buildAdminSummary() AdminSummary {
 	}
 
 	if s.keystore != nil {
-		info := s.keystore.Info(nil)
+		info := s.keystore.Info(context.TODO())
 		sum.Keystore = &info
 		// List of keys — metadata only, no private key bytes ever
 		// leave the keystore's internal storage.
-		sum.Keys = s.keystore.List(nil)
+		sum.Keys = s.keystore.List(context.TODO())
 	}
 
 	if s.webhooks != nil {

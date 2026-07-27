@@ -158,14 +158,24 @@ func TestPerceptronCircuit_AssignFullDerivesCommitAndOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AssignFull: %v", err)
 	}
-	pcc := c.(*perceptronCircuit)
+	pcc, ok := c.(*perceptronCircuit)
+	if !ok {
+		t.Fatalf("AssignFull: expected *perceptronCircuit, got %T", c)
+	}
 	expectedCommit := ComputePerceptronCommit(weights, bias)
-	claimedCommit := pcc.WeightsCommit.(*big.Int)
+	claimedCommit, ok := pcc.WeightsCommit.(*big.Int)
+	if !ok {
+		t.Fatalf("WeightsCommit: expected *big.Int, got %T", pcc.WeightsCommit)
+	}
 	if expectedCommit.Cmp(claimedCommit) != 0 {
 		t.Errorf("AssignFull did not derive commit: got %s want %s", claimedCommit, expectedCommit)
 	}
 	// dot = 8*2*3 + (-1) = 47 >= 0 => output = 1.
-	if pcc.Output.(*big.Int).Sign() == 0 {
+	output, ok := pcc.Output.(*big.Int)
+	if !ok {
+		t.Fatalf("Output: expected *big.Int, got %T", pcc.Output)
+	}
+	if output.Sign() == 0 {
 		t.Errorf("AssignFull derived wrong output: expected 1 (dot >= 0)")
 	}
 }
@@ -214,11 +224,21 @@ func proveAndVerify(t *testing.T, weights, input []*big.Int, bias, expectedOutpu
 		t.Fatalf("AssignFull: %v", err)
 	}
 	// Sanity: the derived output must match what the test expects.
-	got := full.(*perceptronCircuit).Output.(*big.Int)
+	fullCircuit, ok := full.(*perceptronCircuit)
+	if !ok {
+		t.Fatalf("AssignFull: expected *perceptronCircuit, got %T", full)
+	}
+	got, ok := fullCircuit.Output.(*big.Int)
+	if !ok {
+		t.Fatalf("Output: expected *big.Int, got %T", fullCircuit.Output)
+	}
 	if got.Cmp(expectedOutput) != 0 {
 		t.Fatalf("assignment derived output=%s, expected %s", got, expectedOutput)
 	}
-	commit := full.(*perceptronCircuit).WeightsCommit.(*big.Int)
+	commit, ok := fullCircuit.WeightsCommit.(*big.Int)
+	if !ok {
+		t.Fatalf("WeightsCommit: expected *big.Int, got %T", fullCircuit.WeightsCommit)
+	}
 
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, pc.NewCircuit())
 	if err != nil {

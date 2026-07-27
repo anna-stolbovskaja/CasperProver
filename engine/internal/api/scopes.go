@@ -72,7 +72,7 @@ func (r *scopeRegistry) loadFromFile(path string) error {
 		}
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var parsed scopedKeyFile
 	if err := json.NewDecoder(f).Decode(&parsed); err != nil {
 		return err

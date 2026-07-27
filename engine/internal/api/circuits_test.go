@@ -42,7 +42,10 @@ func TestCircuits_List_ReturnsBundledCircuits(t *testing.T) {
 	}
 	ids := map[string]bool{}
 	for _, c := range list {
-		m := c.(map[string]any)
+		m, ok := c.(map[string]any)
+		if !ok {
+			t.Fatalf("circuit entry: expected map[string]any, got %T", c)
+		}
 		if id, ok := m["id"].(string); ok {
 			ids[id] = true
 		}

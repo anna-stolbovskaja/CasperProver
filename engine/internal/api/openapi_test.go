@@ -30,7 +30,11 @@ func TestGenerateOpenAPIStructure(t *testing.T) {
 	}
 	// Security scheme present.
 	comps, _ := spec["components"].(map[string]any)
-	if _, ok := comps["securitySchemes"].(map[string]any)["ApiKeyAuth"]; !ok {
+	schemes, ok := comps["securitySchemes"].(map[string]any)
+	if !ok {
+		t.Fatalf("securitySchemes: expected map[string]any, got %T", comps["securitySchemes"])
+	}
+	if _, ok := schemes["ApiKeyAuth"]; !ok {
 		t.Fatal("no ApiKeyAuth")
 	}
 	// x-webhooks enumeration.

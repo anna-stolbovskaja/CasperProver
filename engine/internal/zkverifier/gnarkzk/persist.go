@@ -170,10 +170,6 @@ type writerTo interface {
 	WriteTo(io.Writer) (int64, error)
 }
 
-type readerFrom interface {
-	ReadFrom(io.Reader) (int64, error)
-}
-
 func saveDigest(path string, obj writerTo) (string, error) {
 	tmp := path + ".tmp"
 	f, err := os.Create(tmp)

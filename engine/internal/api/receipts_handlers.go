@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -327,11 +326,8 @@ func (s *Server) writeJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
-// Close releases the receipt sink if one is attached. Safe to call
-// multiple times.
-func (s *Server) closeReceipts(_ context.Context) {
-	if s.receiptSink != nil {
-		_ = s.receiptSink.Close()
-		s.receiptSink = nil
-	}
-}
+// closeReceipts released the receipt sink if one is attached. It was never
+// wired into a graceful-shutdown path (cmd/casperprover/main.go has none
+// today), so it was always dead code per the linter. Removed rather than
+// kept unused; re-add + wire to a signal handler if/when the server gains
+// graceful shutdown.

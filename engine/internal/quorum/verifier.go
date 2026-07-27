@@ -133,6 +133,6 @@ func commitmentHash(w *QuorumWitness) string {
 	h.Write([]byte(w.AggregateSigHex))
 	h.Write([]byte{0x00})
 	// Threshold + verdict + active-count folded in.
-	fmt.Fprintf(h, "t=%d;n=%d;v=%s", w.Threshold, w.ActiveSigners, w.Verdict)
+	_, _ = fmt.Fprintf(h, "t=%d;n=%d;v=%s", w.Threshold, w.ActiveSigners, w.Verdict)
 	return hex.EncodeToString(h.Sum(nil))
 }

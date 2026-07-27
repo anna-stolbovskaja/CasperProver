@@ -451,7 +451,7 @@ func TestSynthesizePutResult_PreservesHash(t *testing.T) {
 // a mis-configured engine from silently NOT anchoring verdicts.
 
 func TestRegisterZkVk_MissingEnvFails(t *testing.T) {
-	os.Unsetenv("CONTRACT_ZK_VERIFIER")
+	_ = os.Unsetenv("CONTRACT_ZK_VERIFIER")
 	s := &CasperSubmitter{}
 	_, err := s.RegisterZkVk("mimc_v1", "aa", "bn254", "groth16", 0)
 	if err == nil {
@@ -463,7 +463,7 @@ func TestRegisterZkVk_MissingEnvFails(t *testing.T) {
 }
 
 func TestRecordZkVerdict_MissingEnvFails(t *testing.T) {
-	os.Unsetenv("CONTRACT_ZK_VERIFIER")
+	_ = os.Unsetenv("CONTRACT_ZK_VERIFIER")
 	s := &CasperSubmitter{}
 	_, err := s.RecordZkVerdict("mimc_v1", "aa", "bb", "gpt-4o-mini", true)
 	if err == nil {
@@ -472,7 +472,7 @@ func TestRecordZkVerdict_MissingEnvFails(t *testing.T) {
 }
 
 func TestAddZkVerifier_MissingEnvFails(t *testing.T) {
-	os.Unsetenv("CONTRACT_ZK_VERIFIER")
+	_ = os.Unsetenv("CONTRACT_ZK_VERIFIER")
 	s := &CasperSubmitter{}
 	_, err := s.AddZkVerifier("00000000000000000000000000000000000000000000000000000000deadbeef")
 	if err == nil {
@@ -481,8 +481,8 @@ func TestAddZkVerifier_MissingEnvFails(t *testing.T) {
 }
 
 func TestAddZkVerifier_BadAccountHash(t *testing.T) {
-	os.Setenv("CONTRACT_ZK_VERIFIER", "00")
-	defer os.Unsetenv("CONTRACT_ZK_VERIFIER")
+	_ = os.Setenv("CONTRACT_ZK_VERIFIER", "00")
+	defer func() { _ = os.Unsetenv("CONTRACT_ZK_VERIFIER") }()
 	s := &CasperSubmitter{}
 	_, err := s.AddZkVerifier("not-hex")
 	if err == nil {

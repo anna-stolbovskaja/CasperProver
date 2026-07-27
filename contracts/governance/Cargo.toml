@@ -16,10 +16,13 @@ bench = false
 doctest = false
 test = false
 
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = "z"
-panic = "abort"
-
-[workspace]
+# [profile.*] is only honored at the workspace root (see contracts/Cargo.toml)
+# -- a per-member copy here is silently ignored by Cargo and was removed.
+#
+# This file used to end with an empty `[workspace]` table, presumably
+# copy-pasted from a standalone-crate template. That marks this directory as
+# its OWN workspace root, which conflicts with `governance` also being listed
+# as a member of the parent `contracts/Cargo.toml` workspace -- Cargo refused
+# to build anything under contracts/ at all ("multiple workspace roots found
+# in the same workspace: contracts/governance and contracts"), breaking the
+# build-contracts CI job for every contract, not just governance. Removed.

@@ -100,15 +100,6 @@ type PooledProvider struct {
 	Capabilities []Capability
 }
 
-func (p PooledProvider) hasCap(c Capability) bool {
-	for _, x := range p.Capabilities {
-		if x == c {
-			return true
-		}
-	}
-	return false
-}
-
 // ProviderPool is a thread-safe registry of PooledProviders. It is the
 // backend for the Router.
 type ProviderPool struct {

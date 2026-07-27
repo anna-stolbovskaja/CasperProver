@@ -1088,7 +1088,6 @@ func (s *Server) verifyBatch(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				result["verified"] = false
 				result["error"] = err.Error()
-				verified = false
 			} else {
 				result["verified"] = true
 			}
