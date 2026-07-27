@@ -1,7 +1,7 @@
 # CasperProver — Security Audit: Owner/Admin Lifecycle & Cross-Contract Invariants
 
-**Scope:** all 8 contract crates in `contracts/` (deployed + undeployed).  
-**Date:** 2026-07-20 (Gate 1, item 4 of `CP_FINAL_TASKS_V2_new.md`).  
+**Scope:** all 9 contract crates in `contracts/` (all deployed as of 2026-07-27).  
+**Date:** 2026-07-20 (Gate 1, item 4 of `CP_FINAL_TASKS_V2_new.md`); extended 2026-07-27 to cover `governance` and `zk-verifier` after they went live, and to close a critical finding in `zk-verifier`.  
 **Reviewer:** in-repo static audit (no on-chain formal verification tool).  
 **Purpose:** document the actual ownership model per contract, flag *irreversible* privilege paths, and record cross-contract reentrancy/invariant reasoning **before** any redeploy of Gate 2.
 
@@ -21,6 +21,8 @@ Nothing in this document changes contract source. It is the reference security r
 | `model-registry` | `INSTALLER_KEY` (for `set_price_bps` only) + per-model `owner` string | `call()` / `register_model` | Per-model transferable | **No renounce** (transfer only) | `set_price_bps` (installer), `deprecate_model` / `update_model_metadata` / `transfer_ownership` (per-model owner) | **Safe — dual-tier, no burn address.** |
 | `proof-aggregation` | `INSTALLER_KEY` → `Key::Account(installer)` | `call()` | No | No | `finalize_batch` | **Advisory: hot deployer key. Same roadmap as proof-of-inference.** |
 | `stake-slashing-session` | n/a (session code, not a contract) | — | — | — | — | Session runs under caller's own account context. |
+| `governance` | `owner` → `Key::Account(caller)` at install | `call()` | Yes — 48h-timelocked transfer, or 2-of-3 guardian recovery | No | `propose`/`execute`/`cancel`, `emergency_pause`, `propose_unpause`/`execute_unpause`, `propose_owner_transfer`/`execute_owner_transfer` (owner-only); `sign_recovery`/`execute_recovery` (guardian-only) | **Safe — see 2.9 for guardian/pause caveats.** |
+| `zk-verifier` | `owner` → `Key::Account(caller)` at install | `call()` | No direct rotation entry point (relies on `governance` externally) | No | `add_verifier`/`remove_verifier`/`revoke_verdict`/`pause`/`unpause` (owner-only); `register_vk`/`disable_vk` (owner **OR self-asserted `governance_approved` flag — see 2.10, CRITICAL**) | **🔴 CRITICAL — `governance_approved` bypass, see 2.10. Do not treat vk registration as access-controlled until fixed.** |
 
 **Global observation.** No contract exposes a `renounce_ownership()` entry point today. This is intentional: an irreversible renounce on a testnet demo with no recovery/timelock would be a footgun. Whenever renounce is added later (roadmap item), it must ship together with:
 
@@ -79,7 +81,7 @@ Without those three, **do not merge a renounce entry point in any contract**.
 - **Renounce risk:** none globally. A specific agent losing their key freezes only that agent's own proofs (they cannot self-revoke), which is a per-user operational issue, not a systemic one.
 - **Verdict:** ✅ Safe as-is.
 
-### 2.5 `proof-of-inference` (undeployed)
+### 2.5 `proof-of-inference` (deployed 2026-07-25)
 
 - **Admin:** `INSTALLER_KEY` → `Key::Account(installer)`, set in `call()`.
 - **Gated entry points:**
@@ -94,7 +96,7 @@ Without those three, **do not merge a renounce entry point in any contract**.
   - Do **not** add `renounce_installer` — irreversible on a demo with no timelock.
 - **Verdict:** ⚠️ Deploy as-is is acceptable for the hackathon (single-owner, testnet). Timelocked two-step transfer is a 30-day roadmap item.
 
-### 2.6 `model-registry` (undeployed)
+### 2.6 `model-registry` (deployed 2026-07-25)
 
 - **Admin (dual-tier):**
   - `INSTALLER_KEY` → global, for `set_price_bps` only.
@@ -106,25 +108,62 @@ Without those three, **do not merge a renounce entry point in any contract**.
 - **Owner string format caveat:** `owner` is stored as `format!("{:?}", caller)` (Rust `Debug` output of `AccountHash`). This is *stable within a single Rust toolchain build* but has bitten other Casper projects on version bumps. **Follow-up:** normalize to `caller.to_string()` (hex, no prefix) in the next non-breaking migration; currently a comparison bug not a security bug because writer and comparator both use the same `Debug` format.
 - **Verdict:** ⚠️ Deploy as-is is acceptable. The `owner` string format normalization is a P2 hygiene item — file as follow-up.
 
-### 2.7 `proof-aggregation` (undeployed)
+### 2.7 `proof-aggregation` (deployed 2026-07-25)
 
 - **Admin:** `INSTALLER_KEY` → `Key::Account(installer)`, set in `call()`.
 - **Gated entry points:** `finalize_batch(batch_id)` — installer-only via `ApiError::PermissionDenied`.
 - **Ungated writes:** `create_batch`, `add_proof` — public. **This is a design choice** (permissionless Merkle-batch construction; only finalization is trusted), but there is no per-batch access control:
   - Anyone can call `add_proof` against an existing `batch_id`.
   - `add_proof` writes to key `format!("{}:{}", batch_id, proof_hash)` — duplicates by different callers overwrite each other **only if `proof_hash` is identical**, which is fine.
-  - **Attention:** a malicious caller cannot forge someone else's `proof_hash`, but they *can* pre-empt a `batch_id` by calling `create_batch` first with a low `max_proofs` and different `merkle_root`. Since the batch value written by `create_batch` is `format!("{}|{}|{}|0|open", …)`, the second `create_batch` for the same `batch_id` silently overwrites the first.
-  - **Recommended fix (non-blocking for Gate 2):** in `create_batch`, refuse to overwrite an existing batch — check `storage::dictionary_get(batches_uref, &batch_id)`; if `Some(_)`, revert with a new `ERR_BATCH_EXISTS`. Same pattern already used in `defi-mock::grant_access` and `model-registry::register_model`.
+  - **Fixed (2026-07-25, verified in code 2026-07-27):** `create_batch` now checks `storage::dictionary_get(batches_uref, &batch_id)` and reverts with `ApiError::User(22)` if the batch already exists, before writing — the silent-overwrite path this audit originally flagged as P1 no longer exists. The fix shipped in the same deploy that made this contract live, so the live testnet instance was never exposed to the original bug.
 - **Cross-contract:** none.
 - **Reentrancy analysis:** no external calls.
 - **Renounce risk:** installer-key loss freezes finalization → batches never close. Per-batch blast radius.
-- **Verdict:** ⚠️ Deploy as-is only after fixing `create_batch` overwrite (10 LOC change). File as blocking follow-up before Gate 2 deploy of this crate.
+- **Verdict:** ✅ Safe as deployed. Original P1 (`create_batch` overwrite) closed before this crate went live; item 1 in section 4 below is resolved.
 
 ### 2.8 `stake-slashing-session`
 
 - **Session code, not a contract** — runs with the caller's own account context, no installer, no cross-account privilege.
 - **Purpose:** atomically transfer CSPR from caller's main purse to `stake-slashing`'s contract purse **and** call `record_stake` in the same deploy so they cannot be split/front-run.
 - **Verdict:** ✅ Safe by construction — session code has no persistent state to attack.
+
+### 2.9 `governance` (deployed 2026-07-26)
+
+- **Admin:** `owner` → `Key::Account(caller)`, bootstrapped in `call()`. Up to 3 guardians (account-hash strings) set at install (`guardian_1/2/3`); the live deploy uses 2 real guardians (`anna`, `defi_mock_owner`) and a reserved zero-hex third slot for mainnet.
+- **Gated entry points:**
+  - `propose` / `execute` / `cancel`, `propose_unpause` / `execute_unpause`, `propose_owner_transfer` / `execute_owner_transfer` — owner-only.
+  - `emergency_pause` — owner **or** any guardian (fast lane, no timelock).
+  - `sign_recovery` / `execute_recovery` — guardian-only, 2-of-3 threshold.
+- **Timelock:** all owner-gated state changes (except the pause fast-lane) require a `propose` now → `execute` ≥48h later. `next_proposal_id` uses `checked_add` (no overflow panic path), and `executable_at` uses `saturating_add`/`saturating_mul` — no arithmetic panics on adversarial input.
+- **Reentrancy analysis:** no cross-contract calls at all — every entry point is local dictionary/uref reads and writes. No callback surface.
+- **Design caveat found in this audit — recovery-vs-pause ordering:** `propose_unpause` / `execute_unpause` are owner-only, not guardian-callable. If the owner key is the one that's lost or compromised (the scenario guardian recovery exists to solve) **and** the system is paused at that moment, guardians must first run `sign_recovery` + `execute_recovery` to become the new owner *before* they can unpause — there is no direct guardian unpause path. This is a two-step recovery, not a broken one, but it should be documented in the runbook so guardians don't expect a one-call unpause during an incident.
+- **Design caveat — no guardian rotation:** guardians are fixed at install time; there is no entry point to replace a guardian whose key is lost or compromised. Same hot-key-concentration pattern already flagged for `proof-of-inference`/`proof-aggregation`/`model-registry` installer keys — same recommendation applies (roadmap item, non-blocking for the hackathon).
+- **Process note:** `execute_recovery` rotates `owner` but does not touch `PROPOSALS_DICT`. If an owner key is compromised, an attacker-as-owner could `propose_owner_transfer` (or any other proposal) before losing control; after guardians recover ownership, the new owner should audit and `cancel` any pending proposals from before the recovery rather than assume the slate is clean.
+- **Verdict:** ✅ Safe. Two caveats above are process/roadmap items, not exploitable bugs — no external caller can act without owner or guardian keys.
+
+### 2.10 `zk-verifier` (deployed 2026-07-27) — 🔴 CRITICAL finding
+
+- **Admin:** `owner` → `Key::Account(caller)` at install (`anna-stolbovskaja`, same account as the other 8 canonical contracts).
+- **Gated entry points:** `add_verifier` / `remove_verifier` / `revoke_verdict` / `pause` / `unpause` — owner-only, no issues found.
+- **`register_vk` / `disable_vk` — 🔴 CRITICAL access-control bypass.** Both entry points call `require_owner_or_gov(governance_approved)`, where `governance_approved: u64` is a **plain caller-supplied named argument on the deploy**, not a value read from the `governance` contract on-chain:
+  ```rust
+  fn require_owner_or_gov(governance_approved: u64) {
+      let caller = runtime::get_caller();
+      if caller == get_owner() { return; }
+      if governance_approved != 1 {
+          runtime::revert(ApiError::User(ERR_NOT_OWNER));
+      }
+      // Session-based gov approval - deployer's session code must have called
+      // governance.is_executed before us and gated their runtime path on it.
+      // No cross-contract call needed here.
+  }
+  ```
+  There is **no cross-contract call to `governance.is_executed`, no signature, no proof of any kind** — the function trusts the caller's own claim. **Any account that can submit a deploy to this contract can call `register_vk` with `governance_approved: 1` and register an arbitrary verifying key for any `circuit_id`, or `disable_vk` to kill an existing one — completely bypassing both the owner check and the governance timelock.** The in-code comment claims enforcement happens in "the deployer session (see `scripts/register-vk.mjs`)" — **that script does not exist anywhere in this repository** (confirmed via full-repo search), and even if it did, a client-side script cannot constrain what a different, adversarial deploy submits directly to the chain. This is not a theoretical gap: it is a live, unauthenticated privilege escalation on a contract deployed to testnet two days ago.
+  - **Impact:** since `record_verdict` requires the vk for a `circuit_id` to be `active` (checked via this same dictionary), an attacker who swaps a circuit's `vk_hash` can make `record_verdict` accept verdicts that should be tied to a different (attacker-controlled) verifying key — undermining the "real ZK verification anchored on-chain" claim this whole contract exists to back. Blast radius is scoped to vk metadata and verdict anchoring (no fund custody in this contract), but it directly contradicts the project's core "trustless, not a mockup" pitch.
+  - **Fix (required, not roadmap):** remove the `governance_approved` bypass entirely and require `require_owner()` only, until a real on-chain check is implemented (either a genuine cross-contract call to `governance::is_executed(proposal_id)` — the wasm-size concern in the comment can be resolved by trimming elsewhere or accepting the larger binary — or dropping the governance-gated path from this contract for the hackathon and documenting vk rotation as owner-only for now).
+  - **Verdict:** 🔴 **Not safe as deployed.** This should be fixed and redeployed before this contract is presented to judges as access-controlled; recommend treating as the top-priority item to come out of this audit.
+- **Other entry points:** `get_vk` / `is_active_vk` / `get_verdict` are public reads, no issue. `record_verdict` requires an active registered verifier (owner-managed allowlist) and an active vk — correctly gated, but inherits the vk-integrity problem above since the vk itself can be swapped by anyone.
+- **Reentrancy analysis:** no cross-contract calls at all (by design — see the file's own header comment on wasm-size constraints). No callback surface.
 
 ---
 
@@ -171,16 +210,19 @@ Every cross-contract reference is written to `NamedKeys` inside `call()` (instal
 
 ## 4. Follow-up items (opened as GitHub issues after this audit lands)
 
-1. **[P1, pre-Gate 2 blocking for `proof-aggregation`]** Fix `create_batch` silent overwrite — 10 LOC, add `ERR_BATCH_EXISTS` guard.
-2. **[P2, roadmap 30-day]** Two-step installer transfer (`pending_installer` + `accept_installer`) in `proof-of-inference`, `proof-aggregation`, `model-registry`. **No** `renounce_installer` without a timelock module.
+0. **[P0, blocking, added 2026-07-27]** `zk-verifier.register_vk` / `disable_vk` trust a caller-supplied `governance_approved` flag with zero on-chain verification — anyone can bypass owner/governance control of vk registration. See 2.10. Fix and redeploy before presenting this contract as access-controlled.
+1. ~~**[P1, pre-Gate 2 blocking for `proof-aggregation`]** Fix `create_batch` silent overwrite — 10 LOC, add `ERR_BATCH_EXISTS` guard.~~ **Done** — fixed before the 2026-07-25 deploy, verified in code 2026-07-27 (see 2.7).
+2. **[P2, roadmap 30-day]** Two-step installer transfer (`pending_installer` + `accept_installer`) in `proof-of-inference`, `proof-aggregation`, `model-registry`. Same pattern applies to `governance`'s fixed guardian set (no rotation entry point today). **No** `renounce_installer` without a timelock module.
 3. **[P2, hygiene]** Normalize `model-registry`'s per-model `owner` from `format!("{:?}", caller)` to `caller.to_string()` — non-breaking behavior today but toolchain-fragile.
 4. **[P3, doc-only]** Add this file's summary table to `docs/ARCHITECTURE.md`'s security section so it's linked from the top-level architecture doc, not only referenced here.
+5. **[P3, runbook]** Document in the ops runbook that `governance` guardians cannot directly unpause — they must complete `sign_recovery`/`execute_recovery` to become owner first if the owner key itself is the one lost during an incident (see 2.9).
 
 ---
 
 ## 5. Sign-off
 
-- Static audit complete on the pinned tree.
-- No P0 issues; one P1 blocker for the `proof-aggregation` redeploy path (file the fix before Gate 2 rebuilds that crate).
-- Reentrancy: analyzed, low risk — every cross-contract call is read-only or native transfer, and no callback surface exists.
-- Ownership: single-owner model per contract with clear renounce policy = **no irreversible renounce anywhere**.
+- Static audit complete on the pinned tree, extended 2026-07-27 to cover all 9 deployed contracts (`governance` and `zk-verifier` added).
+- **One P0 finding: `zk-verifier`'s `governance_approved` flag is an unauthenticated self-assertion with no on-chain enforcement — a live access-control bypass on vk registration (2.10). Needs a code fix and redeploy, not just a doc update.**
+- The previously-flagged P1 (`proof-aggregation.create_batch` overwrite) was fixed before its contract went live — confirmed resolved.
+- Reentrancy: analyzed across all 9 contracts, low risk — every cross-contract call is read-only or a native transfer, and no callback surface exists; `governance` and `zk-verifier` make no cross-contract calls at all.
+- Ownership: single-owner model per contract with clear renounce policy = **no irreversible renounce anywhere**. `governance` adds 48h-timelocked owner rotation and 2-of-3 guardian recovery on top of that baseline.
