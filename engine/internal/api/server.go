@@ -24,25 +24,25 @@ import (
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/siwe"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/api/tenant"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/config"
-	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	pqcrypto "github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/crypto/keystore"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/decision/attest"
-	"github.com/anna-stolbovskaja/CasperProver/engine/internal/quorum"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/hasher"
-	"github.com/anna-stolbovskaja/CasperProver/engine/internal/obs"
+	hitlsvc "github.com/anna-stolbovskaja/CasperProver/engine/internal/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/inference"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/judge/hitl"
-	hitlsvc "github.com/anna-stolbovskaja/CasperProver/engine/internal/hitl"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/kyc"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/obs"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/observability"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/prover"
+	"github.com/anna-stolbovskaja/CasperProver/engine/internal/quorum"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/receipts"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/store"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/submitter"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/verifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier"
 	"github.com/anna-stolbovskaja/CasperProver/engine/internal/zkverifier/gnarkzk"
+	"github.com/anna-stolbovskaja/CasperProver/engine/pkg/phase2"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -55,6 +55,13 @@ type contractHashes struct {
 	VerifierGate  string
 	DefiMock      string
 	StakeSlashing string
+	// The remaining 4 of the 8 live contracts. These are manifest-only
+	// (deploy-out/onchain.json), no CONTRACT_* env override exists for
+	// them and Preflight() does not require one — see the comment there.
+	ProofAggregation string
+	ModelRegistry    string
+	ProofOfInference string
+	Governance       string
 }
 
 type Server struct {
@@ -65,16 +72,16 @@ type Server struct {
 	sub       *submitter.CasperSubmitter
 	inf       *inference.InferenceService
 	zk        *zkverifier.Groth16Verifier
-	realZK    *gnarkzk.Setup     // legacy PreimageCircuit-only setup, kept for backwards compat
-	zkReg     *gnarkzk.Registry  // v1 circuit registry (persistent keys via CP_ZK_KEYS_DIR)
-	keyRing   *pqcrypto.KeyRing   // deprecated shim: same object as keystore.Ring() when the backend is memory. Do not add new call sites; new code should route through `keystore`.
-	keystore  keystore.Keystore   // PQ signing backend. Default memory; opt-in file/remote via CP_KEYSTORE_KIND.
+	realZK    *gnarkzk.Setup    // legacy PreimageCircuit-only setup, kept for backwards compat
+	zkReg     *gnarkzk.Registry // v1 circuit registry (persistent keys via CP_ZK_KEYS_DIR)
+	keyRing   *pqcrypto.KeyRing // deprecated shim: same object as keystore.Ring() when the backend is memory. Do not add new call sites; new code should route through `keystore`.
+	keystore  keystore.Keystore // PQ signing backend. Default memory; opt-in file/remote via CP_KEYSTORE_KIND.
 	contracts contractHashes
 	port      int
 	log       *slog.Logger
 	start     time.Time
 	apiKey    string
-	strict    bool // fail closed for requested on-chain operations
+	strict    bool           // fail closed for requested on-chain operations
 	scopeReg  *ScopeRegistry // optional per-key scope allowlist; nil = disabled
 
 	obsRegistry *obs.Registry // populated on Start() for /metrics exposition
@@ -179,10 +186,14 @@ func manifestHashOrEnv(envKey, manifestKey string) string {
 // PRs (see docs/STRICT_MODE_ROLLOUT.md in AE402 for the sibling doc).
 func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 	contracts := contractHashes{
-		ProofRegistry: manifestHashOrEnv("CONTRACT_PROOF_REGISTRY", "proof_registry"),
-		VerifierGate:  manifestHashOrEnv("CONTRACT_VERIFIER_GATE", "verifier_gate"),
-		DefiMock:      manifestHashOrEnv("CONTRACT_DEFI_MOCK", "defi_mock"),
-		StakeSlashing: manifestHashOrEnv("CONTRACT_STAKE_SLASHING", "stake_slashing"),
+		ProofRegistry:    manifestHashOrEnv("CONTRACT_PROOF_REGISTRY", "proof_registry"),
+		VerifierGate:     manifestHashOrEnv("CONTRACT_VERIFIER_GATE", "verifier_gate"),
+		DefiMock:         manifestHashOrEnv("CONTRACT_DEFI_MOCK", "defi_mock"),
+		StakeSlashing:    manifestHashOrEnv("CONTRACT_STAKE_SLASHING", "stake_slashing"),
+		ProofAggregation: manifestHashOrEnv("CONTRACT_PROOF_AGGREGATION", "proof_aggregation"),
+		ModelRegistry:    manifestHashOrEnv("CONTRACT_MODEL_REGISTRY", "model_registry"),
+		ProofOfInference: manifestHashOrEnv("CONTRACT_PROOF_OF_INFERENCE", "proof_of_inference"),
+		Governance:       manifestHashOrEnv("CONTRACT_GOVERNANCE", "governance"),
 	}
 
 	nodeURL := os.Getenv("CASPER_NODE_URL")
@@ -281,10 +292,10 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 	}
 
 	srv := &Server{
-		eng:    eng,
-		ver:    verifier.New(),
-		kyc:    demoKYC,
-		db:     db,
+		eng:       eng,
+		ver:       verifier.New(),
+		kyc:       demoKYC,
+		db:        db,
 		sub:       sub,
 		inf:       inference.New(eng, db, sub),
 		zk:        zkverifier.NewGroth16Verifier(),
@@ -293,10 +304,10 @@ func New(eng *prover.ProofEngine, port int, db *store.PG) (*Server, error) {
 		keyRing:   nil,
 		contracts: contracts,
 		port:      port,
-		log:    slog.Default(),
-		start:  time.Now(),
-		apiKey: apiKey,
-		strict: strict,
+		log:       slog.Default(),
+		start:     time.Now(),
+		apiKey:    apiKey,
+		strict:    strict,
 		tenants:   tenants,
 
 		aggBatches: make(map[string]*aggBatch),
@@ -563,7 +574,7 @@ func (s *Server) Start() error {
 	// route="all" here; per-route detail lives in the app metrics
 	// (proofs generated, quorum verified, etc.).
 	srv := &http.Server{
-		Addr:         addr,
+		Addr: addr,
 		Handler: s.v1AliasMiddleware(
 			s.acceptVersionMiddleware(
 				s.rateLimitMiddleware(
@@ -769,10 +780,14 @@ func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
 			"real_groth16":         s.realZK != nil,
 		},
 		"contracts": map[string]string{
-			"proof_registry": s.contracts.ProofRegistry,
-			"verifier_gate":  s.contracts.VerifierGate,
-			"defi_mock":      s.contracts.DefiMock,
-			"stake_slashing": s.contracts.StakeSlashing,
+			"proof_registry":     s.contracts.ProofRegistry,
+			"verifier_gate":      s.contracts.VerifierGate,
+			"defi_mock":          s.contracts.DefiMock,
+			"stake_slashing":     s.contracts.StakeSlashing,
+			"proof_aggregation":  s.contracts.ProofAggregation,
+			"model_registry":     s.contracts.ModelRegistry,
+			"proof_of_inference": s.contracts.ProofOfInference,
+			"governance":         s.contracts.Governance,
 		},
 	})
 }
@@ -2271,11 +2286,11 @@ func (s *Server) proofChainValidate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"valid":          true,
-		"chain_id":       chain.ID,
-		"total_steps":    chain.TotalSteps,
-		"depth":          chain.Depth,
-		"root_proof_id":  chain.RootProofID,
-		"status":         "fully_verified",
+		"valid":         true,
+		"chain_id":      chain.ID,
+		"total_steps":   chain.TotalSteps,
+		"depth":         chain.Depth,
+		"root_proof_id": chain.RootProofID,
+		"status":        "fully_verified",
 	})
 }
