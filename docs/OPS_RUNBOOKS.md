@@ -18,7 +18,7 @@ links back to an anchor in this file.
   `/prove`, `/metrics`, `/version`) plus the local observability stack from
   Pack AG.
 - **Out-of-scope for this doc:** contract deployments (see
-  [`contracts/README.md`](../contracts/README.md) and the deploy scripts under
+  [`docs/TX_MANIFEST.md`](./TX_MANIFEST.md) and the deploy scripts under
   `scripts/`), the Phase-2 ceremony (see
   [`zk/ceremony/README.md`](../zk/ceremony/README.md)), and mainnet promotion
   (see [MAINNET_LAUNCH_PLAN.md](./MAINNET_LAUNCH_PLAN.md)).
@@ -120,7 +120,7 @@ Post-rollback:
   gets an `expand-migrate-contract` sub-runbook.
 - Contract deploys — each Casper testnet deploy is one-shot; there is no LB
   in front of a contract. The contract runbook lives in
-  [`contracts/README.md`](../contracts/README.md).
+  [`docs/TX_MANIFEST.md`](./TX_MANIFEST.md).
 - ZK ceremony transcript rotations — see
   [`zk/ceremony/README.md`](../zk/ceremony/README.md).
 

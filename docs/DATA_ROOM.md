@@ -1,4 +1,4 @@
-# CasperProver \u2014 Data Room Index
+# CasperProver — Data Room Index
 
 *Backlog 14.4, 14.5.* Single-page pointer to every artefact a judge
 (or investor / auditor / integrator) needs to independently verify
@@ -8,10 +8,10 @@ the project. Path-based, no dead links.
 
 | Artefact                                | Path                                    | Purpose                                                                 |
 |-----------------------------------------|-----------------------------------------|-------------------------------------------------------------------------|
-| One-line pitch                          | `README.md` \u00a7 tagline                 | REAL / ON-CHAIN / SIMULATION labels are stated up front                 |
+| One-line pitch                          | `README.md` § tagline                 | REAL / ON-CHAIN / SIMULATION labels are stated up front                 |
 | Judge guide                             | `docs/JUDGE_GUIDE.md`                   | 8-criteria map + step-by-step reproduce                                 |
 | Claim boundary                          | `docs/KNOWN_LIMITATIONS.md`             | What is honestly limited                                                |
-| Regulatory posture                      | `docs/JUDGE_GUIDE.md` \u00a7 regulatory   | MiCA / EU AI Act / GDPR / FinCEN / NIST AI RMF alignment                |
+| Regulatory posture                      | `docs/JUDGE_GUIDE.md` § regulatory   | MiCA / EU AI Act / GDPR / FinCEN / NIST AI RMF alignment                |
 
 ## 2. Reproducibility
 
@@ -26,7 +26,7 @@ the project. Path-based, no dead links.
 
 | Artefact                                | Path                                    | Purpose                                                                 |
 |-----------------------------------------|-----------------------------------------|-------------------------------------------------------------------------|
-| Deployed contracts index                | `contracts/README.md`                   | 4 deployed, 3 undeployed, 1 blocked                                     |
+| Deployed contracts index                | `docs/TX_MANIFEST.md`                   | 8 deployed, 0 undeployed                                                |
 | Owner lifecycle design                  | `docs/OWNER_LIFECYCLE.md`               | Recovery / timelock instead of irreversible renounce                    |
 | Contract invariants                     | `docs/CONTRACT_INVARIANTS.md`           | Global + cross-contract invariants                                      |
 | Formal verification status              | `docs/FORMAL_VERIFICATION.md`           | What is (and isn't) verified today                                      |
@@ -45,9 +45,9 @@ the project. Path-based, no dead links.
 |-----------------------------------------|-----------------------------------------|-------------------------------------------------------------------------|
 | OpenAPI                                 | `docs/openapi.yaml`                     | Machine-readable API contract                                           |
 | API versioning + changelog              | `docs/API_CHANGELOG.md`                 | `/v1` + deprecation timeline                                            |
-| SDK \u2014 Go                                | `sdk/go/`                               |                                                                          |
-| SDK \u2014 Python                            | `sdk/python/`                           |                                                                          |
-| SDK \u2014 TypeScript                        | `sdk/typescript/`                       |                                                                          |
+| SDK — Go                                | `sdk/go/`                               |                                                                          |
+| SDK — Python                            | `sdk/python/`                           |                                                                          |
+| SDK — TypeScript                        | `sdk/typescript/`                       |                                                                          |
 
 ## 6. Security posture
 
@@ -63,7 +63,7 @@ the project. Path-based, no dead links.
 
 | Artefact                                | Path                                    | Purpose                                                                 |
 |-----------------------------------------|-----------------------------------------|-------------------------------------------------------------------------|
-| Owner                                   | `README.md` \u00a7 authors                 | anna-stolbovskaja                                                       |
+| Owner                                   | `README.md` § authors                 | anna-stolbovskaja                                                       |
 | Contribution guide                      | `CONTRIBUTING.md`                       |                                                                          |
 | License                                 | `LICENSE`                               |                                                                          |
 

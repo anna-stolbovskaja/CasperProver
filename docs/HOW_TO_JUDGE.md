@@ -20,7 +20,7 @@ criteria is satisfied.
 
 | # | Criterion | Where to look |
 |---|-----------|---------------|
-| 1 | **Casper-native architecture** | `contracts/` — 4 deployed Rust WASM contracts on testnet (proof-registry, verifier-gate, defi-mock, stake-slashing). Cross-contract Merkle-inclusion verification. Contract hashes at `/lab/contracts` and in `README.md`. |
+| 1 | **Casper-native architecture** | `contracts/` — 8 deployed Rust WASM contracts on testnet (proof-registry, verifier-gate, defi-mock, stake-slashing, proof-of-inference, model-registry, proof-aggregation, governance). Cross-contract Merkle-inclusion verification. Contract hashes at `/lab/contracts` and in `README.md`. |
 | 2 | **Working demo on testnet** | `/lab/zk-proofs` — real gnark BN254/MiMC Groth16 prove + verify. `/lab/proofs` — deterministic proof engine with optional on-chain anchoring. 248+ testnet txs to date. |
 | 3 | **Technical correctness** | Engine tests: `engine/zk_gate4_test.go` (real Groth16 round-trip + sim banner regression). Contract tests: `contracts/tests/` including 28 tests for the proof-aggregation guard suite. Independent smoke suite: `./verify.sh`. |
 | 4 | **Novelty / originality** | Real gnark BN254/MiMC Groth16 as the primary ZK path (hash-based conceptual endpoints kept only as `[sim]` for comparison). Hybrid Ed25519 + ML-DSA-65 (FIPS 204) signatures. Merkle-inclusion cross-contract verification. Stake-slashing economic-security layer on-chain. |

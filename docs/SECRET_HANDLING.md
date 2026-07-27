@@ -9,11 +9,11 @@ locally.
 
 | Class            | Examples                                              | Storage                                                        | Rotation |
 |------------------|-------------------------------------------------------|----------------------------------------------------------------|----------|
-| **T1 \u2014 chain key** | Owner secret keys for deployed Casper contracts       | Offline hardware wallet or an env-only PEM never committed     | 90 d     |
-| **T2 \u2014 API key**   | `API_KEY` env var (server)                            | Env only; never checked in; injected via secret manager        | 30 d     |
-| **T3 \u2014 model key**  | Third-party LLM provider keys (OpenAI, Anthropic, \u2026) | Server env only; NEVER passed to clients                       | 90 d     |
-| **T4 \u2014 signed url** | Short-lived S3/GCS artefact URLs                      | Ephemeral memory                                               | \u2264 15 min |
-| **T5 \u2014 telemetry**  | Session IDs, request IDs, trace IDs                   | Logs \u2014 low sensitivity                                        | \u2014        |
+| **T1 — chain key** | Owner secret keys for deployed Casper contracts       | Offline hardware wallet or an env-only PEM never committed     | 90 d     |
+| **T2 — API key**   | `API_KEY` env var (server)                            | Env only; never checked in; injected via secret manager        | 30 d     |
+| **T3 — model key**  | Third-party LLM provider keys (OpenAI, Anthropic, …) | Server env only; NEVER passed to clients                       | 90 d     |
+| **T4 — signed url** | Short-lived S3/GCS artefact URLs                      | Ephemeral memory                                               | ≤ 15 min |
+| **T5 — telemetry**  | Session IDs, request IDs, trace IDs                   | Logs — low sensitivity                                        | —        |
 
 ## Where secrets MUST NOT appear
 
@@ -27,13 +27,13 @@ locally.
 
 - **Local dev.** `.env` (gitignored), never `.env.example`. `.env.example` carries key NAMES only.
 - **CI.** GitHub Actions secrets, scoped per environment. No `secrets.*` referenced outside a job whose runner is the intended env.
-- **Production.** Managed secret store (planned: AWS Secrets Manager or GCP Secret Manager). The API server reads from env at boot only \u2014 no re-read on request path.
+- **Production.** Managed secret store (planned: AWS Secrets Manager or GCP Secret Manager). The API server reads from env at boot only — no re-read on request path.
 
 ## Rotation
 
 - Automated for T4 (signed URLs) by construction.
-- Manual for T1\u2013T3 per the table. A rotation entry lands in
-  `docs/rotation-log.md` (planned) with `old_hash \u2192 new_hash` and
+- Manual for T1–T3 per the table. A rotation entry lands in
+  `docs/rotation-log.md` (planned) with `old_hash → new_hash` and
   the operator's initials.
 - Emergency rotation: `docs/RUNBOOK_ROTATE.md` (planned).
 
@@ -50,17 +50,17 @@ locally.
 
 ## Detection
 
-- **gitleaks** \u2014 pre-push hook + CI job on every push.
-- **trufflehog** \u2014 nightly scan of the full history via
+- **gitleaks** — pre-push hook + CI job on every push.
+- **trufflehog** — nightly scan of the full history via
   `.github/workflows/deep-secret-scan.yml` (planned).
-- **CycloneDX SBOM diff** \u2014 alerts on new dependencies that bundle
+- **CycloneDX SBOM diff** — alerts on new dependencies that bundle
   known-secret-leaking transitive packages.
-- **Log sink filter** \u2014 any log line matching the redaction regex
+- **Log sink filter** — any log line matching the redaction regex
   above is dropped at the stdlib slog handler before emission.
 
 ## Audit trail
 
-Every access to a T1\u2013T3 secret must produce an entry in the
+Every access to a T1–T3 secret must produce an entry in the
 decision-log sink (`internal/decision`) with:
 
 - `metadata["secret_class"] = "T1|T2|T3"`
@@ -68,5 +68,5 @@ decision-log sink (`internal/decision`) with:
 - **NO** field carrying the value itself.
 
 A record with `secret_class` set and a populated `trace_preview` is
-a bug and MUST fail CI \u2014 tracked as invariant I-SEC-1 in
+a bug and MUST fail CI — tracked as invariant I-SEC-1 in
 `docs/CONTRACT_INVARIANTS.md`.

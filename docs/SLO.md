@@ -25,12 +25,12 @@ in `docs/SECURITY.md`.
 
 | Operation                                   | Target       | Rationale                                                                    |
 |---------------------------------------------|--------------|------------------------------------------------------------------------------|
-| Proof generation (hash-based)               | \u2264 400 ms    | Hackathon demo path; hash chain over MiMC preimage                            |
-| Groth16-real prove (BN254, MiMC circuit)    | \u2264 3.5 s     | Real gnark pairing; benchmarks land in `docs/benchmarks/`                    |
-| Groth16-real verify                         | \u2264 25 ms     | Pairing check only                                                          |
-| PQ (SPHINCS+) sign                          | \u2264 700 ms    | Reference impl; not tuned                                                    |
-| PQ verify                                   | \u2264 30 ms     |                                                                              |
-| On-chain deploy submit \u2192 finalized         | \u2264 5 min      | Casper testnet block time is ~30 s; 10x buffer                              |
+| Proof generation (hash-based)               | ≤ 400 ms    | Hackathon demo path; hash chain over MiMC preimage                            |
+| Groth16-real prove (BN254, MiMC circuit)    | ≤ 3.5 s     | Real gnark pairing; benchmarks land in `docs/benchmarks/`                    |
+| Groth16-real verify                         | ≤ 25 ms     | Pairing check only                                                          |
+| PQ (SPHINCS+) sign                          | ≤ 700 ms    | Reference impl; not tuned                                                    |
+| PQ verify                                   | ≤ 30 ms     |                                                                              |
+| On-chain deploy submit → finalized         | ≤ 5 min      | Casper testnet block time is ~30 s; 10x buffer                              |
 
 ## Correctness
 
@@ -43,21 +43,21 @@ in `docs/SECURITY.md`.
 
 ## Error budget & burn-down
 
-- SLO target of `99.5%` \u21d2 216 min error budget per 30 days.
-- Burn-rate alerts (Grafana): 14.4x for 5 min \u21d2 SEV-1 page; 6x for 1 h
-  \u21d2 SEV-2 investigate.
+- SLO target of `99.5%` ⇒ 216 min error budget per 30 days.
+- Burn-rate alerts (Grafana): 14.4x for 5 min ⇒ SEV-1 page; 6x for 1 h
+  ⇒ SEV-2 investigate.
 - Post-mortem template: `docs/POSTMORTEM_TEMPLATE.md` (to be added).
 
 ## What is NOT covered
 
-- Client-side network reliability (browser \u2192 API).
+- Client-side network reliability (browser → API).
 - Casper Network consensus delays beyond 5 min (an ecosystem-wide
   incident, not a CasperProver SLO breach).
-- Third-party LLM inference latency \u2014 the audit log records the
+- Third-party LLM inference latency — the audit log records the
   request/response hashes, not the upstream latency.
 
 ## Reporting
 
 - `/health` returns a snapshot of the last 5 min of each SLO in JSON.
 - Weekly SLO report auto-generated to `docs/slo/<YYYY-Www>.md`
-  (planned once mainnet\u2011ready \u2014 tracked in backlog).
+  (planned once mainnet‑ready — tracked in backlog).

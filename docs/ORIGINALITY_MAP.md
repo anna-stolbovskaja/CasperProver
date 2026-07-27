@@ -1,4 +1,4 @@
-# CasperProver \u2014 Originality Map
+# CasperProver — Originality Map
 
 *Backlog 15.2.* What is genuinely ours, what we borrow, and where the
 boundary sits. Judges want to know the delta between "we integrated
@@ -6,16 +6,16 @@ X" and "we invented Y." This is that map.
 
 ## Legend
 
-- **built** \u2014 designed and written by the CasperProver team.
-- **wrapped** \u2014 built on top of an upstream library, but with
+- **built** — designed and written by the CasperProver team.
+- **wrapped** — built on top of an upstream library, but with
   non-trivial code / configuration / composition around it.
-- **used-as-is** \u2014 upstream dependency, essentially untouched.
+- **used-as-is** — upstream dependency, essentially untouched.
 
 ## Cryptography
 
 | Component                              | Status      | Upstream / rationale                                                            |
 |----------------------------------------|-------------|---------------------------------------------------------------------------------|
-| Groth16 pairing check (BN254)          | wrapped     | `github.com/consensys/gnark` \u2014 vetted, do not hand-roll                        |
+| Groth16 pairing check (BN254)          | wrapped     | `github.com/consensys/gnark` — vetted, do not hand-roll                        |
 | MiMC-preimage circuit                  | built       | R1CS circuit definition, witness gen, key derivation                            |
 | PQ signature (SPHINCS+)                | wrapped     | Reference impl; audited primitive                                               |
 | Hybrid Ed25519+SPHINCS+                | built       | Composition + verification order                                                |
@@ -83,5 +83,5 @@ Every "built" row has:
 2. At least one test in the codebase named after the invariant.
 3. A row in `docs/DATA_ROOM.md` pointing at the artefact.
 
-If a "built" row lacks any of the three, that's a gap \u2014 open a
+If a "built" row lacks any of the three, that's a gap — open a
 "originality debt" ticket.

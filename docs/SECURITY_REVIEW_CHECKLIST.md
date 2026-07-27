@@ -1,8 +1,8 @@
-# CasperProver \u2014 Security Review Checklist
+# CasperProver — Security Review Checklist
 
 *Backlog 10.7.* Every PR that changes surface (network, contract,
 auth, crypto, secrets, deploy pipeline) is reviewed against this
-list. Item counts are held small on purpose \u2014 checklists over
+list. Item counts are held small on purpose — checklists over
 20 items get skimmed.
 
 ## A. Authentication & authorization
@@ -22,9 +22,9 @@ list. Item counts are held small on purpose \u2014 checklists over
 
 ## C. Contracts
 
-- [ ] WASM artifact size delta \u2264 5 KB or justified.
+- [ ] WASM artifact size delta ≤ 5 KB or justified.
 - [ ] New entry-points listed in the contract's `README.md` + `docs/CONTRACT_INVARIANTS.md`.
-- [ ] Reentrancy \u2014 for anything that calls out to another contract, invariant re-checked at return.
+- [ ] Reentrancy — for anything that calls out to another contract, invariant re-checked at return.
 - [ ] Owner-only entry-points guarded by `only_owner!` (or the trait equivalent) plus a matching test.
 - [ ] No `panic!` on user input where an `Error::…` return exists.
 
@@ -37,13 +37,13 @@ list. Item counts are held small on purpose \u2014 checklists over
 
 ## E. Observability
 
-- [ ] Every new endpoint emits a slog line with request id, latency, status \u2014 no PII.
+- [ ] Every new endpoint emits a slog line with request id, latency, status — no PII.
 - [ ] Errors have distinct codes so dashboards can page on them (planned Grafana).
 - [ ] `X-CP-Deprecation` header preserved on the legacy path if a v1 alias was added.
 
 ## F. Docs
 
-- [ ] `CHANGELOG.md` \u00a7 Unreleased updated.
+- [ ] `CHANGELOG.md` § Unreleased updated.
 - [ ] `docs/JUDGE_GUIDE.md` mentions the new surface if it's judge-facing.
 - [ ] Threat-model row appended to `docs/SECURITY.md` if the change opens/reduces surface area.
 
