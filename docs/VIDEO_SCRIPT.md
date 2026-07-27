@@ -7,8 +7,15 @@ hero now leads with "Your AI made a decision. Prove it." — matching that)
 
 Old script (deleted from repo history, last version `62b6cce`) matched a UI
 that no longer exists (Generate/Proofs/Verify/Demo/Overview tabs). Current
-site is a 10-page Lab: Overview, Proofs, ZK Proofs, Models, Aggregation,
-PQ Crypto, Contracts, Agent Demo, API Playground, KYC. Rewritten to match.
+site is an 11-tab Lab grouped into 4 categories: Core workflow (Overview,
+Proofs, Models, Aggregation), Cryptography & chain (ZK Proofs, PQ Crypto,
+Contracts), Developer tools (Playground), Explore (KYC, Attack Evidence,
+Offline Verify). Nav is now a two-level category/tab menu (2026-07-27),
+not a flat tab row — worth a quick establishing shot of that in the hook
+or Section 1, since a flat-tab shot would look out of date. Rewritten to
+match; Attack Evidence and Offline Verify aren't covered by name below —
+add a beat for them if the runtime allows, they're live features with no
+script coverage yet.
 
 ---
 
@@ -29,7 +36,7 @@ PQ Crypto, Contracts, Agent Demo, API Playground, KYC. Rewritten to match.
 
 [SHOW: Contracts tab → click `proof_registry` → testnet.cspr.live opens on the real deploy]
 
-[TOOLTIP: "8 contracts, all live on Casper testnet — not a mockup."]
+[TOOLTIP: "9 contracts, all live on Casper testnet — not a mockup."]
 
 ---
 
@@ -72,14 +79,14 @@ PQ Crypto, Contracts, Agent Demo, API Playground, KYC. Rewritten to match.
 [SHOW: API Playground — pick an endpoint, hit run, see real request/response]
 [SUBTITLE: "32 REST endpoints · 32 SDK methods · MCP server for any AI agent."]
 
-[SHOW: Terminal: `python3 scripts/judge_demo.py` → 8/8 contracts PASS, API health PASS, frontend PASS]
+[SHOW: Terminal: `python3 scripts/judge_demo.py` → 9/9 contracts PASS, API health PASS, frontend PASS]
 [SUBTITLE: "One command verifies everything above — no trust required."]
 
 ---
 
 ## OUTRO (1:55–2:00)
 
-[SHOW: casperprover.xyz hero, stats bar: `8 contracts · 250+ testnet txns · 32 endpoints · 32 SDK/MCP tools`]
+[SHOW: casperprover.xyz hero, stats bar: `9 contracts · 250+ testnet txns · 32 endpoints · 32 SDK/MCP tools`]
 [SUBTITLE: "CasperProver. AI accountability, on-chain."]
 [B-ROLL: github.com/anna-stolbovskaja/CasperProver]
 
@@ -95,7 +102,7 @@ PQ Crypto, Contracts, Agent Demo, API Playground, KYC. Rewritten to match.
 | PQ sign | `ML-DSA-65 (FIPS 204) hybrid signing` |
 | Stake-slash | `20% slash · permissionless bounty for reporters` |
 | Aggregation | `Hash-chain batching, Postgres-persisted` |
-| judge_demo run | `8/8 contracts verified — one command` |
+| judge_demo run | `9/9 contracts verified — one command` |
 
 ## PRODUCTION NOTES (carried over from v1, still valid)
 

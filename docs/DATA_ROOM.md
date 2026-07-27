@@ -26,7 +26,7 @@ the project. Path-based, no dead links.
 
 | Artefact                                | Path                                    | Purpose                                                                 |
 |-----------------------------------------|-----------------------------------------|-------------------------------------------------------------------------|
-| Deployed contracts index                | `docs/TX_MANIFEST.md`                   | 8 deployed, 0 undeployed                                                |
+| Deployed contracts index                | `docs/TX_MANIFEST.md`                   | 9 deployed, 0 undeployed                                                |
 | Owner lifecycle design                  | `docs/OWNER_LIFECYCLE.md`               | Recovery / timelock instead of irreversible renounce                    |
 | Contract invariants                     | `docs/CONTRACT_INVARIANTS.md`           | Global + cross-contract invariants                                      |
 | Formal verification status              | `docs/FORMAL_VERIFICATION.md`           | What is (and isn't) verified today                                      |
