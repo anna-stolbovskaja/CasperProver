@@ -25,7 +25,8 @@
 **Three entry points on the landing page:**
 [Try the product](https://casperprover.xyz/lab/playground) ·
 [For developers (API / SDK / MCP)](https://casperprover.xyz/docs/api) ·
-[For evaluators (Proof & architecture)](https://casperprover.xyz/lab/contracts)
+[For evaluators (Proof & architecture)](https://casperprover.xyz/lab/contracts) ·
+[Video script](docs/VIDEO_SCRIPT.md)
 
 </div>
 

@@ -6,7 +6,45 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — Post-Deadline Review Pass (2026-07-27)
+
+Full review/reconciliation pass, done after 07-26's judge/redeploy work.
+Found and fixed real production issues, not just doc drift:
+
+### Fixed — critical
+
+- **Production Go build had been broken since commit `1744880`**: `go.mod`'s
+  `go 1.25.7` directive (bumped alongside gnark 0.13→0.15) didn't match the
+  Dockerfile's `golang:1.24-alpine` builder, so every deploy since then
+  failed at `go mod tidy` with "go.mod requires go >= 1.25.7". The live
+  API (`casperprover-api-ylsh.onrender.com`) had been silently frozen on a
+  ~3.5-hour-old build serving stale contract hashes and missing the
+  CP_STRICT auth block, while `TX_MANIFEST.md`, `judge_demo.py`, and 3 SDK
+  releases all landed on `main` without ever going live. Bumped the
+  Dockerfile and 3 GitHub Actions workflows (`check.yml`,
+  `sdk-publish-go.yml`, `verify.yml`) to `1.25`. Confirmed live via a fresh
+  Render deploy.
+- `scripts/judge_demo.py` only checked 4 of 8 live contracts —
+  `_MANIFEST_KEYS` was never extended to match `_FALLBACK_CONTRACTS` when
+  the other 4 contracts (proof-aggregation, model-registry,
+  proof-of-inference, governance) went live. Fixed; verified 11/1/0 (was
+  7/1/0).
+- `frontend/src/components/lab/Contracts.tsx`'s `PRESENTATION` array was
+  missing `governance` — the flagship Contracts lab page reported "7 total,
+  7 deployed" instead of 8/8.
+
+### Fixed — docs/site
+
+- `README.md`'s top badge/summary said 250+ testnet transactions while the
+  detail table and `TX_MANIFEST.md` both said 248+ — standardized on 248+.
+- `Benchmarks.tsx`, `Features.tsx`, `Footer.tsx` still said "7 contracts,
+  4 deployed" on the live site.
+- All 6 `docs/screenshots/*.png` referenced from README were stale (showing
+  the old "4 deployed + 3 written" contract count) — regenerated from the
+  live site.
+- Rewrote `docs/VIDEO_SCRIPT.md` (deleted from history in an earlier docs
+  cleanup) to match the current 10-page Lab UI instead of the old
+  Generate/Proofs/Verify/Demo tab layout.
 
 *Frontend polish, DoraHacks submission prep, docs hardening, backend hardening, CI/deps sweep, Casper 2.0 SDK migration.*
 
