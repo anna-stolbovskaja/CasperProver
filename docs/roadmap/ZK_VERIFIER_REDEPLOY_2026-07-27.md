@@ -86,14 +86,13 @@ remains on-chain (Casper has no contract deletion) but is deprecated —
 still running the vulnerable pre-fix code. All docs/env/manifest references
 have been repointed to the new hash above.
 
-## Downstream integration — NOT yet closed
+## Downstream integration — closed 2026-07-28
 
 - `deploy-out/onchain.json` / `frontend/public/onchain.json` updated in this
   same change.
-- **Render `CONTRACT_ZK_VERIFIER` env var on the live CP API service still
-  needs to be updated to the new contract_hash above** — no Render
-  credentials were available in this session to do it directly. Until this
-  is done, the live API's `register_vk`/`disable_vk`/`get_vk`/`is_active_vk`
-  calls will keep resolving to the empty/old value.
-- No live smoke-test of the API's zk-verifier endpoints has been run yet
-  (blocked on the env var update above).
+- Render's `CONTRACT_ZK_VERIFIER` env var on the live CP API service updated
+  to the new contract_hash above and confirmed live via `GET /health` (its
+  `contracts.zk_verifier` field matches `4500da5d…dc96a1`).
+- Full `judge_demo.py` suite (13/13) re-run against the live API, including
+  a real Groth16 round-trip through the new contract — see
+  `docs/SECURITY_AUDIT.md` §2.10.
