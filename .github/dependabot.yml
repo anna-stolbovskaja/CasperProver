@@ -12,10 +12,17 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+  # casper-types pinned to 6.0 to match on-chain-deployed bytecode / test
+  # harness. A dependabot major bump to 7.x broke CI on the sibling AE402
+  # repo (2026-07-27/28, commit ba8bf44); never merged here but ignoring it
+  # proactively. Patch bumps only.
   - package-ecosystem: cargo
     directory: /contracts
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "casper-types"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
