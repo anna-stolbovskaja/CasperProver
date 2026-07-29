@@ -2,6 +2,15 @@
   "name": "@casperprover/sdk",
   "version": "0.1.2",
   "description": "CasperProver TypeScript SDK - prove, verify, batch, anchor.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anna-stolbovskaja/CasperProver.git",
+    "directory": "sdk/typescript"
+  },
+  "homepage": "https://github.com/anna-stolbovskaja/CasperProver#readme",
+  "bugs": {
+    "url": "https://github.com/anna-stolbovskaja/CasperProver/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
