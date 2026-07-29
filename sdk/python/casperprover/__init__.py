@@ -47,4 +47,4 @@ __all__ = [
     "hash_field",
 ]
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
