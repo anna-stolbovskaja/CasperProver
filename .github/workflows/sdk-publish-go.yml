@@ -4,7 +4,7 @@ name: sdk-publish-go
 #
 # The Go proxy does NOT accept an "upload" step — you cannot push a
 # module. A tag on the repository IS the release: once a tag matching
-# `sdk-go-v*` is on origin, we (a) verify the module builds against
+# `sdk/v*` is on origin, we (a) verify the module builds against
 # `GOPROXY=proxy.golang.org,direct` from a clean cache, (b) warm the
 # proxy cache so `go get` immediately resolves, (c) fetch the pkg.go.dev
 # page which triggers doc indexing. There is no dry-run flag on the
@@ -14,7 +14,7 @@ name: sdk-publish-go
 # CI mode: on every push/PR touching sdk/**, runs a full local build so
 # a broken module fails the PR.
 #
-# Release mode: pushed by release-please (or by hand) as `sdk-go-vX.Y.Z`.
+# Release mode: pushed by release-please (or by hand) as `sdk/vX.Y.Z`.
 
 on:
   push:
@@ -23,7 +23,7 @@ on:
       - "sdk/**"
       - ".github/workflows/sdk-publish-go.yml"
     tags:
-      - "sdk-go-v*"
+      - "sdk/v*"
   pull_request:
     paths:
       - "sdk/**"
@@ -57,12 +57,12 @@ jobs:
           go vet ./...
           go test -race ./...
       - name: Verify tag matches module (release tag only)
-        if: startsWith(github.ref, 'refs/tags/sdk-go-v')
+        if: startsWith(github.ref, 'refs/tags/sdk/v')
         working-directory: sdk
         env:
           TAG_REF: ${{ github.ref_name }}
         run: |
-          # sdk-go-vX.Y.Z tag must point at sdk/ which is a Go submodule.
+          # sdk/vX.Y.Z tag must point at sdk/ which is a Go submodule.
           # The proxy will read the module path from sdk/go.mod, so all we
           # can enforce here is that go.mod matches the module we expect.
           want='github.com/anna-stolbovskaja/CasperProver/sdk'
@@ -77,7 +77,7 @@ jobs:
     name: warm pkg.go.dev
     needs: build-and-verify
     if: |
-      startsWith(github.ref, 'refs/tags/sdk-go-v') ||
+      startsWith(github.ref, 'refs/tags/sdk/v') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
     runs-on: ubuntu-latest
     permissions:
@@ -91,13 +91,13 @@ jobs:
         env:
           TAG_REF: ${{ github.ref_name }}
         run: |
-          if [[ "$TAG_REF" == sdk-go-v* ]]; then
-            echo "version=${TAG_REF#sdk-go-}" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG_REF" == sdk/v* ]]; then
+            echo "version=${TAG_REF#sdk/}" >> "$GITHUB_OUTPUT"
           else
-            # manual dispatch: use the latest sdk-go-v* tag on the branch
+            # manual dispatch: use the latest sdk/v* tag on the branch
             git fetch --tags --depth=1 origin || true
-            latest=$(git for-each-ref --sort=-creatordate --format='%(refname:short)' 'refs/tags/sdk-go-v*' | head -n1)
-            echo "version=${latest#sdk-go-}" >> "$GITHUB_OUTPUT"
+            latest=$(git for-each-ref --sort=-creatordate --format='%(refname:short)' 'refs/tags/sdk/v*' | head -n1)
+            echo "version=${latest#sdk/}" >> "$GITHUB_OUTPUT"
           fi
       - name: go get @${{ steps.v.outputs.version }} via public proxy
         env:
@@ -108,7 +108,7 @@ jobs:
           v='${{ steps.v.outputs.version }}'
           mod='github.com/anna-stolbovskaja/CasperProver/sdk'
           if [ -z "$v" ]; then
-            echo "no sdk-go-v* tag found — nothing to warm" >&2
+            echo "no sdk/v* tag found — nothing to warm" >&2
             exit 0
           fi
           tmp=$(mktemp -d)

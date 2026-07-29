@@ -14,7 +14,7 @@
       "tag-separator": "-v",
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md",
-      "include-v-in-tag": true,
+      "include-v-in-tag": false,
       "extra-files": []
     },
     "sdk/python": {
@@ -24,14 +24,14 @@
       "tag-separator": "-v",
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md",
-      "include-v-in-tag": true,
+      "include-v-in-tag": false,
       "extra-files": []
     },
     "sdk": {
       "release-type": "go",
       "package-name": "github.com/anna-stolbovskaja/CasperProver/sdk",
-      "component": "sdk-go",
-      "tag-separator": "-v",
+      "component": "sdk",
+      "tag-separator": "/",
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md",
       "include-v-in-tag": true,
@@ -39,14 +39,46 @@
     }
   },
   "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug Fixes" },
-    { "type": "perf", "section": "Performance" },
-    { "type": "revert", "section": "Reverts" },
-    { "type": "docs", "section": "Documentation", "hidden": false },
-    { "type": "refactor", "section": "Refactors", "hidden": false },
-    { "type": "chore", "section": "Miscellaneous", "hidden": true },
-    { "type": "test", "section": "Tests", "hidden": true },
-    { "type": "ci", "section": "CI", "hidden": true }
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "revert",
+      "section": "Reverts"
+    },
+    {
+      "type": "docs",
+      "section": "Documentation",
+      "hidden": false
+    },
+    {
+      "type": "refactor",
+      "section": "Refactors",
+      "hidden": false
+    },
+    {
+      "type": "chore",
+      "section": "Miscellaneous",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Tests",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI",
+      "hidden": true
+    }
   ]
 }
