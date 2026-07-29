@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/anna-stolbovskaja/CasperProver/compare/sdk-ts-v0.1.2...sdk-ts-v0.1.3) (2026-07-29)
+
+
+### Bug Fixes
+
+* **sdk-ts:** add repository/homepage/bugs to package.json for npm provenance ([cee0b17](https://github.com/anna-stolbovskaja/CasperProver/commit/cee0b17d50b4464d474ffc100a8b74f1b2df14f8))
+
 ## [0.1.2](https://github.com/anna-stolbovskaja/CasperProver/compare/sdk-ts-vv0.1.1...sdk-ts-vv0.1.2) (2026-07-29)
 
 
