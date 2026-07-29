@@ -10,7 +10,7 @@ GitHub Actions minutes, npm, PyPI, and the public Go proxy.
 |------------|--------------------------------------|----------------------|---------------|-------------------------------|
 | TypeScript | `@casperprover/sdk`                  | npmjs.com            | `sdk-ts-v*`   | `sdk/typescript/package.json` |
 | Python     | `casperprover`                       | pypi.org             | `sdk-py-v*`   | `sdk/python/pyproject.toml`   |
-| Go         | `.../CasperProver/sdk`               | proxy.golang.org     | `sdk-go-v*`   | `sdk/version.txt` (+ go.mod)  |
+| Go         | `.../CasperProver/sdk`               | proxy.golang.org     | `sdk/v*`      | `sdk/version.txt` (+ go.mod)  |
 
 Every component is independently versioned. A `feat(sdk):` commit that
 touches all three bumps all three; a `fix(sdk-py):` touches only Python.
@@ -26,7 +26,7 @@ version-guard.
 and to `post-hackathon/roadmap`. release-please reads the Conventional
 Commits history and opens (or updates) one PR per SDK that has unreleased
 changes. Merge the PR → release-please cuts the GitHub Release with the
-right `sdk-ts-vX.Y.Z` / `sdk-py-vX.Y.Z` / `sdk-go-vX.Y.Z` tag → the per-
+right `sdk-ts-vX.Y.Z` / `sdk-py-vX.Y.Z` / `sdk/vX.Y.Z` tag → the per-
 language `sdk-publish-*` workflow fires on that Release event.
 
 Config lives in [`.release-please-config.json`](../.release-please-config.json) and
@@ -110,7 +110,7 @@ echo "0.1.1" > sdk/version.txt
 git commit -am "release: sdk 0.1.1"
 git tag sdk-ts-v0.1.1
 git tag sdk-py-v0.1.1
-git tag sdk-go-v0.1.1
+git tag sdk/v0.1.1
 git push origin HEAD --tags
 
 # 3. Cut a GitHub Release from each tag (gh release create sdk-ts-v0.1.1 …).

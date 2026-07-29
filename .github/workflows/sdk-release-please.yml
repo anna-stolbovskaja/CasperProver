@@ -7,7 +7,7 @@ name: sdk-release-please
 #      version.txt for the Go component)
 #   • regenerates the CHANGELOG.md for that SDK
 # When the PR is merged, release-please cuts a GitHub Release with the
-# right tag (`sdk-ts-vX.Y.Z`, `sdk-py-vX.Y.Z`, `sdk-go-vX.Y.Z`). The
+# right tag (`sdk-ts-vX.Y.Z`, `sdk-py-vX.Y.Z`, `sdk/vX.Y.Z`). The
 # per-language publish workflows in this repo are triggered by that
 # release event.
 #
