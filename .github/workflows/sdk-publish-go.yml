@@ -23,7 +23,7 @@ on:
       - "sdk/**"
       - ".github/workflows/sdk-publish-go.yml"
     tags:
-      - "sdk-go-v*"
+      - "sdk/v*"
   pull_request:
     paths:
       - "sdk/**"
@@ -57,7 +57,7 @@ jobs:
           go vet ./...
           go test -race ./...
       - name: Verify tag matches module (release tag only)
-        if: startsWith(github.ref, 'refs/tags/sdk-go-v')
+        if: startsWith(github.ref, 'refs/tags/sdk/v')
         working-directory: sdk
         env:
           TAG_REF: ${{ github.ref_name }}
@@ -77,7 +77,7 @@ jobs:
     name: warm pkg.go.dev
     needs: build-and-verify
     if: |
-      startsWith(github.ref, 'refs/tags/sdk-go-v') ||
+      startsWith(github.ref, 'refs/tags/sdk/v') ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'false')
     runs-on: ubuntu-latest
     permissions:
@@ -91,13 +91,13 @@ jobs:
         env:
           TAG_REF: ${{ github.ref_name }}
         run: |
-          if [[ "$TAG_REF" == sdk-go-v* ]]; then
-            echo "version=${TAG_REF#sdk-go-}" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG_REF" == sdk/v* ]]; then
+            echo "version=${TAG_REF#sdk/}" >> "$GITHUB_OUTPUT"
           else
             # manual dispatch: use the latest sdk-go-v* tag on the branch
             git fetch --tags --depth=1 origin || true
-            latest=$(git for-each-ref --sort=-creatordate --format='%(refname:short)' 'refs/tags/sdk-go-v*' | head -n1)
-            echo "version=${latest#sdk-go-}" >> "$GITHUB_OUTPUT"
+            latest=$(git for-each-ref --sort=-creatordate --format='%(refname:short)' 'refs/tags/sdk/v*' | head -n1)
+            echo "version=${latest#sdk/}" >> "$GITHUB_OUTPUT"
           fi
       - name: go get @${{ steps.v.outputs.version }} via public proxy
         env:
@@ -108,7 +108,7 @@ jobs:
           v='${{ steps.v.outputs.version }}'
           mod='github.com/anna-stolbovskaja/CasperProver/sdk'
           if [ -z "$v" ]; then
-            echo "no sdk-go-v* tag found — nothing to warm" >&2
+            echo "no sdk/v* tag found — nothing to warm" >&2
             exit 0
           fi
           tmp=$(mktemp -d)
