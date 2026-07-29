@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/anna-stolbovskaja/CasperProver/compare/sdk/v0.1.2...sdk/v0.1.3) (2026-07-29)
+
+
+### Bug Fixes
+
+* **release:** use sdk/v* tag for Go SDK ([#37](https://github.com/anna-stolbovskaja/CasperProver/issues/37)) ([ff51334](https://github.com/anna-stolbovskaja/CasperProver/commit/ff51334c0535ced409b58ad75ec02671d6b126a1))
+
 ## [0.1.2](https://github.com/anna-stolbovskaja/CasperProver/compare/sdk-go-vv0.1.1...sdk-go-vv0.1.2) (2026-07-29)
 
 
