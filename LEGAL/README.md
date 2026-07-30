@@ -24,6 +24,15 @@ maintainers do not represent these drafts as legal advice.
   protection notice draft. Roles, hash-only architectural boundary,
   operational telemetry with retention schedule, data-subject rights,
   data-flow map, breach notification.
+- **[PRIVACY.md](PRIVACY.md)** — user-facing Privacy Policy draft.
+  What we collect and why, sub-processors, international transfers,
+  data-subject rights, contact.
+- **[DPA.md](DPA.md)** — Data Processing Agreement template draft.
+  Controller/processor roles, sub-processor list, audit rights,
+  cross-border transfer mechanism, deletion at end of service.
+- **[RETENTION.md](RETENTION.md)** — canonical retention schedule
+  (single source of truth referenced by PRIVACY, DATA_PROTECTION and
+  DPA). Per-class retention, storage tier, end-of-life mechanism.
 
 ## Honesty labels used here
 

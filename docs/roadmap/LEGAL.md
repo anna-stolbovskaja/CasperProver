@@ -13,7 +13,22 @@ Ref: `handoff/CP_FINAL_TASKS_V2.md` §E.
 - **Retention Policy.** See below.
 - **Acceptable Use Policy.**
 
-All documents live under `docs/legal/` and are versioned per publication.
+All documents live under `LEGAL/` and are versioned per publication.
+(Historical note: this roadmap earlier proposed `docs/legal/`; the actual
+canonical location is the top-level `LEGAL/` directory that predates
+the roadmap plan. Both paths refer to the same body of work.)
+
+Draft coverage as of 2026-07-30 (all clearly labelled *DRAFT — not
+counsel-reviewed*):
+- `LEGAL/TOS.md` — Terms of Service (v0.1-draft).
+- `LEGAL/PRIVACY.md` — Privacy Policy (v0.1-draft).
+- `LEGAL/DPA.md` — Data Processing Agreement template (v0.1-draft).
+- `LEGAL/DATA_PROTECTION.md` — GDPR-adjacent notice (v0.1-draft).
+- `LEGAL/RETENTION.md` — canonical retention schedule (v0.1-draft).
+- `LEGAL/AUP.md` — Acceptable Use Policy (v0.1-draft).
+
+The counsel-reviewed replacements land under Pack AK
+(`docs/MAINNET_LAUNCH_PLAN.md`) at the pre-commercial-launch milestone.
 
 ## Retention
 
@@ -71,8 +86,10 @@ unrecoverable. Documented per NIST SP 800-88 rev 1.
 
 ## Acceptance criteria
 
-- [ ] `docs/legal/{TERMS,PRIVACY,DPA,RETENTION,AUP}.md` present and
-      versioned.
+- [x] Draft `LEGAL/{TOS,PRIVACY,DPA,RETENTION,AUP,DATA_PROTECTION}.md`
+      present and versioned (all v0.1-draft, DRAFT-labelled).
+- [ ] Counsel-reviewed replacements land under Pack AK
+      (`docs/MAINNET_LAUNCH_PLAN.md`).
 - [ ] Retention enforced automatically by the engine's data-lifecycle
       cron.
 - [ ] `docs/audits/<vendor>-<date>.pdf` published.
