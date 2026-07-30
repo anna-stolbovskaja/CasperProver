@@ -35,8 +35,9 @@ Ref: `handoff/CP_FINAL_TASKS_V2.md` §E.
 
 - HSM operations require m-of-n human approval for privileged actions
   (governance emergency pause, owner recovery, ceremony sealing).
-- Break-glass procedure documented in `docs/runbooks/break-glass.md`;
-  every use triggers a mandatory postmortem.
+- Break-glass procedure documented in `docs/runbooks/break-glass.md`
+  (draft landed 2026-07-30); every use triggers a mandatory
+  postmortem.
 
 ## Evidence retention
 
