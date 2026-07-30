@@ -1,0 +1,39 @@
+{
+  "_comment": "Pins the circuit family, curve, prover backend, and library versions that MUST match for a ceremony transcript in this repo to be verifiable. Any deviation (different circuit revision, different gnark, different curve) invalidates the resulting VK - a verifier that recomputes vk_hash off this manifest will get a different value and reject the artefacts. Kept alongside zk/ceremony/README.md and zk/ceremony/attestations.example.json.",
+  "schema_version": 1,
+  "circuit": {
+    "id": "PreimageCircuit-MiMC-BN254-v1",
+    "source_path": "engine/internal/zkverifier/gnarkzk/circuit.go",
+    "hash_function": "MiMC",
+    "curve": "BN254",
+    "constraint_family": "R1CS"
+  },
+  "prover": {
+    "backend": "groth16",
+    "library": "github.com/consensys/gnark",
+    "gnark_version": "v0.15.0",
+    "gnark_crypto_version": "v0.20.1"
+  },
+  "ceremony": {
+    "phase1_domain_size_default": 1024,
+    "phase1_contributors_default": 3,
+    "phase2_contributors_default": 3,
+    "beacon_source_hint": "drand-league-of-entropy",
+    "beacon_binding_step": "Seal (see engine/internal/zkverifier/ceremony/ceremony.go)"
+  },
+  "reproducibility": {
+    "go_toolchain": "read from engine/go.mod",
+    "build_flags": ["-trimpath", "-buildvcs=false"],
+    "notes": "The engine/go.mod pin is the source of truth for the exact gnark/gnark-crypto revision compiled into the ceremony binary; this file mirrors it for out-of-tree verifiers who do not want to parse Go modules."
+  },
+  "artefacts": {
+    "phase1_commons": "zk/ceremony/phase1_commons.bin",
+    "proving_key":    "zk/ceremony/groth16_pk.bin",
+    "verifying_key":  "zk/ceremony/groth16_vk.bin",
+    "attestations":   "zk/ceremony/attestations.json",
+    "example":        "zk/ceremony/attestations.example.json"
+  },
+  "honesty_label": "SINGLE-COORDINATOR CEREMONY",
+  "honesty_label_ref": "docs/PQ_HONESTY.md#trusted-setup",
+  "upgrade_path_ref": "zk/ceremony/README.md#multi-party-upgrade--what-changes"
+}
