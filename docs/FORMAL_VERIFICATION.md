@@ -8,35 +8,69 @@ shipped feature or a roadmap item.
 
 ## TL;DR
 
-- **Shipped:** none. No proof, no model-checker output, no machine-checked
-  invariant lives in this repo.
-- **Not shipped:** a TLA+ / Apalache / Coq / Isabelle artefact of any kind.
-- **What holds instead:** informal invariants documented in
-  `docs/CONTRACT_INVARIANTS.md` (I-*, X-*, F-*), Odra unit tests, and a
-  `verify.sh` smoke pipeline. That is the current level of assurance —
-  nothing more, nothing less.
+- **Shipped (engine-side state machines):** four TLA+ specs under
+  `specs/` — `ProofSystemSpec`, `QuorumSpec`, `ReceiptLineageSpec`,
+  `CanonicalOrderSpec` — model-checked by TLC on every push/PR that
+  touches `specs/` via `.github/workflows/formal-verification.yml`.
+  Full disclosure: `docs/roadmap/FORMAL_VERIFICATION.md`.
+- **NOT shipped (contract-side invariants):** no machine-checked proof
+  or model-check of the Odra Rust contracts (I-*, X-*, F-* in
+  `docs/CONTRACT_INVARIANTS.md`) exists. The four shipped specs cover
+  engine-side state machines (proof registry, quorum registry, receipt
+  lineage, canonical-hash sort-normalisation), not the on-chain state.
+- **What holds instead for the contracts:** informal invariants
+  documented in `docs/CONTRACT_INVARIANTS.md` (I-*, X-*, F-*), Odra
+  unit tests, and a `verify.sh` smoke pipeline. That is the current
+  level of assurance for the contract layer — nothing more, nothing
+  less.
 
-If a reviewer sees the phrase "formal verification" anywhere else in the
-repo (README, marketing site, pitch), and the phrasing implies more than
-"we wrote down the invariants and unit-tested them", that phrasing is a
-bug — please file it as an INVARIANT BREAK issue.
+If a reviewer sees the phrase "formal verification" applied to the
+contract layer anywhere else in the repo (README, marketing site,
+pitch), and the phrasing implies more than "we wrote down the invariants
+and unit-tested them", that phrasing is a bug — please file it as an
+INVARIANT BREAK issue. The engine-side TLA+ specs, in contrast, are
+real machine-checked artefacts.
 
-## What "shipped" would mean
+## What is shipped today (engine-side)
 
-To claim a small-model TLC / Apalache pass we would need, in this repo:
+Four TLA+ specs, all TLC-checked on every push/PR that touches
+`specs/**` via `.github/workflows/formal-verification.yml`. Full
+detail per-spec (invariants, model bounds, state counts, runtimes) is
+in `docs/roadmap/FORMAL_VERIFICATION.md`. Summary:
 
-1. `models/` directory containing a `CasperProverCore.tla` module (or
-   Quint / Apalache equivalent).
-2. A `MC.tla` model config bounding state (typically at most 3 accounts,
-   4 stake amounts, 2 slash amounts).
-3. A CI job (`.github/workflows/tla.yml`) that runs `tlc` (or `apalache-mc
-   check`) against `MC.tla` and blocks merge on failure.
-4. A short write-up in this file mapping each modelled invariant to its
-   source-code enforcement point (`contracts/*/src/main.rs`, line
+| Spec                     | Models                                              | Distinct states | Wall time |
+|--------------------------|-----------------------------------------------------|-----------------|-----------|
+| `ProofSystemSpec.tla`    | proof-registry / decision-attestation state machine | ~6.15M          | ~2m40s    |
+| `QuorumSpec.tla`         | BLS12-381 threshold-quorum registry                 | 1,576           | ~1s       |
+| `ReceiptLineageSpec.tla` | receipt-lineage DAG (Ancestors walk)                | 68              | <1s       |
+| `CanonicalOrderSpec.tla` | canonical-hash sort-normalisation invariance        | 41              | ~1s       |
+
+All four run under `bash specs/run-tlc.sh` locally (pod ~3 min total).
+CI budget: 25 min per spec, 30 min per job. Failure uploads counter-
+example traces as an artefact for 7 days.
+
+None of these cover the contract layer.
+
+## What "shipped for the contracts" would mean
+
+The engine-side specs above do not touch Odra Rust invariants. To
+claim a small-model TLC / Apalache / Kani pass over the contracts, we
+would need:
+
+1. A `specs/ContractCore.tla` module (or Quint / Apalache / Kani
+   equivalent) covering the reachable contract state.
+2. An `MC.tla` (or Kani harness) config bounding state (typically at
+   most 3 accounts, 4 stake amounts, 2 slash amounts).
+3. The existing `.github/workflows/formal-verification.yml` picks up
+   any new `specs/*.tla` file automatically — no CI change required.
+   A Kani-based approach would add a parallel job.
+4. A short write-up in this file mapping each modelled invariant to
+   its source-code enforcement point (`contracts/*/src/main.rs`, line
    numbers).
 
-None of the four exist today. This section is the checklist for the
-change that would flip "not shipped" to "shipped: small-model TLC pass".
+This section is the checklist for the change that would flip
+"contract layer: not shipped" to "contract layer: shipped: small-model
+TLC / Kani pass".
 
 ## What would ever be in scope
 
@@ -65,8 +99,13 @@ The invariants worth modelling first (in this order):
 
 ## Related
 
+- `docs/roadmap/FORMAL_VERIFICATION.md` — Pack AV: per-spec invariants,
+  model bounds, state counts, CI wiring, injection-test evidence.
+- `specs/` — the four TLA+ specs + configs + `run-tlc.sh` runner.
+- `.github/workflows/formal-verification.yml` — the CI job that
+  model-checks every spec on every push/PR touching `specs/`.
 - `docs/CONTRACT_INVARIANTS.md` — the informal statement of the
-  invariants that would eventually be modelled.
+  contract-layer invariants that would eventually be modelled.
 - `docs/JUDGE_GUIDE.md` — the assurance level actually shipped for
   the hackathon submission.
 - `contracts/stake-slashing/src/main.rs` — the hardened redeploy

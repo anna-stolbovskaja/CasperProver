@@ -1,7 +1,7 @@
 # Formal verification (Pack AV) — TLA+ specs + TLC in CI
 
 **Slot:** Pack AV — item 4.1 of the post-hackathon backlog.
-**Delivered as:** three TLA+ specs under `specs/`, a portable TLC runner
+**Delivered as:** four TLA+ specs under `specs/`, a portable TLC runner
 (`specs/run-tlc.sh`), and a GitHub Actions workflow
 (`.github/workflows/formal-verification.yml`) that model-checks every spec on
 every push and PR that touches `specs/`.
@@ -27,6 +27,9 @@ saved as `specs/tlc_output.txt`. After this slot the check is:
   cherry-picked).
 - **Portable** — same runner runs locally (`bash specs/run-tlc.sh`) and in
   CI. Same jar, same JVM flags, same invariants.
+- **Extended** — the fourth spec, `CanonicalOrderSpec.tla`, was added in a
+  follow-up on top of this slot; it is picked up by the runner and CI
+  workflow with no plumbing change (see §4 below).
 
 ## Specs shipped in this slot
 
@@ -143,11 +146,52 @@ minutes per spec; bump `TLC_TIMEOUT` if the state space needs to grow.
 
 Good candidates for the next specs, all backed by shipped engine code:
 
-- Provenance-receipt canonical hash order-invariance (`ToCanonicalBytes`).
+- ~~Provenance-receipt canonical hash order-invariance~~ — landed as spec
+  4, `CanonicalOrderSpec.tla` (see §4).
 - Nova / Merkle aggregation fold — the `pedersen-fold-v1` and
   `merkle-recursion-v1` invariants.
 - Webhook delivery state machine — enqueue / attempt / dead-letter /
   replay round-trip (idempotency, no-drop).
+
+### 4. `CanonicalOrderSpec.tla` — canonical-hash sort-normalisation
+
+New follow-up to this slot. Models the sort-invariance property that
+`engine/internal/receipts/canonical.go: CanonicalHash` relies on to be a
+deterministic function of the receipt's UNORDERED content:
+
+- Facets are sorted by `.Kind` before hashing.
+- Provider receipts are sorted by `.ReceiptHash` before hashing.
+
+The spec does **not** model SHA-256 itself (opaque to TLA+). It models the
+pure sort invariant: for any two input orderings of the same underlying set,
+`Sort` yields the same sequence — which is what makes the whole receipt
+canonicalisation deterministic w.r.t. the caller's construction order.
+
+**Invariants checked:**
+- `TypeOK` — input/sorted/doubleSorted are distinct-key sequences bounded by
+  `MaxItems`.
+- `SortIsIdempotent` — `Sort(Sort(seq)) = Sort(seq)`.
+- `SortPreservesMultiset` — sorted contains exactly the input's elements.
+- `SortDependsOnlyOnSet` — for every alternative permutation `q` of the
+  current input's key-set, `Sort(q) = sorted`. This is the property the
+  Go code depends on for order-independence.
+- `SortIsMonotone` — sorted is strictly ascending by key, matching
+  `sort.Slice` in `canonical.go` with `.Kind < .Kind` and
+  `.ReceiptHash < .ReceiptHash` comparators.
+
+**Model:** `Keys = {1,2,3,4}`, `MaxItems = 3`. TLC exhaustively enumerates
+every distinct-key input sequence of length 0..3 (1 + 4 + 12 + 24 = 41 input
+shapes), then evaluates the invariants at each state.
+**State count:** 1,722 states generated, 41 distinct.
+**Runtime:** ~1s.
+
+**Why this matters.** The receipt canonicalisation is what downstream code
+re-hashes to verify a proof binding — across the three receipt shapes
+(internal, W3C-VC, agent-receipt) they must all arrive at the same digest.
+An ordering bug in `sort.Slice` (say, using an unstable comparator that
+relies on tie-breaking) would silently produce different bytes for the same
+receipt across shapes. This spec makes the ordering assumption itself
+machine-checked.
 
 ## Reproducing today's numbers
 
@@ -156,5 +200,6 @@ Good candidates for the next specs, all backed by shipped engine code:
 bash specs/run-tlc.sh
 ```
 
-Expected output tail: `>>> All 3 specs passed`. Combined wall clock on the
-pod is ~3 minutes (`ProofSystemSpec` dominates).
+Expected output tail: `>>> All 4 specs passed`. Combined wall clock on the
+pod is ~2m30s (`ProofSystemSpec` dominates at ~2m30s; the other three each
+finish in seconds).
