@@ -1,0 +1,6 @@
+(placeholder)
+
+The external public status page URL lands here when Pack AH's status page
+is live externally. Until then, the internal SLO dashboard is described
+in `docs/roadmap/SLO.md` and the alert rules in
+`deploy/observability/alerts/`.

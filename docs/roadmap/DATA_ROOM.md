@@ -68,12 +68,19 @@ and the data room in sync — a single artefact, two audiences.
 
 ## Milestones
 
-1. **Structure + one-pager (5 days).**
-2. **Market thesis + ICP + competition (10 days).**
-3. **Design-partner section (10 days).** Requires ≥ 1 signed partner.
+1. **Structure + one-pager (5 days).** — **Landed 2026-07-30** as
+   `docs/data-room/README.md` + `docs/data-room/company/ONE_PAGER.md`.
+2. **Market thesis + ICP + competition (10 days).** — **Draft
+   landed 2026-07-30** as `docs/data-room/market/{THESIS,ICP,
+   COMPETITION,TAM_SAM_SOM}.md`. Refresh as facts change.
+3. **Design-partner section (10 days).** — **Scaffold landed
+   2026-07-30**; content pending ≥ 1 signed partner.
 4. **Metrics roll-up cron (5 days).**
-5. **Financial model (15 days).**
-6. **Ops section symlinks + status-page URL (2 days).**
+5. **Financial model (15 days).** — **Shape documented 2026-07-30**
+   under `docs/data-room/financials/`; spreadsheet lands with first
+   partner.
+6. **Ops section symlinks + status-page URL (2 days).** — **Pointers
+   in place 2026-07-30**; external status page pending Pack AH.
 7. **First investor share (soft — advisor review) (5 days).**
 8. **First investor share (external — target VC list) (10 days).**
 
@@ -86,8 +93,10 @@ and the data room in sync — a single artefact, two audiences.
 
 ## Acceptance criteria
 
-- [ ] `docs/data-room/README.md` renders as a valid index.
-- [ ] Every claim in the data room has a linked artefact.
+- [x] `docs/data-room/README.md` renders as a valid index.
+- [ ] Every claim in the data room has a linked artefact (partial:
+      scaffold committed with pointers; specific claims land as they
+      accrue evidence).
 - [ ] Every roadmap doc that has a data-room counterpart is symlinked
       (or explicitly cross-referenced).
 - [ ] At least one external investor has read the data room and
