@@ -536,6 +536,8 @@ func (s *Server) Start() error {
 	s.registerKeyRingRoutes(mux)
 	// Nova / folding aggregation harness (hash-fold-v1 stand-in)
 	s.registerNovaRoutes(mux)
+	// ML attestation harness (ml-attest-v0 hash-only; NOT ZK-ML)
+	s.registerMLAttestRoutes(mux)
 
 	// Webhooks & OpenAPI — versioned surface only.
 	s.registerWebhookRoutes(mux)

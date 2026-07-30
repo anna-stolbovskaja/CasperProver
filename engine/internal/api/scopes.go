@@ -189,6 +189,9 @@ var routeScopes = map[string]string{
 	// Nova / folding aggregation harness
 	"POST /v1/aggregation/fold":        "aggregation:write",
 	"POST /v1/aggregation/verify-fold": "aggregation:read",
+	// ML attestation harness (ml-attest-v0 hash-only; NOT ZK-ML — see docs/ZKML_HONEST_VERDICT.md)
+	"POST /v1/ml/attest":               "ml:write",
+	"POST /v1/ml/verify-attest":        "ml:read",
 
 	// Decision / A2A / HITL pipeline (Pack AQ)
 	"POST /v1/decision/evaluate":         "decision:write",
