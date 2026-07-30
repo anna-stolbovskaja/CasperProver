@@ -27,6 +27,19 @@ Authoritative for §F of `handoff/CP_FINAL_TASKS_V2.md`.
 | PQ keyring rotation + versioning | in-tree | `internal/crypto/keyring.go` | Monotone versions per algo, retired keys stay verify-only, migrate primitive. Private keys in process memory only by default — see keystore row. |
 | Keystore backends | in-tree | `internal/crypto/keystore/` | `memory` (default), `file` (ChaCha20-Poly1305 + Argon2id at rest), `remote` HSM/KMS gateway stub with a documented HTTP contract. A real HSM driver lives per-deployment, not in this repo. |
 
+### Trusted setup
+
+The Groth16 pipeline requires a per-circuit trusted-setup ceremony. This
+repo ships a **SINGLE-COORDINATOR CEREMONY** (see
+`zk/ceremony/README.md`): one process runs `N` independently-seeded
+contributions and pairwise-verifies them with the standard
+`gnark` `mpcsetup` primitives. It is a real, cryptographically
+verifiable transcript, but it does *not* have the multi-party
+"1-of-N honesty" property of a live public MPC — that upgrade path
+is documented in `zk/ceremony/README.md`. Circuit / gnark version pins
+are in `zk/ceremony/manifest.json`; an offline file-integrity check
+lives at `scripts/verify-ceremony.mjs`.
+
 ## What is educational-only
 
 - **Lamport OTS as a general-purpose signature.** In this repo it demonstrates hash-based PQ signatures. It is NOT SPHINCS+ / SLH-DSA. Where "SPHINCS+ family" appears in the UI or docs, it means "the hash-based slot"; the code path is Lamport, not SPHINCS+. A production deployment must swap Lamport for SLH-DSA (FIPS 205) when a mature Go implementation ships.

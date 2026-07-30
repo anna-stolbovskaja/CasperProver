@@ -73,6 +73,15 @@ Artifacts written under `zk/ceremony/`:
   per-contribution challenge/digest/size, final PK/VK/commons digests,
   honesty label.
 
+Also in this directory (checked-in, not generated):
+
+* `manifest.json` — pins the circuit family, curve, prover backend, and
+  `gnark` / `gnark-crypto` versions that a verifier must match to
+  reproduce `vk_hash`. Kept in sync with `engine/go.mod`.
+* `attestations.example.json` — placeholder-hash example of the shape a
+  real `attestations.json` takes; useful for tooling that wants to
+  parse the schema without running the ceremony.
+
 ## Verify
 
 Any third party can rebuild the transcript from the binaries plus the
@@ -88,6 +97,22 @@ beacon value and check that:
 The gnark unit tests in
 `engine/internal/zkverifier/ceremony/ceremony_test.go` already exercise
 (1), (2) and (3) on every `go test` run.
+
+### Cheap file-integrity check (no gnark build required)
+
+Before running the full gnark re-verify, a third party can convince
+themselves that the artefact binaries on disk are the ones the
+coordinator published by running:
+
+```bash
+node scripts/verify-ceremony.mjs --dir zk/ceremony
+```
+
+This script (Node stdlib only, no deps) reads `attestations.json`,
+recomputes SHA-256 of every binary present, cross-checks against
+`manifest.json`, and asserts the per-contribution index sequence. It
+returns non-zero on any mismatch. It does NOT re-run the pairing
+checks — that still requires the Go test path above.
 
 ## Multi-party upgrade — what changes
 

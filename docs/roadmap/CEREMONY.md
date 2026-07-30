@@ -94,9 +94,17 @@ Each ceremony produces:
 
 ## Acceptance criteria
 
-- [ ] `crypto/ceremony/README.md` with the artefact model.
-- [ ] `crypto/ceremony/manifest.json` pinning circuit + gnark versions.
-- [ ] `scripts/verify-ceremony.mjs` reproduces `vk_hash` from an artefact
-      directory.
-- [ ] `docs/roadmap/CEREMONY.md` cross-linked from `30-DAY.md` and
-      `PQ_HONESTY.md`.
+The original plan placed artefacts under `crypto/ceremony/`. The
+real implementation lives under `zk/ceremony/` (see
+`engine/internal/zkverifier/ceremony/` for the Go side); this document
+is kept for historical context, and the checklist below tracks the
+real paths.
+
+- [x] `zk/ceremony/README.md` with the artefact model.
+- [x] `zk/ceremony/manifest.json` pinning circuit + gnark versions.
+- [x] `scripts/verify-ceremony.mjs` performs an offline SHA-256
+      integrity check of the artefact directory against
+      `attestations.json` and `manifest.json`. (Full re-verify
+      including pairing checks stays in
+      `engine/internal/zkverifier/ceremony/ceremony_test.go`.)
+- [x] Cross-linked from `docs/PQ_HONESTY.md`.
