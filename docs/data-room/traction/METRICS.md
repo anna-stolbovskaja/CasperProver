@@ -10,10 +10,10 @@
 | Metric | Value | How to verify |
 |---|---|---|
 | Deployed contracts | 9 | `docs/TX_MANIFEST.md` |
-| API endpoints | 32 | `docs/API_REFERENCE.md` |
+| API endpoints | 32 | `docs/openapi.yaml` |
 | SDKs published | 3 (TS / Python / Go) | npm `@casperprover/sdk`, PyPI `casperprover-sdk`, Go module `github.com/anna-stolbovskaja/casperprover/sdk` |
-| MCP tools | 32 | `mcp/README.md` |
-| Interactive frontend tabs | 11 | `frontend/README.md` |
+| MCP tools | 32 | `sdk/cmd/mcpserver/` |
+| Interactive frontend tabs | 11 | `frontend/` (source) |
 | Static security audits | 1 (all 9 contracts) | `docs/SECURITY_AUDIT.md` |
 
 ## Monthly roll-up (populated when traffic is live)

@@ -41,5 +41,5 @@ python3 scripts/judge_demo.py   # end-to-end vertical slice
 ## Where to look next
 
 - `docs/JUDGE_GUIDE.md` — 8-criteria judge map.
-- `docs/API_REFERENCE.md` — endpoint reference.
+- `docs/openapi.yaml` — endpoint reference.
 - `docs/KNOWN_LIMITATIONS.md` — honest checklist of gaps.

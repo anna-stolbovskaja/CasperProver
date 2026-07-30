@@ -69,7 +69,7 @@ hashes of the caller's data.
 If you never send us the raw content, we cannot lose it, subpoena it,
 or leak it. This design is documented in
 `LEGAL/DATA_PROTECTION.md` §3 and enforced by the engine's public API
-surface (see `docs/API_REFERENCE.md`).
+surface (see `docs/openapi.yaml`).
 
 Caveat: metadata is *not* content. IP addresses, timestamps, endpoint
 paths, and user-agent strings are legitimate operational telemetry and
