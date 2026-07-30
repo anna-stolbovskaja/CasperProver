@@ -95,6 +95,9 @@ That is the entire deliverable.
   prover has to fit under.
 - `docs/HSM_PLAN.md` — key custody surface any real prover would
   eventually touch.
+- `docs/roadmap/ML_ATTESTATION_HARNESS.md` — the attestation-only
+  harness (`ml-attest-v0`) that ships today under this verdict and
+  reserves `zkml-fixed-v0` for the future real implementation.
 
 ---
 

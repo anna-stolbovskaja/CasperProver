@@ -343,3 +343,11 @@ beyond that scope is future work gated by G2.
 service, commits to no vendor, and does not move any label from
 `SIMULATION` to `REAL`. Its purpose is to make the honesty of that
 label auditable.*
+
+**Update.** An attestation-only harness has since shipped under the
+honest verdict — `ml-attest-v0`, exposed at `POST /v1/ml/attest` and
+`POST /v1/ml/verify-attest`. It commits to `(model_id, weights_digest,
+inputs_digest, outputs_digest)` and is **not** an ML-inference proof.
+The scheme label `zkml-fixed-v0` is reserved for the future real
+implementation and is refused by verify until G2. Full disclosure:
+[`docs/roadmap/ML_ATTESTATION_HARNESS.md`](./roadmap/ML_ATTESTATION_HARNESS.md).
