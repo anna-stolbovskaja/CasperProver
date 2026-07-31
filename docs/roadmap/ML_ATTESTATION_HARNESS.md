@@ -79,4 +79,5 @@ Anything beyond that requires the real scheme, and the real scheme requires G2.
 - [`docs/ZKML_HONEST_VERDICT.md`](../ZKML_HONEST_VERDICT.md) — durable decision record.
 - [`docs/ZKML_RESEARCH_SPIKE.md`](../ZKML_RESEARCH_SPIKE.md) — the survey of prover families that landed on the honest verdict.
 - [`docs/roadmap/NOVA_HARNESS.md`](./NOVA_HARNESS.md) — parallel disclosure discipline for folding-scheme aggregation.
+- [`docs/roadmap/MERKLE_ATTESTOR.md`](./MERKLE_ATTESTOR.md) — sibling harness that replaces the flat weights digest with a Merkle root over ordered chunks, adding selective disclosure for auditor sampling. Distinct scheme label `ml-attest-merkle-v0`; the same four gating conditions still apply before any relabel to REAL.
 - [`docs/MAINNET_LAUNCH_PLAN.md`](../MAINNET_LAUNCH_PLAN.md) — G2 is the third-party audit gate that must clear before any relabel to `REAL`.
