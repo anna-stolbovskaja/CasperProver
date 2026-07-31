@@ -189,6 +189,99 @@ pub fn load_attestation(path: &Path) -> Result<Attestation> {
     Ok(att)
 }
 
+/// The set of top-level JSON keys `--strict` requires to be present, and
+/// the exhaustive set of keys it will accept. Anything outside this set
+/// is either a missing required field or an unknown field, both of which
+/// `strict_check_envelope` rejects with a legible error.
+///
+/// Kept as a `const` so drift between this list and the `Attestation`
+/// struct is caught by `strict_key_lists_match_struct` in the unit tests.
+pub const STRICT_REQUIRED_KEYS: &[&str] = &[
+    "scheme",
+    "model_id",
+    "weights_digest_hex",
+    "inputs_digest_hex",
+    "outputs_digest_hex",
+    "commit_hex",
+];
+
+/// Keys that are permitted but not required. Used to distinguish a
+/// missing-optional (fine) from an unknown-key (rejected) in strict mode.
+pub const STRICT_OPTIONAL_KEYS: &[&str] = &["disclosure"];
+
+/// Strict schema check against the raw JSON of an envelope.
+///
+/// The default `load_attestation` path uses serde's usual behaviour:
+/// unknown JSON fields are silently ignored, and any required field that
+/// is missing lands with a default (empty string for the digest fields,
+/// etc.). That is deliberately permissive so auditors on old versions of
+/// the tool do not brick when the emitter adds a backwards-compatible
+/// field.
+///
+/// Strict mode reverses that trade-off for auditors who need paranoid
+/// integrity: EVERY required key must be present (explicit `null` still
+/// counts as missing), and any unknown top-level key is a hard error. The
+/// intent is that a renamed or misspelled field can never silently be
+/// treated as missing-with-a-zero-value, which is otherwise indistinguishable
+/// from a genuine digest mismatch downstream.
+///
+/// Returns `Ok(())` on a clean envelope, or an error naming the exact
+/// missing / unknown field. This function does NOT re-verify the commit;
+/// call `verify_attestation` after it for full validation.
+pub fn strict_check_envelope(raw_json: &str) -> Result<()> {
+    let value: serde_json::Value = serde_json::from_str(raw_json)
+        .context("strict: envelope is not syntactically valid JSON")?;
+    let obj = value
+        .as_object()
+        .ok_or_else(|| anyhow!("strict: envelope root must be a JSON object"))?;
+
+    // Missing required keys — collect them all so the operator sees the
+    // whole diff, not one-at-a-time whack-a-mole.
+    let mut missing: Vec<&str> = Vec::new();
+    for key in STRICT_REQUIRED_KEYS {
+        match obj.get(*key) {
+            None => missing.push(key),
+            Some(v) if v.is_null() => missing.push(key),
+            Some(serde_json::Value::String(s)) if s.trim().is_empty() => missing.push(key),
+            _ => {}
+        }
+    }
+    if !missing.is_empty() {
+        bail!(
+            "strict: envelope missing required field(s): {}",
+            missing.join(", ")
+        );
+    }
+
+    // Unknown keys — anything not in the required-or-optional union.
+    let mut unknown: Vec<&str> = Vec::new();
+    for key in obj.keys() {
+        let k = key.as_str();
+        let allowed = STRICT_REQUIRED_KEYS.contains(&k) || STRICT_OPTIONAL_KEYS.contains(&k);
+        if !allowed {
+            unknown.push(k);
+        }
+    }
+    if !unknown.is_empty() {
+        bail!(
+            "strict: envelope has unknown top-level field(s): {} — refusing to silently ignore",
+            unknown.join(", ")
+        );
+    }
+
+    Ok(())
+}
+
+/// Load AND strict-check an envelope in one call. Returns the parsed
+/// `Attestation` after the strict check passes.
+pub fn load_attestation_strict(path: &Path) -> Result<Attestation> {
+    let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    strict_check_envelope(&raw).with_context(|| format!("strict-check {}", path.display()))?;
+    let att: Attestation = serde_json::from_str(&raw)
+        .with_context(|| format!("parse {} as Attestation JSON", path.display()))?;
+    Ok(att)
+}
+
 /// Result row for `replay-artefacts`: for each of the three artefact files
 /// we hashed locally, does its digest match the envelope?
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -399,5 +492,176 @@ mod tests {
     #[test]
     fn all_artefacts_ok_false_on_empty() {
         assert!(!all_artefacts_ok(&[]));
+    }
+
+    // ---------------------------------------------------------------
+    // Strict schema tests. Every field of the Attestation struct that
+    // downstream code reads must be a required key in STRICT_REQUIRED_KEYS,
+    // otherwise a renamed/misspelled field would deserialise to a
+    // zero-value and only fail later at commit recomputation with a
+    // confusing "digest mismatch" instead of a legible "missing field X".
+    // ---------------------------------------------------------------
+
+    fn valid_envelope_json() -> String {
+        let att = attest(&kat_input()).unwrap();
+        serde_json::to_string(&att).unwrap()
+    }
+
+    #[test]
+    fn strict_accepts_valid_envelope() {
+        let json = valid_envelope_json();
+        strict_check_envelope(&json).expect("valid envelope must pass strict check");
+    }
+
+    #[test]
+    fn strict_rejects_missing_required_field() {
+        // Drop weights_digest_hex from a valid envelope. Serde would
+        // silently give us String::default() here; strict must not.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().remove("weights_digest_hex");
+        let mangled = serde_json::to_string(&v).unwrap();
+        let err =
+            strict_check_envelope(&mangled).expect_err("missing required field must fail strict");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("weights_digest_hex"),
+            "error must name field: {msg}"
+        );
+        assert!(
+            msg.contains("missing required field"),
+            "error must be legible: {msg}"
+        );
+    }
+
+    #[test]
+    fn strict_rejects_null_required_field() {
+        // Explicit `null` counts as missing, not as "present with empty
+        // value". This is what catches an emitter that panics mid-flight
+        // and writes a partial envelope with placeholder nulls.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut()
+            .unwrap()
+            .insert("inputs_digest_hex".to_string(), serde_json::Value::Null);
+        let mangled = serde_json::to_string(&v).unwrap();
+        let err = strict_check_envelope(&mangled).expect_err("null field must fail strict");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("inputs_digest_hex"),
+            "error must name field: {msg}"
+        );
+    }
+
+    #[test]
+    fn strict_rejects_empty_string_required_field() {
+        // Empty string is what serde would land on for a genuinely
+        // missing digest field — in strict mode, that is also rejected.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().insert(
+            "outputs_digest_hex".to_string(),
+            serde_json::Value::String("".to_string()),
+        );
+        let mangled = serde_json::to_string(&v).unwrap();
+        let err = strict_check_envelope(&mangled).expect_err("empty string must fail strict");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("outputs_digest_hex"),
+            "error must name field: {msg}"
+        );
+    }
+
+    #[test]
+    fn strict_reports_all_missing_fields_together() {
+        // Whack-a-mole is a bad auditor experience — all missing fields
+        // must be reported in a single error.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().remove("model_id");
+        v.as_object_mut().unwrap().remove("commit_hex");
+        let mangled = serde_json::to_string(&v).unwrap();
+        let err = strict_check_envelope(&mangled).unwrap_err();
+        let msg = format!("{err:#}");
+        assert!(msg.contains("model_id"), "must mention model_id: {msg}");
+        assert!(msg.contains("commit_hex"), "must mention commit_hex: {msg}");
+    }
+
+    #[test]
+    fn strict_rejects_unknown_field() {
+        // This is the whole point of --strict: an envelope with a typo
+        // like `weights_digets_hex` (transposed) would otherwise be read
+        // as "weights_digest_hex missing, unknown field weights_digets_hex
+        // ignored" and fail later with an opaque "commit mismatch". Strict
+        // names the typo directly.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().insert(
+            "weights_digets_hex".to_string(),
+            serde_json::Value::String("deadbeef".to_string()),
+        );
+        let mangled = serde_json::to_string(&v).unwrap();
+        let err = strict_check_envelope(&mangled).expect_err("unknown field must fail strict");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("weights_digets_hex"),
+            "error must name typo: {msg}"
+        );
+        assert!(msg.contains("unknown"), "error must say unknown: {msg}");
+    }
+
+    #[test]
+    fn strict_accepts_missing_optional_disclosure() {
+        // disclosure is optional — dropping it must not trip strict.
+        let json = valid_envelope_json();
+        let mut v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v.as_object_mut().unwrap().remove("disclosure");
+        let mangled = serde_json::to_string(&v).unwrap();
+        strict_check_envelope(&mangled).expect("missing optional field must not trip strict");
+    }
+
+    #[test]
+    fn strict_rejects_non_object_root() {
+        let err = strict_check_envelope("[1,2,3]").expect_err("array root must fail");
+        assert!(format!("{err:#}").contains("JSON object"));
+    }
+
+    #[test]
+    fn strict_rejects_syntactic_garbage() {
+        let err = strict_check_envelope("{not json").expect_err("garbage must fail");
+        assert!(format!("{err:#}").contains("not syntactically valid JSON"));
+    }
+
+    #[test]
+    fn strict_key_lists_match_struct() {
+        // Belt-and-braces: if someone adds a field to Attestation but
+        // forgets to update STRICT_REQUIRED_KEYS / STRICT_OPTIONAL_KEYS,
+        // strict mode would happily reject a valid envelope from the
+        // new emitter as "unknown field". Serialize a full envelope and
+        // confirm every top-level key it produces is covered.
+        let att = attest(&kat_input()).unwrap();
+        let json = serde_json::to_string(&att).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        for key in v.as_object().unwrap().keys() {
+            let k = key.as_str();
+            let covered = STRICT_REQUIRED_KEYS.contains(&k) || STRICT_OPTIONAL_KEYS.contains(&k);
+            assert!(
+                covered,
+                "Attestation struct has key {k:?} not covered by STRICT_REQUIRED_KEYS or STRICT_OPTIONAL_KEYS — strict mode would reject a valid envelope; update the lists in lib.rs"
+            );
+        }
+    }
+
+    #[test]
+    fn load_strict_round_trip() {
+        // End-to-end: attest -> serialise to disk -> load_attestation_strict
+        // must round-trip a valid envelope byte-for-byte.
+        use std::io::Write;
+        let att = attest(&kat_input()).unwrap();
+        let json = serde_json::to_string_pretty(&att).unwrap();
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.as_file().write_all(json.as_bytes()).unwrap();
+        let loaded = load_attestation_strict(tmp.path()).expect("strict load of valid envelope");
+        assert_eq!(loaded, att);
     }
 }

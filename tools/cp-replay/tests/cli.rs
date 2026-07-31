@@ -236,3 +236,166 @@ fn cli_commit_only_matches_full_attest() {
     let parsed: cp_replay::Attestation = serde_json::from_str(stdout.trim()).unwrap();
     assert_eq!(parsed.commit_hex, full.commit_hex);
 }
+
+// ---------------------------------------------------------------------
+// --strict CLI tests. Focus on the *behavioural difference* between the
+// default (permissive) and --strict runs on the same tampered envelope.
+// ---------------------------------------------------------------------
+
+/// Build a valid envelope, drop `weights_digest_hex` from the JSON, and
+/// return the file path. Serde would silently deserialise this to
+/// `weights_digest_hex = ""` and fall over later at hex decode with an
+/// opaque "not valid hex" error; --strict must catch it at load time and
+/// name the field.
+fn write_envelope_missing_weights_digest_hex(dir: &tempfile::TempDir) -> std::path::PathBuf {
+    let att = attest(&kat_input()).unwrap();
+    let mut v: serde_json::Value = serde_json::to_value(&att).unwrap();
+    v.as_object_mut().unwrap().remove("weights_digest_hex");
+    let path = dir.path().join("attestation.json");
+    fs::write(&path, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+    path
+}
+
+/// Build a valid envelope, then insert a typo'd `weights_digets_hex` key
+/// (note the transposed letters) alongside the real one. Permissive mode
+/// silently ignores the typo, --strict must reject it and name the typo.
+fn write_envelope_with_typo_key(dir: &tempfile::TempDir) -> std::path::PathBuf {
+    let att = attest(&kat_input()).unwrap();
+    let mut v: serde_json::Value = serde_json::to_value(&att).unwrap();
+    v.as_object_mut().unwrap().insert(
+        "weights_digets_hex".to_string(),
+        serde_json::Value::String("cafebabe".to_string()),
+    );
+    let path = dir.path().join("attestation.json");
+    fs::write(&path, serde_json::to_string_pretty(&v).unwrap()).unwrap();
+    path
+}
+
+#[test]
+fn cli_verify_strict_rejects_missing_required_field() {
+    let dir = tempfile::tempdir().unwrap();
+    let att_path = write_envelope_missing_weights_digest_hex(&dir);
+
+    let output = Command::new(bin())
+        .args(["--strict", "verify", "--attestation"])
+        .arg(&att_path)
+        .output()
+        .unwrap();
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "strict mode must fail with exit 1 on missing field\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("weights_digest_hex"),
+        "strict error must name missing field: {stderr}"
+    );
+    assert!(
+        stderr.contains("strict"),
+        "error must mention strict mode: {stderr}"
+    );
+}
+
+#[test]
+fn cli_verify_strict_rejects_unknown_field() {
+    let dir = tempfile::tempdir().unwrap();
+    let att_path = write_envelope_with_typo_key(&dir);
+
+    let output = Command::new(bin())
+        .args(["--strict", "verify", "--attestation"])
+        .arg(&att_path)
+        .output()
+        .unwrap();
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "strict mode must fail with exit 1 on unknown field"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("weights_digets_hex"),
+        "strict error must name the typo: {stderr}"
+    );
+    assert!(
+        stderr.contains("unknown"),
+        "strict error must say 'unknown': {stderr}"
+    );
+}
+
+#[test]
+fn cli_verify_permissive_silently_accepts_unknown_field() {
+    // The whole point of --strict: WITHOUT it, an emitter that adds
+    // `weights_digets_hex` (typo of the real field) is silently accepted
+    // and only fails as an opaque "not valid hex" downstream. This test
+    // pins that legacy behaviour so we don't accidentally tighten it in
+    // permissive mode and break older auditors.
+    let dir = tempfile::tempdir().unwrap();
+    let att_path = write_envelope_with_typo_key(&dir);
+
+    let output = Command::new(bin())
+        .args(["verify", "--attestation"])
+        .arg(&att_path)
+        .output()
+        .unwrap();
+
+    // Without --strict, the typo is silently ignored and the real field
+    // is still present, so the envelope verifies fine. This is legacy
+    // permissive behaviour.
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "permissive mode must silently accept unknown-field envelopes"
+    );
+}
+
+#[test]
+fn cli_verify_strict_accepts_clean_envelope() {
+    let dir = tempfile::tempdir().unwrap();
+    let att = attest(&kat_input()).unwrap();
+    let att_path = dir.path().join("attestation.json");
+    fs::write(&att_path, serde_json::to_string_pretty(&att).unwrap()).unwrap();
+
+    let output = Command::new(bin())
+        .args(["--strict", "verify", "--attestation"])
+        .arg(&att_path)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "strict mode must accept a clean envelope\nstderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
+#[test]
+fn cli_verify_strict_json_output_shape() {
+    // The JSON error shape is scriptable — pin it so downstream auditors
+    // can grep for `"strict": true` reliably.
+    let dir = tempfile::tempdir().unwrap();
+    let att_path = write_envelope_missing_weights_digest_hex(&dir);
+
+    let output = Command::new(bin())
+        .args(["--strict", "--json", "verify", "--attestation"])
+        .arg(&att_path)
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(parsed["ok"], serde_json::Value::Bool(false));
+    assert_eq!(parsed["strict"], serde_json::Value::Bool(true));
+    assert!(
+        parsed["error"]
+            .as_str()
+            .unwrap()
+            .contains("weights_digest_hex"),
+        "JSON error field must name the missing field: {stdout}"
+    );
+}

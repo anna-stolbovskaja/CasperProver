@@ -10,8 +10,8 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use cp_replay::{
-    all_artefacts_ok, attest, load_attestation, parse_digest_hex, replay_artefacts,
-    verify_attestation, AttestInput, SCHEME_ML_ATTEST_V0,
+    all_artefacts_ok, attest, load_attestation, load_attestation_strict, parse_digest_hex,
+    replay_artefacts, verify_attestation, AttestInput, SCHEME_ML_ATTEST_V0,
 };
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -35,6 +35,17 @@ struct Cli {
     /// Emit machine-readable JSON on stdout instead of the human report.
     #[arg(long, global = true)]
     json: bool,
+
+    /// Reject envelopes with unknown top-level JSON fields or missing
+    /// required fields, instead of silently defaulting them.
+    ///
+    /// Trade-off: paranoid schema check for auditors who need to detect a
+    /// renamed / misspelled field (which would otherwise deserialise to an
+    /// empty digest and fail later as an opaque "commit mismatch"). Off by
+    /// default so newer emitters that add backwards-compatible fields do
+    /// not brick older auditors.
+    #[arg(long, global = true)]
+    strict: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -109,14 +120,55 @@ fn main() -> ExitCode {
 fn run() -> Result<u8> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Verify(args) => cmd_verify(args, cli.json),
-        Command::ReplayArtefacts(args) => cmd_replay_artefacts(args, cli.json),
+        Command::Verify(args) => cmd_verify(args, cli.json, cli.strict),
+        Command::ReplayArtefacts(args) => cmd_replay_artefacts(args, cli.json, cli.strict),
         Command::CommitOnly(args) => cmd_commit_only(args, cli.json),
     }
 }
 
-fn cmd_verify(args: VerifyArgs, json: bool) -> Result<u8> {
-    let att = load_attestation(&args.attestation)?;
+/// Load the envelope, honouring `--strict` when the caller asked for it.
+/// Kept as a helper so both `verify` and `replay-artefacts` behave the
+/// same on strict-mode failure: exit code 1 (mismatch class), not 2 (I/O).
+fn load_envelope(path: &std::path::Path, strict: bool) -> Result<cp_replay::Attestation> {
+    if strict {
+        load_attestation_strict(path)
+    } else {
+        load_attestation(path)
+    }
+}
+
+fn cmd_verify(args: VerifyArgs, json: bool, strict: bool) -> Result<u8> {
+    let att = match load_envelope(&args.attestation, strict) {
+        Ok(att) => att,
+        Err(err) if strict => {
+            // Strict-mode schema failure is a *validation* failure, not an
+            // I/O failure — auditors script exit code 1 to mean "envelope
+            // rejected". Route it through the same channel as a commit
+            // mismatch instead of the exit-code-2 error path.
+            // Use the alternate ({:#}) formatter so the FULL anyhow
+            // context chain is preserved in BOTH JSON and human output.
+            // The outer wrap ("strict-check <path>") alone is unhelpful
+            // without the root cause naming which field is missing/unknown.
+            let full_err = format!("{err:#}");
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": false,
+                        "strict": true,
+                        "error": full_err,
+                    })
+                );
+            } else {
+                eprintln!("cp-replay: envelope FAILED ✗ (strict schema)");
+                eprintln!("  reason: {full_err}");
+                eprintln!();
+                eprintln!("note: {DISCLOSURE_BANNER}");
+            }
+            return Ok(1);
+        }
+        Err(err) => return Err(err),
+    };
     match verify_attestation(&att) {
         Ok(()) => {
             if json {
@@ -162,8 +214,34 @@ fn cmd_verify(args: VerifyArgs, json: bool) -> Result<u8> {
     }
 }
 
-fn cmd_replay_artefacts(args: ReplayArgs, json: bool) -> Result<u8> {
-    let att = load_attestation(&args.attestation)?;
+fn cmd_replay_artefacts(args: ReplayArgs, json: bool, strict: bool) -> Result<u8> {
+    let att = match load_envelope(&args.attestation, strict) {
+        Ok(att) => att,
+        Err(err) if strict => {
+            // Use the alternate ({:#}) formatter so the FULL anyhow
+            // context chain is preserved in BOTH JSON and human output.
+            // The outer wrap ("strict-check <path>") alone is unhelpful
+            // without the root cause naming which field is missing/unknown.
+            let full_err = format!("{err:#}");
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": false,
+                        "strict": true,
+                        "error": full_err,
+                    })
+                );
+            } else {
+                eprintln!("cp-replay: envelope FAILED ✗ (strict schema)");
+                eprintln!("  reason: {full_err}");
+                eprintln!();
+                eprintln!("note: {DISCLOSURE_BANNER}");
+            }
+            return Ok(1);
+        }
+        Err(err) => return Err(err),
+    };
     // Step 1: verify the envelope first. If commit is bogus we do not want
     // to give the impression that "matching digests" alone is enough.
     let envelope_ok = verify_attestation(&att);
