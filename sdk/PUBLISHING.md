@@ -127,3 +127,12 @@ so the release-please PR queue starts from the new state.
   PyPI. Go proxy pins sums via `sum.golang.org` automatically.
 - **Auto-publish on `main`.** Every release is a merged
   release-please PR or a dispatched workflow — never a silent push.
+
+## Rehearsing before a real release
+
+Before cutting the next real release after ≥30 days of quiet — or every
+60 days on schedule — walk
+[`docs/roadmap/SDK_RELEASE_REHEARSAL.md`](../docs/roadmap/SDK_RELEASE_REHEARSAL.md).
+It is a hand-runnable, UI-first checklist: manifest four-way diff,
+per-workflow `dry_run=true` dispatch, an end-to-end release-please
+walkthrough, and a living register of pipeline gaps.
