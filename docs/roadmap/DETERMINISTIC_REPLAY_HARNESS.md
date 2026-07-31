@@ -169,6 +169,11 @@ Tracked here so they do not evaporate into daily-log churn:
 - **Bulk mode** — `cp-replay verify --stdin` reading NDJSON envelopes,
   emitting one status line per input, for auditors processing large
   batches from disk.
+- **`--strict` schema mode** — [`CP_REPLAY_STRICT_SCHEMA.md`](./CP_REPLAY_STRICT_SCHEMA.md).
+  Rejects envelopes with unknown top-level JSON fields or missing required
+  fields at load time, instead of silently defaulting them to empty and
+  failing later as opaque "commit mismatch". Opt-in via `--strict`;
+  baseline permissive behaviour preserved.
 - **Trust-boundary doc** — a short piece under `docs/AUDITOR_TOOLING.md`
   that walks a third party through downloading a release binary,
   checksumming it, and running `cp-replay` end-to-end without ever
