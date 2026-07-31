@@ -80,3 +80,4 @@ Anything beyond that requires the real scheme, and the real scheme requires G2.
 - [`docs/ZKML_RESEARCH_SPIKE.md`](../ZKML_RESEARCH_SPIKE.md) — the survey of prover families that landed on the honest verdict.
 - [`docs/roadmap/NOVA_HARNESS.md`](./NOVA_HARNESS.md) — parallel disclosure discipline for folding-scheme aggregation.
 - [`docs/MAINNET_LAUNCH_PLAN.md`](../MAINNET_LAUNCH_PLAN.md) — G2 is the third-party audit gate that must clear before any relabel to `REAL`.
+- [`docs/roadmap/DETERMINISTIC_REPLAY_HARNESS.md`](./DETERMINISTIC_REPLAY_HARNESS.md) — `cp-replay`, the auditor-side Rust CLI that reverifies these envelopes offline and pins a cross-implementation KAT against the Go commit function.
