@@ -18,7 +18,7 @@ Every 60 days (or before any release after ≥ 30 days of quiet), do:
 2. **Per-workflow dispatch dry-run** — [Section 3](#3-per-workflow-dispatch-dry-run).
 3. **End-to-end release-please walkthrough** — [Section 4](#4-end-to-end-release-please-walkthrough).
 4. **Environment / trusted-publisher config audit** — [Section 5](#5-environment--trusted-publisher-config-audit).
-5. **Garbage-tag cleanup** — [Section 6](#6-garbage-tag-cleanup).
+5. **Local-clone tag hygiene** — [Section 6](#6-local-clone-tag-hygiene).
 
 Total time: ~30 minutes if nothing has drifted, ~2 hours if setting up
 from scratch after a fresh clone.
@@ -262,11 +262,16 @@ required-reviewers list must be non-empty and `NPM_TOKEN` must show as
 - GitHub UI → **Settings → Environments → New environment** → name
   `pypi-publish`.
 - Required reviewers: at least one maintainer.
-- **No secret.** PyPI upload uses OIDC — see next step.
+- **No secret required for CI publish.** `sdk-publish-pypi.yml` uploads
+  via OIDC (`id-token: write` + `pypa/gh-action-pypi-publish` with no
+  `password:` field). A long-lived PyPI API token in the vault
+  (`team.pypi.casperprover_api`) may exist as a fallback for manual
+  `twine upload` from a maintainer's laptop, but the CI pipeline does
+  **not** read it.
 - On https://pypi.org/manage/account/publishing/, add a *pending
   publisher* pointing at:
   - Repository: `anna-stolbovskaja/CasperProver`
-  - Workflow: `sdk-publish-pypi.yml`
+  - Workflow filename: `sdk-publish-pypi.yml` (bare filename, not path)
   - Environment: `pypi-publish`
   - PyPI Project name: `casperprover`
 - After the first successful upload, the pending publisher is promoted
@@ -274,7 +279,9 @@ required-reviewers list must be non-empty and `NPM_TOKEN` must show as
 
 **Verify.** From the pypi.org UI, log in as a maintainer, go to
 *Your projects → casperprover → Manage → Publishing*. There must be
-exactly one trusted publisher entry matching the above.
+exactly one trusted publisher entry matching the above four fields.
+If the config exists but with a different `workflow` name, PyPI will
+issue `HTTP 403 invalid-publisher` at publish time.
 
 ### 5c. Go — no environment needed
 
@@ -287,34 +294,29 @@ un-tagging.
 
 ---
 
-## 6. Garbage-tag cleanup
+## 6. Local-clone tag hygiene
 
 Prior to `ff51334` (which fixed the Go tag format), release-please
-emitted double-`v` tags. They currently sit on origin unused:
+emitted double-`v` tags: `sdk-go-vv0.1.2`, `sdk-py-vv0.1.2`,
+`sdk-ts-vv0.1.2`. **These are no longer on origin** — verified
+2026-07-31 via `git ls-remote --tags origin`; the only SDK tags on
+remote are `sdk-py-v0.1.2` and `sdk-ts-v0.1.2`.
 
-- `sdk-go-vv0.1.2`
-- `sdk-py-vv0.1.2`
-- `sdk-ts-vv0.1.2`
-
-These do not fire the publish workflows (the workflows match `sdk-ts-v*`
-etc., which they technically also do — but there is no GitHub Release
-attached to them, so `release: published` never fires). They are just
-noise in `git tag -l`.
-
-**Safe to delete only after** confirming nothing points at them:
+However, they *may still exist in an operator's local clone* if the
+clone was fetched before the cleanup and `git fetch --prune-tags` has
+never run against it. In that case:
 
 ```sh
-for t in sdk-go-vv0.1.2 sdk-py-vv0.1.2 sdk-ts-vv0.1.2; do
-  # No Release should exist for the double-v tag
-  gh release view "$t" 2>/dev/null && echo "!! $t has a Release — DO NOT DELETE" || echo "ok: $t has no Release"
-done
-# Only after all three print "ok":
-# git tag -d sdk-go-vv0.1.2 sdk-py-vv0.1.2 sdk-ts-vv0.1.2
-# git push origin :refs/tags/sdk-go-vv0.1.2 :refs/tags/sdk-py-vv0.1.2 :refs/tags/sdk-ts-vv0.1.2
+git fetch --prune --prune-tags origin
+git tag -l | grep sdk-      # confirm no `vv` remains
 ```
 
-**Do not** delete them inside the rehearsal PR — deleting tags is a
-history-shape mutation and deserves its own PR + reviewer.
+`--prune-tags` removes any local tag that no longer exists on origin.
+Safe: no remote mutation, only local cleanup.
+
+Add `git fetch --prune-tags` to your rehearsal preamble — otherwise the
+§2 manifest check may falsely surface "garbage tags" that are only a
+local-clone artifact.
 
 ---
 
@@ -367,11 +369,11 @@ get re-discovered.
 
 | ID  | Gap                                                                       | Impact                                                                 | Suggested fix                                                            | Status  |
 |-----|---------------------------------------------------------------------------|------------------------------------------------------------------------|--------------------------------------------------------------------------|---------|
-| G-1 | `sdk/version.txt` not in release-please `extra-files`                     | `sdk-semver-check` silently no-ops on Go SDK version bumps             | Read Go version from `.release-please-manifest.json` in semver-check     | open    |
-| G-2 | Garbage `sdk-*-vv0.1.2` tags on origin                                    | Cosmetic; not fired by publish workflows                               | Cleanup script in §6                                                     | open    |
+| G-1 | `sdk/version.txt` (`0.1.0`) is stale vs manifest (`0.1.2`); not in release-please `extra-files` | `sdk-semver-check` silently no-ops on Go SDK version bumps — a `feat: rewrite` could ship MAJOR without `!` / `BREAKING CHANGE:` | Rewrite `extract_go()` in `sdk-semver-check.yml` to read `.release-please-manifest.json["sdk"]` instead of `sdk/version.txt`; either delete `sdk/version.txt` or add it to release-please `extra-files` for `sdk` | open    |
+| G-2 | Double-`v` `sdk-*-vv0.1.2` tags on origin                                 | Cosmetic if present                                                    | **Resolved 2026-07-31.** Verified via `git ls-remote --tags origin`: no `vv` tags on remote. Operators still see them locally must run `git fetch --prune-tags` — see §6 | resolved |
 | G-3 | `npm-publish` / `pypi-publish` environments must be created out-of-band   | First release fails until an operator creates them in Settings         | Documented in §5; no in-repo automation possible                         | open    |
 | G-4 | No end-to-end integration test — only per-workflow dry-run                | A drift between release-please and publish workflows can only be caught by manual rehearsal | The §4 walkthrough IS the mitigation; keep running it every 60 days     | open    |
-| G-5 | PyPI trusted publisher must be manually configured on pypi.org            | First PyPI publish will fail with `403` until §5b is done              | Documented in §5b                                                        | open    |
+| G-5 | PyPI trusted-publisher OIDC binding must be manually configured on pypi.org | First PyPI publish will fail with `HTTP 403 invalid-publisher` until §5b OIDC config exists; PyPI API tokens in vault do NOT paper over this because CI doesn't read them | Documented in §5b — one *pending publisher* row on pypi.org matching `repo=CasperProver`, `owner=anna-stolbovskaja`, `workflow=sdk-publish-pypi.yml`, `environment=pypi-publish` | open    |
 
 Add a row every time a rehearsal or a real release surfaces something.
 
@@ -388,6 +390,29 @@ Add a row every time a rehearsal or a real release surfaces something.
 - [`.github/workflows/sdk-semver-check.yml`](../../.github/workflows/sdk-semver-check.yml)
   — semver / Conventional Commits enforcement on every PR touching
   `sdk/**`.
+
+---
+
+## Reverification log
+
+- **2026-07-31.** Re-checked all five gaps against live repo state:
+  - G-1 confirmed real: `sdk/version.txt = 0.1.0`, manifest = `0.1.2`,
+    release-please `extra-files: []` for `sdk`, `sdk-semver-check.yml`
+    `extract_go()` reads `sdk/version.txt`. Semver-guard silently
+    no-ops on Go.
+  - G-2 downgraded to `resolved`: `git ls-remote --tags origin`
+    returns only `sdk-py-v0.1.2` and `sdk-ts-v0.1.2`; no `vv` tags
+    on origin. What looked like origin garbage was a local-clone
+    artifact fixable by `git fetch --prune-tags`.
+  - G-3 unchanged: requires manual verification in GitHub Settings
+    UI (no CLI-inspectable via installer PATs).
+  - G-4 unchanged: no in-repo automation possible; §4 walkthrough is
+    the mitigation.
+  - G-5 refined: workflow uses OIDC (`id-token: write`, no
+    `password:` field), not the PyPI API tokens present in
+    `team.pypi.casperprover_api`. Vault tokens are a manual-fallback
+    path, not what CI reads. Gap is really the pypi.org
+    pending-publisher config binding, not token provisioning.
 
 ---
 
