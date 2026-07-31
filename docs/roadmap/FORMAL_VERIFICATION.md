@@ -42,6 +42,9 @@ Extended in this slot (was already present as an ad-hoc spec).
 - `ChainStepsAreValid` — every chain step references a `verified` proof
   bound to that chain and position.
 - `ProofIdUnique` / `ChainIdUnique` — id-space integrity.
+- `SlashedProversStayRevoked` — history-variable invariant closing the
+  monotonicity gap: `slashedSet` cannot shrink even under future refactor.
+  Detail: `PROOF_SYSTEM_SPEC_STAY_REVOKED.md`.
 
 **Model:** 2 provers, 2 models, 3 proofs, chain depth 2, challenge window 2.
 **State count:** 12,642,985 states generated, 6,153,405 distinct.
