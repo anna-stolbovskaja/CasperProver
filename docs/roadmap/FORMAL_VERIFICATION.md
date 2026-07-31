@@ -149,6 +149,13 @@ Good candidates for the next specs, all backed by shipped engine code:
 - Webhook delivery state machine — enqueue / attempt / dead-letter /
   replay round-trip (idempotency, no-drop).
 
+Shipped since:
+
+- `SlashingSpec.tla` — economic-slashing state machine for
+  `contracts/stake-slashing/src/main.rs`; 12 invariants (bookkeeping,
+  20% arithmetic, one-shot tombstone, revoked-required, agent-match,
+  no-inflated-stake). See `docs/roadmap/SLASHING_SPEC.md`.
+
 ## Reproducing today's numbers
 
 ```
