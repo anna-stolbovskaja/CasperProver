@@ -36,9 +36,10 @@ VARIABLES
     proofs,       \* set of proof records
     chains,       \* set of chain records
     time,         \* logical clock
-    slashedSet    \* provers proven byzantine (equivocation caught)
+    slashedSet,   \* provers proven byzantine (equivocation caught)
+    everSlashed   \* history variable: union of every prover ever slashed
 
-vars == <<proofs, chains, time, slashedSet>>
+vars == <<proofs, chains, time, slashedSet, everSlashed>>
 
 (***************************************************************************)
 (* Type definitions                                                        *)
@@ -72,6 +73,7 @@ TypeOK ==
     /\ chains \subseteq ChainRecord
     /\ time \in Nat
     /\ slashedSet \subseteq Provers
+    /\ everSlashed \subseteq Provers
     /\ Cardinality(proofs) <= MaxProofs
     /\ \A c \in chains : c.depth <= MaxChainDepth
     /\ \A c \in chains : Len(c.steps) = c.depth
@@ -113,6 +115,7 @@ Init ==
     /\ chains = {}
     /\ time = 0
     /\ slashedSet = {}
+    /\ everSlashed = {}
 
 (***************************************************************************)
 (* Actions                                                                 *)
@@ -140,6 +143,7 @@ SubmitProof(pr, m, v, valid_pq) ==
     /\ chains' = chains
     /\ time' = time
     /\ slashedSet' = slashedSet
+    /\ everSlashed' = everSlashed
 
 \* Extend a chain with a new proof that references the previous step.
 \* This action models chain continuity: each new step submits a fresh
@@ -167,6 +171,7 @@ ExtendChain(cid, pr, m) ==
               /\ chains' = (chains \ {c}) \union {newChain}
     /\ time' = time
     /\ slashedSet' = slashedSet
+    /\ everSlashed' = everSlashed
 
 \* Open a fresh chain with a first step.
 OpenChain(pr, m) ==
@@ -190,6 +195,7 @@ OpenChain(pr, m) ==
           /\ chains' = chains \union {newChain}
     /\ time' = time
     /\ slashedSet' = slashedSet
+    /\ everSlashed' = everSlashed
 
 \* Human challenge inside the challenge window: mark the proof challenged.
 Challenge(pid) ==
@@ -203,6 +209,7 @@ Challenge(pid) ==
     /\ chains' = chains
     /\ time' = time
     /\ slashedSet' = slashedSet
+    /\ everSlashed' = everSlashed
 
 \* Slash the equivocator: whenever two distinct proofs from the same
 \* prover on the same model exist, that prover is added to slashedSet.
@@ -210,6 +217,7 @@ Slash ==
     /\ \E p \in proofs, q \in proofs : Equivocates(p, q)
        /\ p.prover \notin slashedSet
        /\ slashedSet' = slashedSet \union {p.prover}
+       /\ everSlashed' = everSlashed \union {p.prover}
     /\ proofs' = proofs
     /\ chains' = chains
     /\ time' = time
@@ -221,6 +229,7 @@ Tick ==
     /\ proofs' = proofs
     /\ chains' = chains
     /\ slashedSet' = slashedSet
+    /\ everSlashed' = everSlashed
 
 Next ==
     \/ \E pr \in Provers, m \in Models, v \in Verdicts, b \in BOOLEAN :
@@ -308,6 +317,17 @@ ProofIdUnique ==
 ChainIdUnique ==
     \A c, d \in chains : (c.id = d.id) => (c = d)
 
+\* Slashing is monotonic: once a prover is slashed, they stay slashed
+\* forever. `everSlashed` is a history variable that only grows (Slash is
+\* the only action that touches it, and it appends). If a future refactor
+\* ever introduced an Unslash / rehabilitation action, `slashedSet` could
+\* shrink but `everSlashed` couldn't — TLC would immediately produce a
+\* counter-example. This turns a previously-implicit monotonicity property
+\* (only enforced by "no action decreases slashedSet") into an explicit
+\* state predicate that any refactor must preserve.
+SlashedProversStayRevoked ==
+    slashedSet = everSlashed
+
 \* The main safety invariant TLC will check.
 SafetyInvariant ==
     /\ TypeOK
@@ -321,6 +341,7 @@ SafetyInvariant ==
     /\ RejectionBlocks
     /\ AbstainNeutrality
     /\ SlashedProversHaveEvidence
+    /\ SlashedProversStayRevoked
 
 ===============================================================================
 \* --- END ProofSystemSpec ------------------------------------------------- *\
